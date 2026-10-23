@@ -14,6 +14,8 @@ use Symfony\Component\HttpKernel\KernelInterface;
 
 final class CommandsTest extends KernelTestCase
 {
+    private const array LIBRE = ['machine_translation' => ['provider' => 'libretranslate', 'url' => 'http://libretranslate.test']];
+
     private string $directory = '';
 
     protected function setUp(): void
@@ -71,6 +73,50 @@ final class CommandsTest extends KernelTestCase
 
         self::assertSame(Command::SUCCESS, $check->execute([]));
         self::assertStringContainsString('No translation locale is configured', $check->getDisplay());
+    }
+
+    public function testTranslateNeedsAProviderAndATranslationLocale(): void
+    {
+        $translate = $this->tester('nowo:manual:translate');
+        self::assertSame(Command::FAILURE, $translate->execute(['locale' => 'es']));
+        self::assertStringContainsString('No machine translation provider', $translate->getDisplay());
+
+        $translate = $this->tester('nowo:manual:translate', self::LIBRE);
+        self::assertSame(Command::FAILURE, $translate->execute(['locale' => 'en']));
+        self::assertStringContainsString('"en" is not a translation locale', $translate->getDisplay());
+    }
+
+    public function testTranslateWritesMissingChaptersAndKeepsHandEditedOnes(): void
+    {
+        $translate = $this->tester('nowo:manual:translate', self::LIBRE);
+
+        self::assertSame(Command::SUCCESS, $translate->execute(['locale' => 'es', '--dry-run' => true]));
+        self::assertMatchesRegularExpression('/01-using\s+outdated\s+skipped: edited by a person/', $translate->getDisplay());
+        self::assertMatchesRegularExpression('/02-admin\s+missing\s+would translate \(\d+ characters\)/', $translate->getDisplay());
+        self::assertFileDoesNotExist($this->directory . '/es/02-admin.md');
+
+        self::assertSame(Command::SUCCESS, $translate->execute(['locale' => 'es']));
+        self::assertStringContainsString('1 chapter(s) machine-translated into es', $translate->getDisplay());
+        $written = (string) file_get_contents($this->directory . '/es/02-admin.md');
+        self::assertMatchesRegularExpression('/\A<!-- translation-of: [a-f0-9]{12} -->\n<!-- machine-translated -->\n# \[es\] /', $written);
+
+        // Up to date now; a second run has nothing to do.
+        self::assertSame(Command::SUCCESS, $translate->execute(['locale' => 'es', '--chapter' => ['02-admin']]));
+        self::assertStringContainsString('Every es chapter is up to date', $translate->getDisplay());
+
+        // --force replaces the hand-edited translation too.
+        self::assertSame(Command::SUCCESS, $translate->execute(['locale' => 'es', '--force' => true, '--chapter' => ['01-using', '02-admin']]));
+        self::assertStringContainsString('2 chapter(s) machine-translated into es', $translate->getDisplay());
+        self::assertStringContainsString('<!-- machine-translated -->', (string) file_get_contents($this->directory . '/es/01-using.md'));
+    }
+
+    public function testTranslateCreatesTheLocaleFolder(): void
+    {
+        new Filesystem()->remove($this->directory . '/es');
+        $translate = $this->tester('nowo:manual:translate', self::LIBRE);
+
+        self::assertSame(Command::SUCCESS, $translate->execute(['locale' => 'es', '--chapter' => ['README']]));
+        self::assertFileExists($this->directory . '/es/README.md');
     }
 
     /**

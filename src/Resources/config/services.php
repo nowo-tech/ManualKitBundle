@@ -6,10 +6,13 @@ use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Catalog\TranslationAudit;
 use Nowo\ManualKitBundle\Command\CheckTranslationsCommand;
 use Nowo\ManualKitBundle\Command\StampTranslationCommand;
+use Nowo\ManualKitBundle\Command\TranslateManualCommand;
 use Nowo\ManualKitBundle\Controller\ManualController;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Search\ManualSearchProvider;
 use Nowo\ManualKitBundle\Security\ManualAccess;
+use Nowo\ManualKitBundle\Translation\MarkdownTranslator;
+use Nowo\ManualKitBundle\Translation\UiGlossary;
 use Nowo\ManualKitBundle\Twig\ManualLinkExtension;
 use Nowo\SearchKitBundle\Contract\SearchProviderInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
@@ -51,6 +54,11 @@ return static function (ContainerConfigurator $container): void {
     $services->set(TranslationAudit::class);
     $services->set(CheckTranslationsCommand::class);
     $services->set(StampTranslationCommand::class);
+
+    // `$translator` (the provider) and the glossary arguments are set by NowoManualKitExtension.
+    $services->set(MarkdownTranslator::class)->arg('$translator', null);
+    $services->set(UiGlossary::class);
+    $services->set(TranslateManualCommand::class);
 
     if (interface_exists(SearchProviderInterface::class)) {
         $services->set(ManualSearchProvider::class);

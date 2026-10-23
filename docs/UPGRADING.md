@@ -5,11 +5,17 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.1.0 (2026-10-23)](#110-2026-10-23)
 - [1.0.1 (2026-10-23)](#101-2026-10-23)
 - [1.0.0 (2026-10-23)](#100-2026-10-23)
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## 1.1.0 (2026-10-23)
+
+No change needed. To use `nowo:manual:translate`, install `symfony/http-client` and set
+`nowo_manual_kit.machine_translation.provider` (see CONFIGURATION).
 
 ## 1.0.1 (2026-10-23)
 

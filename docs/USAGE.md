@@ -11,6 +11,7 @@
 - [Figures](#figures)
 - [Translations](#translations)
 - [Checking translations](#checking-translations)
+- [Machine translation](#machine-translation)
 - [Linking from the application](#linking-from-the-application)
 - [Templates](#templates)
 - [Styling](#styling)
@@ -160,6 +161,36 @@ php bin/console nowo:manual:check --strict   # exit 1 on outdated translations o
 ```
 
 Missing translations are listed but never fail the check: a new chapter can ship before its translations.
+
+## Machine translation
+
+`nowo:manual:translate` writes the missing and outdated chapters of a locale with a machine translation service
+and stamps them. Configure a provider ([CONFIGURATION](CONFIGURATION.md#machine_translation)):
+
+```yaml
+nowo_manual_kit:
+    machine_translation:
+        provider: deepl                     # or libretranslate (self-hosted, no account)
+        api_key: '%env(DEEPL_API_KEY)%'     # a DeepL API Free key ends in :fx
+        formality: less                     # informal "tú / du" where the language has it
+```
+
+```bash
+php bin/console nowo:manual:translate es --dry-run          # what would be sent, in characters
+php bin/console nowo:manual:translate es                    # missing + outdated chapters
+php bin/console nowo:manual:translate es --chapter=02-dashboard --force
+```
+
+- **Only prose is sent**, one text per paragraph, heading, list item or table cell. Fenced code, `<a id>` anchors,
+  HTML comments (audiences, tags), inline code, link and image targets, attributes, inline HTML and URLs stay as they
+  are; relative links get the `../` of the translation folder.
+- **UI labels follow the application.** A bold label (`**Settings**`, `**Administration → Users**`) that the
+  application's catalogues translate (`glossary_domains`, default `messages`) takes the label of the translated
+  interface instead of a free translation.
+- **People win.** A written file starts with `<!-- machine-translated -->`. Remove that line once someone has
+  reviewed the chapter: the command then leaves it alone (it reports it as edited by a person) and an outdated
+  reviewed chapter is updated by hand, unless you pass `--force`.
+- Costs stay small: an up-to-date chapter is never sent again; only a changed source re-sends its chapter.
 
 ## Linking from the application
 

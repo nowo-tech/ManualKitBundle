@@ -7,12 +7,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.1.0] - 2026-10-23](#110---2026-10-23)
+  - [Added](#added)
 - [[1.0.1] - 2026-10-23](#101---2026-10-23)
   - [Fixed](#fixed)
 - [[1.0.0] - 2026-10-23](#100---2026-10-23)
-  - [Added](#added)
+  - [Added](#added-1)
 
 ## [Unreleased]
+
+## [1.1.0] - 2026-10-23
+
+### Added
+
+- `nowo:manual:translate <locale>` (`--chapter`, `--force`, `--dry-run`): machine-translates the missing and outdated
+  chapters with DeepL (API Free or Pro) or a self-hosted LibreTranslate, then stamps them. Only prose is sent; code,
+  anchors, comments, link targets and HTML are kept, relative links get `../`, bold UI labels take the application's
+  own translations, and a reviewed file (without `<!-- machine-translated -->`) is never overwritten without
+  `--force`. Configuration `nowo_manual_kit.machine_translation` (off by default). See
+  [USAGE](USAGE.md#machine-translation).
 
 ## [1.0.1] - 2026-10-23
 

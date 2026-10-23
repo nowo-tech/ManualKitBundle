@@ -45,6 +45,7 @@
         "symfony/dependency-injection": "^7.4 || ^8.0",
         "symfony/framework-bundle": "^7.4 || ^8.0",
         "symfony/html-sanitizer": "^7.4 || ^8.0",
+        "symfony/http-client-contracts": "^3.5",
         "symfony/http-foundation": "^7.4 || ^8.0",
         "symfony/http-kernel": "^7.4 || ^8.0",
         "symfony/mime": "^7.4 || ^8.0",
@@ -69,6 +70,7 @@
         "rector/rector": "^2.0",
         "symfony/browser-kit": "^7.4 || ^8.0",
         "symfony/css-selector": "^7.4 || ^8.0",
+        "symfony/http-client": "^7.4 || ^8.0",
         "vincentlanglet/twig-cs-fixer": "^3.0",
         "nowo-tech/search-kit-bundle": "^1.1",
         "symfony/translation": "^7.4 || ^8.0",
@@ -76,6 +78,7 @@
     },
     "suggest": {
         "nowo-tech/search-kit-bundle": "^1.1 — a Manual group in the global header search (chapters and sections by title and tags)",
+        "symfony/http-client": "nowo:manual:translate with DeepL or LibreTranslate (machine translation of the chapters)",
         "symfony/ux-icons": "Render the manifest `icon` of each chapter in your own chapter template"
     },
     "autoload": {

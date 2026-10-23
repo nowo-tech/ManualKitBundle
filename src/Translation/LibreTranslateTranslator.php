@@ -1,0 +1,63 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Nowo\ManualKitBundle\Translation;
+
+use RuntimeException;
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+
+use function count;
+use function is_array;
+use function is_string;
+use function sprintf;
+
+/**
+ * LibreTranslate (`/translate`, HTML format) — self-hosted, no account: `docker run -p 5000:5000 libretranslate/libretranslate`.
+ *
+ * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
+ * @copyright 2026 Nowo.tech
+ */
+final readonly class LibreTranslateTranslator implements MachineTranslatorInterface
+{
+    /**
+     * @param array<string, string> $languages locale => LibreTranslate language code
+     */
+    public function __construct(
+        private HttpClientInterface $httpClient,
+        private string $url,
+        private string $apiKey = '',
+        private array $languages = [],
+    ) {
+    }
+
+    public function translate(array $texts, string $sourceLocale, string $targetLocale): array
+    {
+        if ($texts === []) {
+            return [];
+        }
+        $body = [
+            'q'      => $texts,
+            'source' => $this->languages[$sourceLocale] ?? $sourceLocale,
+            'target' => $this->languages[$targetLocale] ?? $targetLocale,
+            'format' => 'html',
+        ];
+        if ($this->apiKey !== '') {
+            $body['api_key'] = $this->apiKey;
+        }
+
+        $data         = $this->httpClient->request('POST', rtrim($this->url, '/') . '/translate', ['json' => $body])->toArray();
+        $translations = [];
+        foreach (is_array($data['translatedText'] ?? null) ? $data['translatedText'] : [] as $text) {
+            if (!is_string($text)) {
+                throw new RuntimeException('LibreTranslate returned a translation that is not a string.');
+            }
+            $translations[] = $text;
+        }
+        if (count($translations) !== count($texts)) {
+            throw new RuntimeException(sprintf('LibreTranslate returned %d translations for %d texts.', count($translations), count($texts)));
+        }
+
+        return $translations;
+    }
+}

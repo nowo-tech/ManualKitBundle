@@ -87,6 +87,10 @@ final class TestKernel extends Kernel
             'password_hashers' => ['Symfony\Component\Security\Core\User\InMemoryUser' => 'plaintext'],
             'firewalls'        => ['main' => ['lazy' => true, 'provider' => 'test_users', 'http_basic' => null]],
         ]);
+        if (isset($this->manualConfig['machine_translation'])) {
+            $container->services()->set('test.translation_responses', EchoTranslationResponses::class);
+            $container->extension('framework', ['http_client' => ['mock_response_factory' => 'test.translation_responses']]);
+        }
         $container->extension('twig', ['strict_variables' => true]);
         // The 404 / 401 the tests provoke stay out of the output.
         $container->services()->set('logger', NullLogger::class);
@@ -107,7 +111,7 @@ final class TestKernel extends Kernel
             public function process(ContainerBuilder $container): void
             {
                 foreach ($container->getDefinitions() as $id => $definition) {
-                    if (str_starts_with($id, 'Nowo\\ManualKitBundle\\')) {
+                    if (str_starts_with($id, 'Nowo\\ManualKitBundle\\') || str_starts_with($id, 'nowo_manual_kit.')) {
                         $definition->setPublic(true);
                     }
                 }

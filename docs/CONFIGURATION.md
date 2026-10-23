@@ -29,6 +29,7 @@ nowo_manual_kit:
 - [template](#template)
 - [layout](#layout)
 - [cache](#cache)
+- [machine_translation](#machine_translation)
 - [Container parameters](#container-parameters)
 
 ## directory
@@ -82,6 +83,19 @@ manual in your navigation.
 
 Cache pool service id for rendered chapters (default `cache.app`). Entries are keyed by chapter, locale, translation
 state, audience, file mtime and size, manifest mtime and router base URL, and expire after a day.
+
+## machine_translation
+
+`nowo:manual:translate` ([USAGE](USAGE.md#machine-translation)).
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `provider` | `none` | `none` (the command is off), `deepl` or `libretranslate`. Both need `symfony/http-client`. |
+| `api_key` | `''` | DeepL key (a key ending in `:fx` goes to api-free.deepl.com); optional LibreTranslate key. Use `%env()%`. |
+| `url` | `''` | LibreTranslate base URL (required for it, e.g. `http://libretranslate:5000`); DeepL endpoint override. |
+| `formality` | `default` | DeepL register: `default`, `less` or `more` (sent as `prefer_*`). |
+| `languages` | `{}` | Locale => provider language, e.g. `{pt: PT-BR}`. DeepL defaults: `en` → `EN-GB`, `pt` → `PT-PT`. |
+| `glossary_domains` | `[messages]` | Domains whose short UI labels replace bold labels in the chapters; `[]` disables it. |
 
 ## Container parameters
 
