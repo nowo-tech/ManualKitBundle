@@ -7,10 +7,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.0.1] - 2026-10-23](#101---2026-10-23)
+  - [Fixed](#fixed)
 - [[1.0.0] - 2026-10-23](#100---2026-10-23)
   - [Added](#added)
 
 ## [Unreleased]
+
+## [1.0.1] - 2026-10-23
+
+### Fixed
+
+- Docs: import the routes with `trailing_slash_on_root: false`, so the manual's home is `/manual` and not `/manual/`
+  (README, INSTALLATION, `Resources/config/routes.php`). Found while moving Symfony Beacon onto the bundle.
 
 ## [1.0.0] - 2026-10-23
 

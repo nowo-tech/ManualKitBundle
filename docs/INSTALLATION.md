@@ -51,6 +51,7 @@ The bundle defines four routes; import them under the prefix you want:
 nowo_manual_kit:
     resource: '@NowoManualKitBundle/Resources/config/routes.php'
     prefix: /manual
+    trailing_slash_on_root: false   # the home is /manual, not /manual/
 ```
 
 For a localised application, put the locale in the prefix — the request locale picks the translation:
@@ -61,7 +62,11 @@ nowo_manual_kit:
     prefix: '/{_locale}/manual'
     requirements:
         _locale: 'en|es|de'
+    trailing_slash_on_root: false
 ```
+
+The home route's path is empty, so without `trailing_slash_on_root: false` Symfony serves it at `/manual/` (with a
+trailing slash) instead of `/manual`.
 
 | Route | Path (after the prefix) | What |
 | --- | --- | --- |

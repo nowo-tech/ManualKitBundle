@@ -60,6 +60,7 @@ return [
 nowo_manual_kit:
     resource: '@NowoManualKitBundle/Resources/config/routes.php'
     prefix: /manual
+    trailing_slash_on_root: false   # the home is /manual, not /manual/
 ```
 
 2. Write the manual (the defaults read `docs/manual`):

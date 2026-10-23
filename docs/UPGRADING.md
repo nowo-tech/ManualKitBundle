@@ -5,10 +5,16 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.0.1 (2026-10-23)](#101-2026-10-23)
 - [1.0.0 (2026-10-23)](#100-2026-10-23)
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## 1.0.1 (2026-10-23)
+
+No code change. If you import the routes with a prefix, add `trailing_slash_on_root: false` to the import so the
+home is served at `/manual` rather than `/manual/` (see INSTALLATION).
 
 ## 1.0.0 (2026-10-23)
 

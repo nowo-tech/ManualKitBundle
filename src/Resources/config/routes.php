@@ -11,6 +11,7 @@ use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
  *     nowo_manual_kit:
  *         resource: '@NowoManualKitBundle/Resources/config/routes.php'
  *         prefix: /manual
+ *         trailing_slash_on_root: false
  */
 return static function (RoutingConfigurator $routes): void {
     $routes->import('../../Controller/', 'attribute');
