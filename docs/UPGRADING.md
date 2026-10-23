@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.3.0 (2026-10-23)](#130-2026-10-23)
 - [1.2.0 (2026-10-23)](#120-2026-10-23)
 - [1.1.0 (2026-10-23)](#110-2026-10-23)
 - [1.0.1 (2026-10-23)](#101-2026-10-23)
@@ -12,6 +13,13 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## 1.3.0 (2026-10-23)
+
+- A manifest problem no longer throws a `RuntimeException`: the chapter is left out and `ManualCatalog::problems()` /
+  `nowo:manual:check` report it. Code that caught the exception should read `problems()` instead.
+- Add `php bin/console nowo:manual:check --sources` to your CI and to the container start, so a missing source shows
+  up before your users miss a chapter.
 
 ## 1.2.0 (2026-10-23)
 

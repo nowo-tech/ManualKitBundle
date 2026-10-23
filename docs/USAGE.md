@@ -57,6 +57,7 @@ chapters:
 | `icon` | `tabler:book` | Icon name for custom templates (the default template renders none). |
 | `tags` | `[]` | Search keywords and synonyms, in any language. |
 | `file` | — | 1.2: serve another Markdown file of the docs root instead of `{slug}.md`, e.g. `../CHANGELOG.md` — see [External chapters](#external-chapters). |
+| `include` | — | 1.3: a glob (`../adr/*.md`) or a folder (`../ops/`) of the docs root: one chapter per Markdown file, slug from the file name, the row's other keys for all of them (no `slug`). |
 | `toc_depth` | `4` | 1.2: deepest heading level listed in "On this page" (2–4), e.g. `2` for a long CHANGELOG. |
 
 A slug that is not `[A-Za-z0-9-]+`, or a listed chapter without its file, throws when the manifest is read — a broken
@@ -118,6 +119,19 @@ chapters:
 - It is source-only: every locale reads the file as it is, with no "not translated" notice, and `nowo:manual:check`,
   `nowo:manual:stamp` and `nowo:manual:translate` skip it.
 
+`include` (1.3) does the same for every Markdown file of a glob or a folder, in file-name order:
+
+```yaml
+    - { include: '../adr/*.md', group: administration, audience: admin }   # docs/adr/0001-use-mysql.md → slug 0001-use-mysql
+    - { include: '../ops/' }                                              # every docs/ops/*.md
+```
+
+**Nothing the manifest lists can break the site (1.3).** A missing file, a `file` / `include` outside the docs root, a
+pattern that matches nothing, a bad or repeated slug: that chapter is left out and the catalogue records a *problem*
+(`ManualCatalog::problems()`). `nowo:manual:check` prints them; `--strict` and `--sources` fail on them. Run
+`php bin/console nowo:manual:check --sources` where the files must exist — in CI and when the production container
+starts — so a file your image does not ship (a `.dockerignore` rule) shows up before users miss the chapter.
+
 ## Audiences
 
 ```markdown
@@ -177,7 +191,8 @@ Chapter titles, the sidebar and the search follow the translation. Images are sh
 
 ```bash
 php bin/console nowo:manual:check            # table: locale, chapter, state, missing anchors
-php bin/console nowo:manual:check --strict   # exit 1 on outdated translations or missing anchors (CI)
+php bin/console nowo:manual:check --strict   # exit 1 on manifest problems, outdated translations or missing anchors (CI)
+php bin/console nowo:manual:check --sources  # exit 1 when a manifest source is missing (container start, deploy)
 ```
 
 Missing translations are listed but never fail the check: a new chapter can ship before its translations.

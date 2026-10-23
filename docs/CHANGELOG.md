@@ -7,17 +7,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
-- [[1.2.0] - 2026-10-23](#120---2026-10-23)
+- [[1.3.0] - 2026-10-23](#130---2026-10-23)
   - [Added](#added)
+  - [Changed](#changed)
+- [[1.2.0] - 2026-10-23](#120---2026-10-23)
+  - [Added](#added-1)
   - [Fixed](#fixed)
 - [[1.1.0] - 2026-10-23](#110---2026-10-23)
-  - [Added](#added-1)
+  - [Added](#added-2)
 - [[1.0.1] - 2026-10-23](#101---2026-10-23)
   - [Fixed](#fixed-1)
 - [[1.0.0] - 2026-10-23](#100---2026-10-23)
-  - [Added](#added-2)
+  - [Added](#added-3)
 
 ## [Unreleased]
+
+## [1.3.0] - 2026-10-23
+
+### Added
+
+- Manifest `include`: a glob (`../adr/*.md`) or a folder (`../ops/`) of the docs root, one chapter per Markdown file
+  (slug from the file name, title from its `# Heading`, the row's group / audience / icon / tags / toc_depth for all).
+- `nowo:manual:check --sources`: fails when a manifest source is missing (container start, deploy); `--strict` fails
+  on manifest problems too.
+
+### Changed
+
+- **A manifest entry that cannot be served no longer fails the page.** A missing file, a path outside the docs root,
+  a pattern that matches nothing, a bad or repeated slug, a missing or broken manifest: the chapter is left out and
+  `ManualCatalog::problems()` lists why (`nowo:manual:check` prints them). In Symfony Beacon v1.97.0 a manual file the
+  production image did not ship made every signed-in page answer 500.
 
 ## [1.2.0] - 2026-10-23
 

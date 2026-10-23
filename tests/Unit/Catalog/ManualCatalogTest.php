@@ -8,7 +8,6 @@ use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Model\TranslationState;
 use PHPUnit\Framework\TestCase;
-use RuntimeException;
 use Symfony\Component\Filesystem\Filesystem;
 
 final class ManualCatalogTest extends TestCase
@@ -97,20 +96,57 @@ final class ManualCatalogTest extends TestCase
         self::assertSame([], new ManualCatalog($this->directory)->all());
     }
 
-    public function testRejectsASlugThatCouldEscapeTheDirectory(): void
+    public function testABadSlugOrAMissingFileLeavesTheChapterOutAsAProblem(): void
     {
-        $this->write(["chapters:\n  - { slug: ../secret }\n"]);
+        $this->write(["chapters:\n  - { slug: ../secret }\n  - { slug: 01-gone }\n  - 7\n  - { slug: 02-ok }\n  - { slug: 02-ok }\n", '02-ok' => "# Ok\n"]);
+        $catalog = new ManualCatalog($this->directory);
 
-        $this->expectException(RuntimeException::class);
-        new ManualCatalog($this->directory)->all();
+        self::assertSame(['02-ok'], array_map(static fn (ManualChapter $chapter): string => $chapter->slug, $catalog->all()));
+        $problems = implode("\n", $catalog->problems());
+        self::assertStringContainsString('a chapter needs a slug', $problems);
+        self::assertStringContainsString('"01-gone", which has no Markdown file', $problems);
+        self::assertStringContainsString('chapter #2 is not a mapping', $problems);
+        self::assertStringContainsString('"02-ok" is listed twice', $problems);
     }
 
-    public function testRejectsAChapterWithoutItsFile(): void
+    public function testAMissingOrBrokenManifestIsAProblemNotAnError(): void
     {
-        $this->write(["chapters:\n  - { slug: 01-gone }\n"]);
+        self::assertSame([], new ManualCatalog($this->directory)->all());
+        self::assertStringContainsString('not found', new ManualCatalog($this->directory)->problems()[0]);
 
-        $this->expectExceptionMessage('"01-gone"');
-        new ManualCatalog($this->directory)->all();
+        $this->write(["chapters: [ { slug: x\n"]);
+        self::assertSame([], new ManualCatalog($this->directory)->all());
+        self::assertStringContainsString('cannot be parsed', new ManualCatalog($this->directory)->problems()[0]);
+    }
+
+    public function testIncludeServesEveryMarkdownFileOfAGlobOrAFolder(): void
+    {
+        $root = sys_get_temp_dir() . '/manual-include-' . bin2hex(random_bytes(4));
+        mkdir($root . '/docs/manual', recursive: true);
+        mkdir($root . '/docs/adr');
+        mkdir($root . '/docs/ops');
+        file_put_contents($root . '/docs/adr/0002 Second.md', "# Second ADR\n");
+        file_put_contents($root . '/docs/adr/0001-first.md', "# First ADR\n");
+        file_put_contents($root . '/docs/adr/notes.txt', 'x');
+        file_put_contents($root . '/docs/ops/RUN.md', "# Runbook\n");
+        file_put_contents($root . '/docs/manual/manifest.yaml', "chapters:\n  - { include: '../adr/*', group: administration, audience: admin }\n  - { include: '../ops/' }\n  - { include: '../none/*.md' }\n  - { include: '../../*.md' }\n");
+        file_put_contents($root . '/top.md', '# Outside');
+        try {
+            $catalog  = new ManualCatalog($root . '/docs/manual');
+            $chapters = $catalog->all('es');
+            self::assertSame(['0001-first', '0002-Second', 'RUN'], array_map(static fn (ManualChapter $chapter): string => $chapter->slug, $chapters));
+            self::assertSame(['First ADR', 'Second ADR', 'Runbook'], array_map(static fn (ManualChapter $chapter): string => $chapter->title, $chapters));
+            self::assertTrue($chapters[0]->adminOnly);
+            self::assertTrue($chapters[0]->external);
+            self::assertSame('adr', $chapters[0]->docsDir);
+            self::assertSame(TranslationState::Source, $chapters[0]->translation);
+            self::assertFalse($chapters[2]->adminOnly);
+            $problems = implode("\n", $catalog->problems());
+            self::assertStringContainsString('the include "../none/*.md" matches no Markdown file', $problems);
+            self::assertStringContainsString('the include "../../*.md" matches no Markdown file', $problems, 'outside the docs root');
+        } finally {
+            new Filesystem()->remove($root);
+        }
     }
 
     /**
@@ -132,12 +168,9 @@ final class ManualCatalogTest extends TestCase
         try {
             foreach (['../notes.txt', '../../outside.md', '../missing.md'] as $file) {
                 file_put_contents($root . '/docs/manual/manifest.yaml', "chapters:\n  - { slug: x, file: '" . $file . "' }\n");
-                try {
-                    new ManualCatalog($root . '/docs/manual')->all();
-                    self::fail($file . ' was accepted');
-                } catch (RuntimeException $e) {
-                    self::assertStringContainsString('must be a Markdown file inside', $e->getMessage(), $file);
-                }
+                $catalog = new ManualCatalog($root . '/docs/manual');
+                self::assertSame([], $catalog->all(), $file);
+                self::assertStringContainsString('must be an existing Markdown file inside', $catalog->problems()[0], $file);
             }
         } finally {
             new Filesystem()->remove($root);

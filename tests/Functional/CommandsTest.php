@@ -67,6 +67,32 @@ final class CommandsTest extends KernelTestCase
         self::assertStringContainsString('3 chapter translations checked', $check->getDisplay());
     }
 
+    public function testManifestProblemsAreReportedAndFailStrictAndSources(): void
+    {
+        file_put_contents($this->directory . '/manifest.yaml', (string) file_get_contents($this->directory . '/manifest.yaml') . "  - { slug: 09-gone }\n");
+        $check = $this->tester('nowo:manual:check');
+
+        self::assertSame(Command::SUCCESS, $check->execute([]), 'a plain check only reports');
+        self::assertStringContainsString('"09-gone", which has no Markdown file', $check->getDisplay());
+        self::assertSame(Command::FAILURE, $check->execute(['--sources' => true]));
+        self::assertSame(Command::FAILURE, $check->execute(['--strict' => true]));
+
+        $only = $this->tester('nowo:manual:check', ['locales' => ['en']]);
+        self::assertSame(Command::FAILURE, $only->execute(['--strict' => true]), 'no translation locale, still a manifest problem');
+    }
+
+    public function testSourcesPassWhenEveryFileExists(): void
+    {
+        file_put_contents($this->directory . '/es/01-using.md', "# Usar\n\n<a id=\"filters\"></a>\n\n## Filtrar\n");
+        $stamp = $this->tester('nowo:manual:stamp');
+        $stamp->execute(['locale' => 'es', 'chapter' => '01-using']);
+        $check = $this->tester('nowo:manual:check');
+
+        self::assertSame(Command::SUCCESS, $check->execute(['--sources' => true]));
+        self::assertStringContainsString('3 manual chapters, every source found', $check->getDisplay());
+        self::assertSame(Command::SUCCESS, $check->execute(['--strict' => true]));
+    }
+
     public function testCheckWithoutTranslationLocales(): void
     {
         $check = $this->tester('nowo:manual:check', ['locales' => ['en']]);

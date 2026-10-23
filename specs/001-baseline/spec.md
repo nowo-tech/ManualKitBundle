@@ -58,7 +58,8 @@ listed in "On this page", and translation commands skip it.
   `template`, `layout`, `cache`, `machine_translation.*`.
 - **FR-CFG-002** `NowoManualKitExtension`: container parameters, cache pool, machine-translation provider wiring.
 - **FR-CAT-001** `ManualCatalog`: manifest parsing, slugs, audiences, groups, tags, titles, locales, translation
-  states, neighbours, external files limited to the docs root (1.2).
+  states, neighbours, external files limited to the docs root (1.2), `include` globs / folders and manifest problems
+  instead of exceptions (1.3).
 - **FR-CAT-002** `TranslationAudit`: per-locale states, missing stable anchors, stamping (never external chapters).
 - **FR-CMD-001** `nowo:manual:check` (`--strict`), `nowo:manual:stamp`, `nowo:manual:translate` (`--chapter`,
   `--force`, `--dry-run`).
