@@ -1,0 +1,10 @@
+# The demo manual: docs/manual (English at the root, Spanish under docs/manual/es). The chapter template extends the
+# demo layout, so the manual sits inside the demo's navbar; links outside the manual open the published repository docs.
+nowo_manual_kit:
+    directory: '%kernel.project_dir%/docs/manual'
+    source_locale: en
+    locales: [en, es]
+    role: ROLE_USER
+    admin_role: ROLE_ADMIN
+    docs_url: 'https://github.com/nowo-tech/ManualKitBundle/blob/main/demo/symfony8/docs/'
+    layout: 'base.html.twig'

@@ -1,0 +1,396 @@
+/*
+ * NowoManualKitBundle — default styles of the chapter page. Every colour and radius is a custom property: set the
+ * --nowo-manual-* variables (or map them to your design tokens) instead of overriding the rules.
+ */
+:root {
+    --nowo-manual-ink: #1f2933;
+    --nowo-manual-mist: #f4f6f8;
+    --nowo-manual-sand: #d9dee3;
+    --nowo-manual-accent: #2f6f5e;
+    --nowo-manual-accent-deep: #22524a;
+    --nowo-manual-surface: #ffffff;
+    --nowo-manual-radius: 0.75rem;
+    --nowo-manual-radius-control: 0.5rem;
+    --nowo-manual-header-height: 0px;
+}
+
+.nowo-manual {
+    display: grid;
+    gap: 2rem;
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: 1.5rem 1rem;
+    color: var(--nowo-manual-ink);
+    font-family: system-ui, sans-serif;
+    line-height: 1.6;
+}
+
+@media (min-width: 1024px) {
+    .nowo-manual {
+        grid-template-columns: 15rem minmax(0, 1fr);
+    }
+
+    .nowo-manual__nav {
+        position: sticky;
+        top: calc(var(--nowo-manual-header-height) + 1rem);
+        align-self: start;
+    }
+}
+
+.nowo-manual__chapter {
+    min-width: 0;
+}
+
+.nowo-manual__group {
+    margin: 1rem 0 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    opacity: 0.7;
+}
+
+.nowo-manual__list,
+.nowo-manual__toc ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.nowo-manual__list a,
+.nowo-manual__toc a {
+    display: block;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--nowo-manual-radius-control);
+    color: inherit;
+    text-decoration: none;
+}
+
+.nowo-manual__list a:hover,
+.nowo-manual__toc a:hover {
+    background: var(--nowo-manual-mist);
+}
+
+.nowo-manual__list a[aria-current="page"] {
+    background: var(--nowo-manual-mist);
+    color: var(--nowo-manual-accent-deep);
+    font-weight: 600;
+}
+
+.nowo-manual__toc {
+    margin-bottom: 1.5rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--nowo-manual-sand);
+    border-radius: var(--nowo-manual-radius);
+}
+
+.nowo-manual__toc-item--3 a {
+    padding-left: 1.25rem;
+    font-size: 0.875rem;
+}
+
+.nowo-manual__notice {
+    margin: 0 0 1rem;
+    padding: 0.5rem 0.75rem;
+    border-left: 3px solid var(--nowo-manual-accent);
+    border-radius: var(--nowo-manual-radius-control);
+    background: var(--nowo-manual-mist);
+    font-size: 0.875rem;
+}
+
+.nowo-manual__pager {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 2.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--nowo-manual-sand);
+}
+
+.nowo-manual__pager a {
+    color: var(--nowo-manual-accent-deep);
+}
+
+.manual-prose {
+  min-width: 0;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--nowo-manual-ink);
+  overflow-wrap: anywhere;
+
+  > * + * {
+    margin-top: 0.9rem;
+  }
+
+  h2 {
+    margin-top: 2.25rem;
+    padding-top: 0.5rem;
+    font-size: 1.375rem;
+    font-weight: 650;
+    scroll-margin-top: calc(var(--nowo-manual-header-height, 3.5rem) + 1rem);
+  }
+
+  h3 {
+    margin-top: 1.75rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    scroll-margin-top: calc(var(--nowo-manual-header-height, 3.5rem) + 1rem);
+  }
+
+  h4 {
+    margin-top: 1.25rem;
+    font-weight: 600;
+    scroll-margin-top: calc(var(--nowo-manual-header-height, 3.5rem) + 1rem);
+  }
+
+  .manual-anchor {
+    margin-inline-start: 0.4rem;
+    color: color-mix(in srgb, var(--nowo-manual-ink) 35%, transparent);
+    text-decoration: none;
+    opacity: 0;
+  }
+
+  h2:hover .manual-anchor,
+  h3:hover .manual-anchor,
+  h4:hover .manual-anchor,
+  .manual-anchor:focus-visible {
+    opacity: 1;
+  }
+
+  a {
+    color: var(--nowo-manual-accent-deep);
+  }
+
+  ul,
+  ol {
+    padding-inline-start: 1.4rem;
+  }
+
+  ul {
+    list-style: disc;
+  }
+
+  ol {
+    list-style: decimal;
+  }
+
+  li + li {
+    margin-top: 0.3rem;
+  }
+
+  code {
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.25rem;
+    background: color-mix(in srgb, var(--nowo-manual-ink) 7%, transparent);
+    font-size: 0.85em;
+  }
+
+  pre {
+    padding: 0.85rem 1rem;
+    border-radius: var(--nowo-manual-radius-control, 0.375rem);
+    background: color-mix(in srgb, var(--nowo-manual-ink) 6%, transparent);
+    overflow-x: auto;
+
+    code {
+      padding: 0;
+      background: none;
+    }
+  }
+
+  kbd {
+    padding: 0.05rem 0.35rem;
+    border: 1px solid color-mix(in srgb, var(--nowo-manual-ink) 25%, transparent);
+    border-bottom-width: 2px;
+    border-radius: 0.25rem;
+    font-size: 0.8em;
+    font-family: inherit;
+  }
+
+  blockquote {
+    padding: 0.5rem 1rem;
+    border-inline-start: 3px solid var(--nowo-manual-accent);
+    background: color-mix(in srgb, var(--nowo-manual-accent) 7%, transparent);
+  }
+
+  table {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  th,
+  td {
+    padding: 0.45rem 0.7rem;
+    border: 1px solid color-mix(in srgb, var(--nowo-manual-sand) 85%, transparent);
+    text-align: start;
+    vertical-align: top;
+    /* Cells size to their words (the table scrolls), never letter by letter. */
+    overflow-wrap: break-word;
+  }
+
+  th {
+    background: color-mix(in srgb, var(--nowo-manual-mist) 55%, transparent);
+    font-weight: 600;
+  }
+
+  img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border: 1px solid color-mix(in srgb, var(--nowo-manual-sand) 85%, transparent);
+    border-radius: var(--nowo-manual-radius, 0.75rem);
+  }
+
+  /* `{.manual-img--small}` after an image in the Markdown (CommonMark attributes): half the column. */
+  .manual-img--small {
+    max-width: min(100%, 22rem);
+  }
+
+  .manual-figure {
+    margin: 1.25rem 0;
+
+    figcaption {
+      margin-top: 0.45rem;
+      font-size: 0.8125rem;
+      line-height: 1.45;
+      color: color-mix(in srgb, var(--nowo-manual-ink) 68%, transparent);
+    }
+  }
+
+  /* Phone screenshots (taller than wide) at the scale of the desktop ones, not stretched to the column. */
+  .manual-figure--portrait {
+    width: 15rem;
+    max-width: 100%;
+  }
+
+  .manual-zoom {
+    display: block;
+    max-width: 100%;
+    border-radius: var(--nowo-manual-radius, 0.75rem);
+    cursor: zoom-in;
+
+    &:focus-visible {
+      outline: 2px solid var(--nowo-manual-accent);
+      outline-offset: 3px;
+    }
+
+    img {
+      width: 100%;
+      transition: box-shadow 0.15s ease;
+    }
+
+    &:hover img {
+      box-shadow: 0 6px 24px color-mix(in srgb, var(--nowo-manual-ink) 18%, transparent);
+    }
+  }
+
+  /* Several images of one paragraph side by side (wrap on narrow screens). */
+  .manual-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 1rem;
+    margin: 1.25rem 0;
+
+    > .manual-figure {
+      margin: 0;
+    }
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid color-mix(in srgb, var(--nowo-manual-sand) 85%, transparent);
+  }
+}
+
+.manual-lightbox {
+  width: min(96vw, 1440px);
+  max-width: none;
+  max-height: 96vh;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+
+  &::backdrop {
+    background: color-mix(in srgb, #0b0f0d 82%, transparent);
+  }
+}
+
+.manual-lightbox__figure {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.manual-lightbox__image {
+  max-width: 100%;
+  max-height: calc(96vh - 4rem);
+  width: auto;
+  height: auto;
+  border-radius: var(--nowo-manual-radius, 0.75rem);
+  background: #fff;
+  box-shadow: 0 12px 48px rgb(0 0 0 / 45%);
+}
+
+.manual-lightbox__caption {
+  max-width: 60rem;
+  padding: 0 1rem;
+  text-align: center;
+  font-size: 0.875rem;
+  color: #f2f4f3;
+}
+
+.manual-lightbox__nav,
+.manual-lightbox__close {
+  position: fixed;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 0;
+  border-radius: 999px;
+  background: rgb(11 15 13 / 72%);
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 18%);
+  color: #fff;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: rgb(11 15 13 / 92%);
+  }
+
+  &[hidden] {
+    display: none;
+  }
+
+  svg {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+}
+
+.manual-lightbox__close {
+  top: 1rem;
+  right: 1rem;
+}
+
+.manual-lightbox__nav {
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.manual-lightbox__nav--previous {
+  left: 1rem;
+}
+
+.manual-lightbox__nav--next {
+  right: 1rem;
+}
+
+/* "Search the manual": opens the header search (search_open_controller), where the Manual group lists chapters. */

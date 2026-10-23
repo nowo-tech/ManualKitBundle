@@ -1,0 +1,143 @@
+{
+    "name": "nowo-tech/manual-kit-bundle",
+    "description": "In-app product manual for Symfony from your docs/manual Markdown: one source for GitHub and the app, translations per locale with stable anchors and stale-translation checks, admin-only chapters and blocks that fail closed, figures with a lightbox, search tags and an optional SearchKit provider.",
+    "type": "symfony-bundle",
+    "keywords": [
+        "symfony",
+        "symfony-bundle",
+        "bundle",
+        "manual",
+        "documentation",
+        "help",
+        "markdown",
+        "commonmark",
+        "i18n",
+        "translations",
+        "nowo",
+        "frankenphp"
+    ],
+    "homepage": "https://github.com/nowo-tech/ManualKitBundle",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Héctor Franco Aceituno",
+            "email": "hectorfranco@nowo.tech",
+            "homepage": "https://github.com/HecFranco",
+            "role": "Maintainer"
+        },
+        {
+            "name": "Nowo.tech",
+            "homepage": "https://nowo.tech"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/nowo-tech/ManualKitBundle/issues",
+        "source": "https://github.com/nowo-tech/ManualKitBundle",
+        "docs": "https://github.com/nowo-tech/ManualKitBundle/tree/main/docs",
+        "changelog": "https://github.com/nowo-tech/ManualKitBundle/blob/main/docs/CHANGELOG.md"
+    },
+    "require": {
+        "php": ">=8.4 <8.6",
+        "league/commonmark": "^2.6",
+        "symfony/cache-contracts": "^3.5",
+        "symfony/config": "^7.4 || ^8.0",
+        "symfony/console": "^7.4 || ^8.0",
+        "symfony/dependency-injection": "^7.4 || ^8.0",
+        "symfony/framework-bundle": "^7.4 || ^8.0",
+        "symfony/html-sanitizer": "^7.4 || ^8.0",
+        "symfony/http-foundation": "^7.4 || ^8.0",
+        "symfony/http-kernel": "^7.4 || ^8.0",
+        "symfony/mime": "^7.4 || ^8.0",
+        "symfony/routing": "^7.4 || ^8.0",
+        "symfony/security-core": "^7.4 || ^8.0",
+        "symfony/string": "^7.4 || ^8.0",
+        "symfony/translation-contracts": "^3.5",
+        "symfony/twig-bundle": "^7.4 || ^8.0",
+        "symfony/yaml": "^7.4 || ^8.0",
+        "twig/extra-bundle": "^3.12",
+        "twig/string-extra": "^3.12",
+        "twig/twig": "^3.12"
+    },
+    "require-dev": {
+        "friendsofphp/php-cs-fixer": "^3.64",
+        "igor-php/igor-php": "^0.9.7",
+        "nowo-tech/phpstan-frankenphp": "^1.1",
+        "phpstan/phpstan": "^2.1",
+        "phpstan/phpstan-phpunit": "^2.0",
+        "phpstan/phpstan-symfony": "^2.0",
+        "phpunit/phpunit": "^10.5 || ^11.5",
+        "rector/rector": "^2.0",
+        "symfony/browser-kit": "^7.4 || ^8.0",
+        "symfony/css-selector": "^7.4 || ^8.0",
+        "vincentlanglet/twig-cs-fixer": "^3.0",
+        "nowo-tech/search-kit-bundle": "^1.1",
+        "symfony/translation": "^7.4 || ^8.0",
+        "symfony/security-bundle": "^7.4 || ^8.0"
+    },
+    "suggest": {
+        "nowo-tech/search-kit-bundle": "^1.1 — a Manual group in the global header search (chapters and sections by title and tags)",
+        "symfony/ux-icons": "Render the manifest `icon` of each chapter in your own chapter template"
+    },
+    "autoload": {
+        "psr-4": {
+            "Nowo\\ManualKitBundle\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Nowo\\ManualKitBundle\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit --color=always",
+        "test-coverage": "phpunit --color=always --coverage-html coverage --coverage-clover coverage.xml --coverage-text",
+        "coverage-check": "phpunit --color=always --coverage-text --coverage-clover=coverage.xml",
+        "cs-check": "php-cs-fixer fix --dry-run --diff --config=.php-cs-fixer.dist.php",
+        "cs-fix": "php-cs-fixer fix --config=.php-cs-fixer.dist.php",
+        "rector": "rector process",
+        "rector-dry": "rector process --dry-run --no-progress-bar",
+        "phpstan": "phpstan analyse --memory-limit=1G",
+        "twig:lint": "twig-cs-fixer lint --config=.twig-cs-fixer.php",
+        "twig:fix": "twig-cs-fixer fix --config=.twig-cs-fixer.php",
+        "composer-validate": "composer validate --strict",
+        "qa": [
+            "@cs-check",
+            "@phpstan",
+            "@test"
+        ],
+        "igor": "igor-php --no-agent ."
+    },
+    "scripts-descriptions": {
+        "test": "Run PHPUnit tests",
+        "test-coverage": "Run PHPUnit tests with code coverage",
+        "coverage-check": "Run PHPUnit with coverage text (CI gate)",
+        "cs-check": "Check code style with PHP-CS-Fixer",
+        "cs-fix": "Fix code style with PHP-CS-Fixer",
+        "rector": "Apply Rector refactoring",
+        "rector-dry": "Run Rector in dry-run mode",
+        "phpstan": "Run PHPStan static analysis",
+        "twig:lint": "Lint Twig templates (Twig-CS-Fixer)",
+        "twig:fix": "Fix Twig templates (Twig-CS-Fixer)",
+        "composer-validate": "Validate composer.json (composer validate --strict)",
+        "qa": "Run all quality assurance checks",
+        "igor": "Run Igor FrankenPHP worker-state audit (REQ-CS-008)"
+    },
+    "archive": {
+        "exclude": [
+            "/demo",
+            "/.cursor"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "root-version": "1.0.0-dev"
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "extra": {
+        "nowo-package-version": "1.0.0",
+        "branch-alias": {
+            "dev-main": "1.0.x-dev"
+        }
+    }
+}

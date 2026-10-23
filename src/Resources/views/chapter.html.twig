@@ -1,0 +1,70 @@
+{% extends nowo_manual_layout() %}
+{% trans_default_domain 'NowoManualKitBundle' %}
+
+{#
+ # A chapter page. Variables: rendered (RenderedManualChapter: chapter, html, toc), chapters (the chapters the viewer
+ # may read, in the locale), previous, next. Override it in templates/bundles/NowoManualKitBundle/chapter.html.twig,
+ # or set `nowo_manual_kit.template` to one of the application's templates.
+ #}
+{% set chapter = rendered.chapter %}
+
+{% block title %}{{ chapter.isHome ? 'title'|trans : chapter.title }}{% endblock %}
+
+{% block stylesheets %}
+    {{ parent() }}
+    <link rel="stylesheet" href="{{ nowo_manual_asset('css/manual.css') }}">
+{% endblock %}
+
+{% block body %}
+{% set groups = [] %}
+{% for item in chapters %}{% if item.group not in groups %}{% set groups = groups|merge([item.group]) %}{% endif %}{% endfor %}
+<div class="nowo-manual" data-testid="manual">
+    <nav class="nowo-manual__nav" aria-label="{{ 'chapters'|trans }}" data-testid="manual-nav">
+        {% for group in groups %}
+            <p class="nowo-manual__group">{{ ('group.' ~ group)|trans }}</p>
+            <ul class="nowo-manual__list">
+                {% for item in chapters|filter(c => c.group == group) %}
+                    <li>
+                        <a href="{{ item.isHome ? path('nowo_manual_index') : path('nowo_manual_chapter', {chapter: item.slug}) }}"{% if item.slug == chapter.slug %} aria-current="page"{% endif %} data-testid="manual-nav-{{ item.slug }}">{{ item.isHome ? 'home'|trans : item.title }}</a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    </nav>
+
+    <article class="nowo-manual__chapter" data-testid="manual-chapter" data-chapter="{{ chapter.slug }}" data-controller="nowo-manual-lightbox" data-nowo-manual-lightbox-zoom-label-value="{{ 'zoom'|trans|e('html_attr') }}" data-action="click->nowo-manual-lightbox#zoom">
+        {% if chapter.translation.value in ['missing', 'outdated'] %}
+            <p class="nowo-manual__notice nowo-manual__notice--{{ chapter.translation.value }}" role="note" data-testid="manual-translation-notice">{{ ('notice.' ~ chapter.translation.value)|trans }}</p>
+        {% endif %}
+        <h1>{{ chapter.title }}</h1>
+        {% if rendered.toc is not empty %}
+            <nav class="nowo-manual__toc" aria-label="{{ 'on_this_page'|trans }}" data-testid="manual-toc">
+                <p class="nowo-manual__group">{{ 'on_this_page'|trans }}</p>
+                <ul>
+                    {% for entry in rendered.toc|filter(e => e.level < 4) %}
+                        <li class="nowo-manual__toc-item--{{ entry.level }}"><a href="#{{ entry.id }}">{{ entry.text }}</a></li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        {% endif %}
+        <div class="manual-prose">{{ rendered.html|raw }}</div>
+        <dialog class="manual-lightbox" aria-label="{{ 'zoom'|trans }}" data-nowo-manual-lightbox-target="dialog" data-action="click->nowo-manual-lightbox#backdrop keydown->nowo-manual-lightbox#keydown" data-testid="manual-lightbox">
+            <figure class="manual-lightbox__figure">
+                <img class="manual-lightbox__image" alt="" data-nowo-manual-lightbox-target="image">
+                <figcaption class="manual-lightbox__caption" data-nowo-manual-lightbox-target="caption" hidden></figcaption>
+            </figure>
+            <button type="button" class="manual-lightbox__nav manual-lightbox__nav--previous" data-nowo-manual-lightbox-target="previous" data-action="nowo-manual-lightbox#previous" aria-label="{{ 'lightbox.previous'|trans }}">‹</button>
+            <button type="button" class="manual-lightbox__nav manual-lightbox__nav--next" data-nowo-manual-lightbox-target="next" data-action="nowo-manual-lightbox#next" aria-label="{{ 'lightbox.next'|trans }}">›</button>
+            <button type="button" class="manual-lightbox__close" data-action="nowo-manual-lightbox#close" aria-label="{{ 'lightbox.close'|trans }}" data-testid="manual-lightbox-close">×</button>
+        </dialog>
+        <nav class="nowo-manual__pager" aria-label="{{ 'pager'|trans }}">
+            {% if previous %}
+                <a href="{{ previous.isHome ? path('nowo_manual_index') : path('nowo_manual_chapter', {chapter: previous.slug}) }}" rel="prev" data-testid="manual-previous">← {{ previous.isHome ? 'home'|trans : previous.title }}</a>
+            {% else %}<span></span>{% endif %}
+            {% if next %}
+                <a href="{{ path('nowo_manual_chapter', {chapter: next.slug}) }}" rel="next" data-testid="manual-next">{{ next.title }} →</a>
+            {% endif %}
+        </nav>
+    </article>
+</div>
+{% endblock %}

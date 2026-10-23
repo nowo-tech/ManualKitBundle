@@ -1,0 +1,30 @@
+demo:
+  title: 'Manual Kit Bundle'
+  brand: 'Manual Kit'
+  heading: 'Manual Kit Bundle'
+  lead: 'Un manual de producto dentro de la aplicación Symfony a partir del Markdown de docs/manual — los mismos ficheros que muestra GitHub, traducidos por idioma.'
+  language: Idioma
+  manual: Manual
+  logout: 'Cerrar sesión'
+  features:
+    title: 'Qué puedes probar'
+    source: 'Una sola fuente: docs/manual/*.md se ve en GitHub y en la aplicación, con enlaces entre capítulos dentro de la app'
+    locales: 'Cambia a English y vuelve: capítulos traducidos, un aviso de traducción desactualizada y otro de capítulo sin traducir'
+    anchors: 'Anclas estables: la aplicación enlaza a #first-steps en todos los idiomas'
+    audience: 'Entra como admin para leer el capítulo de Administración y los bloques solo para administradores (404 para demo)'
+    figures: 'Pulsa una figura para ampliarla (visor con anterior / siguiente)'
+    check: 'bin/console nowo:manual:check lista las traducciones que faltan o están desactualizadas'
+    theming: 'Plantillas sobrescribibles y propiedades CSS --nowo-manual-*'
+  try:
+    title: 'Pruébalo'
+    guest: 'Entra como demo / demo (miembro) o admin / admin (administrador).'
+    signed_in: 'Abre el manual o sigue un enlace a un ancla estable:'
+    open: 'Abrir el manual'
+    anchor: 'Primeros pasos (manual_href)'
+  login:
+    nav: 'Iniciar sesión'
+    hint: 'Cuentas demo / demo (miembro) y admin / admin (administrador).'
+    username: Usuario
+    password: Contraseña
+    submit: 'Entrar'
+    signed_in: 'Sesión iniciada como %user%.'

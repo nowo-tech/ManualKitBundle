@@ -1,0 +1,30 @@
+demo:
+  title: 'Manual Kit Bundle'
+  brand: 'Manual Kit'
+  heading: 'Manual Kit Bundle'
+  lead: 'An in-app product manual for Symfony from your docs/manual Markdown — the same files GitHub shows, translated per locale.'
+  language: Language
+  manual: Manual
+  logout: 'Sign out'
+  features:
+    title: 'What you can try'
+    source: 'One source: docs/manual/*.md renders on GitHub and in the app, with in-app links between chapters'
+    locales: 'Switch to Español: translated chapters, an "outdated" notice and a "not translated yet" notice'
+    anchors: 'Stable anchors: the app links to #first-steps in every language'
+    audience: 'Sign in as admin to read the Administration chapter and the admin-only blocks (404 for demo)'
+    figures: 'Click a figure to zoom it (lightbox with previous / next)'
+    check: 'bin/console nowo:manual:check lists missing and outdated translations'
+    theming: 'Overridable templates and --nowo-manual-* CSS custom properties'
+  try:
+    title: 'Try it'
+    guest: 'Sign in as demo / demo (member) or admin / admin (administrator).'
+    signed_in: 'Open the manual or follow a link to a stable anchor:'
+    open: 'Open the manual'
+    anchor: 'First steps (manual_href)'
+  login:
+    nav: 'Sign in'
+    hint: 'Accounts demo / demo (member) and admin / admin (administrator).'
+    username: Username
+    password: Password
+    submit: 'Sign in'
+    signed_in: 'Signed in as %user%.'

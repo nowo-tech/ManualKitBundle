@@ -1,0 +1,6 @@
+# The demo manual: chapters in reading order. `group` sorts them in the sidebar, `audience: admin` hides a chapter from
+# members (404), `tags` are search synonyms (any language).
+chapters:
+  - { slug: README, icon: 'tabler:home' }
+  - { slug: 01-getting-started, group: using, tags: [start, begin, inicio, empezar] }
+  - { slug: 02-admin, group: administration, audience: admin, tags: [users, usuarios] }

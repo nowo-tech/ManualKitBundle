@@ -1,0 +1,21 @@
+# NowoManualKitBundle — nl. Override any key in translations/NowoManualKitBundle.nl.yaml of your application;
+# add group.<key> for every manifest group you use.
+title: Handleiding
+home: Start van de handleiding
+chapters: Hoofdstukken
+on_this_page: Op deze pagina
+pager: Vorig en volgend hoofdstuk
+zoom: Afbeelding vergroten
+lightbox:
+  previous: Vorige afbeelding
+  next: Volgende afbeelding
+  close: Sluiten
+group:
+  using: De applicatie gebruiken
+  project: Projecten
+  administration: Beheer
+notice:
+  missing: Dit hoofdstuk is nog niet in jouw taal vertaald; je leest het origineel.
+  outdated: Deze vertaling is ouder dan het oorspronkelijke hoofdstuk; sommige delen kunnen verouderd zijn.
+search:
+  group: Handleiding

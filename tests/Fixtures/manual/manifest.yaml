@@ -1,0 +1,4 @@
+chapters:
+  - { slug: README, icon: 'tabler:home' }
+  - { slug: 01-using, group: using, tags: [start, inicio] }
+  - { slug: 02-admin, group: administration, audience: admin }

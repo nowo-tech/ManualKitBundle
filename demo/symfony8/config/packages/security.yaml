@@ -1,0 +1,30 @@
+security:
+    password_hashers:
+        # Demo only: plain-text passwords for the in-memory accounts.
+        Symfony\Component\Security\Core\User\InMemoryUser: plaintext
+    providers:
+        demo_users:
+            memory:
+                users:
+                    demo: { password: demo, roles: [ROLE_USER] }
+                    admin: { password: admin, roles: [ROLE_ADMIN] }
+    role_hierarchy:
+        ROLE_ADMIN: [ROLE_USER]
+    firewalls:
+        dev:
+            pattern: ^/(_(profiler|wdt)|css|images|js|bundles|build)/
+            security: false
+        main:
+            lazy: true
+            provider: demo_users
+            # The manual answers 401/403 for guests; form_login turns that into the sign-in page.
+            form_login:
+                login_path: demo_login
+                check_path: demo_login
+                enable_csrf: true
+                default_target_path: /en
+            logout:
+                path: demo_logout
+                target: /en
+    access_control:
+        - { path: ^/, roles: PUBLIC_ACCESS }

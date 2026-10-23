@@ -1,0 +1,21 @@
+# NowoManualKitBundle — es. Override any key in translations/NowoManualKitBundle.es.yaml of your application;
+# add group.<key> for every manifest group you use.
+title: Manual
+home: Inicio del manual
+chapters: Capítulos
+on_this_page: En esta página
+pager: Capítulo anterior y siguiente
+zoom: Ampliar imagen
+lightbox:
+  previous: Imagen anterior
+  next: Imagen siguiente
+  close: Cerrar
+group:
+  using: Usar la aplicación
+  project: Proyectos
+  administration: Administración
+notice:
+  missing: Este capítulo aún no está traducido a tu idioma; estás leyendo el original.
+  outdated: Esta traducción es anterior al capítulo original; algunas partes pueden estar desactualizadas.
+search:
+  group: Manual

@@ -1,0 +1,7 @@
+# The manual in the visitor's language: /en/manual, /es/manual/01-getting-started, …
+nowo_manual_kit:
+    resource: '@NowoManualKitBundle/Resources/config/routes.php'
+    prefix: '/{_locale}/manual'
+    requirements:
+        _locale: 'en|es'
+    trailing_slash_on_root: false

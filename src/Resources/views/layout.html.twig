@@ -1,0 +1,14 @@
+{# Minimal page for the manual. Point `nowo_manual_kit.layout` at the application's layout (blocks: title,
+   stylesheets, body) to frame the manual inside it. #}
+<!DOCTYPE html>
+<html lang="{{ app.request.locale|default('en') }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}{{ 'title'|trans({}, 'NowoManualKitBundle') }}{% endblock %}</title>
+    {% block stylesheets %}{% endblock %}
+</head>
+<body>
+{% block body %}{% endblock %}
+</body>
+</html>

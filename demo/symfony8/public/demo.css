@@ -1,0 +1,11 @@
+/* Demo host styles. The manual reads its colours from --nowo-manual-* (bundle manual.css); the demo maps them here. */
+:root {
+    --demo-primary: #0f766e;
+    --nowo-manual-accent: #0f766e;
+    --nowo-manual-accent-deep: #115e59;
+    --nowo-manual-mist: #f5efe4;
+    --nowo-manual-sand: #e8dfd0;
+    --nowo-manual-ink: #1c2a27;
+}
+body { background: #fffdf8; color: #1c2a27; }
+.demo-navbar { background: var(--demo-primary); }
