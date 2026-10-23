@@ -5,12 +5,18 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [1.2.0 (2026-10-23)](#120-2026-10-23)
 - [1.1.0 (2026-10-23)](#110-2026-10-23)
 - [1.0.1 (2026-10-23)](#101-2026-10-23)
 - [1.0.0 (2026-10-23)](#100-2026-10-23)
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## 1.2.0 (2026-10-23)
+
+No change needed. To serve another Markdown file of your docs (e.g. the CHANGELOG), add a manifest row with `file`
+(USAGE, *External chapters*).
 
 ## 1.1.0 (2026-10-23)
 

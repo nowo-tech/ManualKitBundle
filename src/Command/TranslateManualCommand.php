@@ -73,7 +73,7 @@ final readonly class TranslateManualCommand
         $rows   = [];
         $done   = 0;
         foreach ($this->catalog->all($locale) as $found) {
-            if ($chapter !== [] && !in_array($found->slug, $chapter, true)) {
+            if ($found->external || ($chapter !== [] && !in_array($found->slug, $chapter, true))) {
                 continue;
             }
             $path     = $this->catalog->translationPath($found->slug, $locale);

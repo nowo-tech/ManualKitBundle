@@ -9,11 +9,24 @@ use Nowo\ManualKitBundle\Model\TranslationState;
 use RuntimeException;
 use Symfony\Component\Yaml\Yaml;
 
+use function basename;
+use function dirname;
 use function in_array;
 use function is_array;
 use function is_file;
+use function is_int;
 use function is_string;
+use function max;
+use function min;
+use function realpath;
 use function sprintf;
+use function str_ends_with;
+use function str_starts_with;
+use function strlen;
+use function substr;
+use function trim;
+
+use const DIRECTORY_SEPARATOR;
 
 /**
  * The chapters of `{directory}/manifest.yaml` in order, with their audience, resolved for a locale.
@@ -74,11 +87,11 @@ final readonly class ManualCatalog
             if (!is_array($row) || !is_string($row['slug'] ?? null) || preg_match('/^[A-Za-z0-9-]+$/', $row['slug']) !== 1) {
                 throw new RuntimeException(sprintf('%s: every chapter needs a slug made of letters, digits and dashes.', self::MANIFEST));
             }
-            $source = $this->sourcePath($row['slug']);
-            if (!is_file($source)) {
+            $external = is_string($row['file'] ?? null) ? $this->externalFile($row['slug'], $row['file']) : null;
+            if ($external === null && !is_file($this->sourcePath($row['slug']))) {
                 throw new RuntimeException(sprintf('%s lists "%s", which has no Markdown file.', self::MANIFEST, $row['slug']));
             }
-            [$path, $served, $state] = $this->resolve($row['slug'], $locale);
+            [$path, $served, $state] = $external === null ? $this->resolve($row['slug'], $locale) : [$external, $this->sourceLocale, TranslationState::Source];
             $chapters[]              = new ManualChapter(
                 $row['slug'],
                 is_string($row['group'] ?? null) ? $row['group'] : 'using',
@@ -89,6 +102,9 @@ final readonly class ManualCatalog
                 is_array($row['tags'] ?? null) ? array_values(array_filter(array_map(strval(...), $row['tags']), static fn (string $tag): bool => trim($tag) !== '')) : [],
                 $served,
                 $state,
+                $external !== null,
+                $external === null ? basename($this->directory) : $this->docsDir($external),
+                is_int($row['toc_depth'] ?? null) ? max(2, min(4, $row['toc_depth'])) : 4,
             );
         }
 
@@ -173,6 +189,29 @@ final readonly class ManualCatalog
             $locale,
             $marker === self::sourceHash((string) file_get_contents($source)) ? TranslationState::Translated : TranslationState::Outdated,
         ];
+    }
+
+    /**
+     * 1.2: a manifest `file` (relative to the manual folder, e.g. `../CHANGELOG.md`) must be a Markdown file inside the
+     * docs root — the folder that holds the manual — so the manifest cannot publish anything else.
+     */
+    private function externalFile(string $slug, string $file): string
+    {
+        $root = realpath(dirname($this->directory));
+        $path = realpath($this->directory . '/' . $file);
+        if ($root === false || $path === false || !str_starts_with($path, $root . DIRECTORY_SEPARATOR) || !str_ends_with($path, '.md') || !is_file($path)) {
+            throw new RuntimeException(sprintf('%s: the file of "%s" must be a Markdown file inside %s.', self::MANIFEST, $slug, dirname($this->directory)));
+        }
+
+        return $path;
+    }
+
+    /** The folder of `$path` relative to the docs root (`` for a file at the root). */
+    private function docsDir(string $path): string
+    {
+        $root = (string) realpath(dirname($this->directory));
+
+        return trim(substr(dirname($path), strlen($root)), DIRECTORY_SEPARATOR);
     }
 
     private function title(string $path, string $fallback): string

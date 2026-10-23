@@ -38,6 +38,9 @@ final readonly class TranslationAudit
                 continue;
             }
             foreach ($this->catalog->all($locale) as $chapter) {
+                if ($chapter->external) {
+                    continue;
+                }
                 $missing = [];
                 if ($chapter->translation !== TranslationState::Missing) {
                     $missing = array_values(array_diff(
@@ -60,7 +63,8 @@ final readonly class TranslationAudit
      */
     public function stamp(string $slug, string $locale): bool
     {
-        if (!$this->catalog->translates($locale) || !$this->catalog->find($slug) instanceof ManualChapter) {
+        $chapter = $this->catalog->find($slug);
+        if (!$this->catalog->translates($locale) || !$chapter instanceof ManualChapter || $chapter->external) {
             return false;
         }
         $path = $this->catalog->translationPath($slug, $locale);

@@ -122,4 +122,25 @@ final class ManualCatalogTest extends TestCase
             file_put_contents($this->directory . '/' . ($name === 0 ? ManualCatalog::MANIFEST : $name . '.md'), $content);
         }
     }
+
+    public function testAnExternalFileMustBeMarkdownInsideTheDocsRoot(): void
+    {
+        $root = sys_get_temp_dir() . '/manual-external-' . bin2hex(random_bytes(4));
+        mkdir($root . '/docs/manual', recursive: true);
+        file_put_contents($root . '/docs/notes.txt', 'x');
+        file_put_contents($root . '/outside.md', '# Outside');
+        try {
+            foreach (['../notes.txt', '../../outside.md', '../missing.md'] as $file) {
+                file_put_contents($root . '/docs/manual/manifest.yaml', "chapters:\n  - { slug: x, file: '" . $file . "' }\n");
+                try {
+                    new ManualCatalog($root . '/docs/manual')->all();
+                    self::fail($file . ' was accepted');
+                } catch (RuntimeException $e) {
+                    self::assertStringContainsString('must be a Markdown file inside', $e->getMessage(), $file);
+                }
+            }
+        } finally {
+            new Filesystem()->remove($root);
+        }
+    }
 }

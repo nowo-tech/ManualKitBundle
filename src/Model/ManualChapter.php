@@ -17,6 +17,10 @@ final readonly class ManualChapter
 
     /**
      * @param list<string> $tags search keywords and synonyms (manifest `tags`), in any locale
+     * @param bool $external 1.2: a Markdown file outside the manual folder (manifest `file`), never translated
+     * @param string $docsDir 1.2: the folder of the file, relative to the docs root (`manual`, or `` for
+     *                        docs/CHANGELOG.md): where its relative links to other docs start
+     * @param int $tocDepth 1.2: deepest heading level listed in "On this page" (manifest `toc_depth`)
      */
     public function __construct(
         public string $slug,
@@ -28,6 +32,9 @@ final readonly class ManualChapter
         public array $tags = [],
         public string $locale = 'en',
         public TranslationState $translation = TranslationState::Source,
+        public bool $external = false,
+        public string $docsDir = 'manual',
+        public int $tocDepth = 4,
     ) {
     }
 

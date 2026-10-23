@@ -143,8 +143,8 @@ final readonly class ManualRenderer
         $environment->addExtension(new GithubFlavoredMarkdownExtension());
         $environment->addExtension(new HeadingPermalinkExtension());
         $environment->addExtension(new AttributesExtension());
-        $environment->addEventListener(DocumentParsedEvent::class, function (DocumentParsedEvent $event) use ($visible): void {
-            $this->rewrite($event, $visible);
+        $environment->addEventListener(DocumentParsedEvent::class, function (DocumentParsedEvent $event) use ($visible, $chapter): void {
+            $this->rewrite($event, $visible, $chapter->docsDir);
         }, -10);
 
         $markdown = self::audienceFiltered((string) file_get_contents($chapter->path), $admin);
@@ -152,13 +152,13 @@ final readonly class ManualRenderer
         $markdown = (string) preg_replace('/\A(?:\s*<!--[^\n]*-->\s*\n)*# [^\n]*\n/', '', $markdown);
         $html     = $this->document($this->sanitizer()->sanitize((string) new MarkdownConverter($environment)->convert($markdown)));
 
-        return new RenderedManualChapter($chapter, $html, $this->toc($html, $this->sectionTags($markdown)));
+        return new RenderedManualChapter($chapter, $html, $this->toc($html, $this->sectionTags($markdown), $chapter->tocDepth));
     }
 
     /**
      * @param array<string, bool> $visible chapter slug => readable by this viewer
      */
-    private function rewrite(DocumentParsedEvent $event, array $visible): void
+    private function rewrite(DocumentParsedEvent $event, array $visible, string $docsDir): void
     {
         // Collected first: unlinking detaches nodes, which would break a live walk.
         foreach (iterator_to_array($event->getDocument()->iterator(), false) as $node) {
@@ -168,7 +168,7 @@ final readonly class ManualRenderer
                 continue;
             }
             if ($node instanceof Link) {
-                $this->link($node, $visible);
+                $this->link($node, $visible, $docsDir);
             }
         }
     }
@@ -178,7 +178,8 @@ final readonly class ManualRenderer
         $file = $this->imageFile($node->getUrl());
         if ($file !== null) {
             $node->setUrl($this->urls->generate('nowo_manual_image', ['file' => $file]));
-            $size = @getimagesize($this->catalog->directory() . '/images/' . $file);
+            // A vector image has no intrinsic size to reserve (PHP 8.5 getimagesize() reads SVG too).
+            $size = str_ends_with(strtolower($file), '.svg') ? false : @getimagesize($this->catalog->directory() . '/images/' . $file);
             if (is_array($size)) {
                 $node->data->set('attributes/width', (string) $size[0]);
                 $node->data->set('attributes/height', (string) $size[1]);
@@ -194,7 +195,7 @@ final readonly class ManualRenderer
     /**
      * @param array<string, bool> $visible
      */
-    private function link(Link $node, array $visible): void
+    private function link(Link $node, array $visible, string $docsDir = 'manual'): void
     {
         $url = $node->getUrl();
         if ($url === '' || str_starts_with($url, '#')) {
@@ -208,9 +209,18 @@ final readonly class ManualRenderer
         }
         [$path, $fragment] = array_pad(explode('#', $url, 2), 2, null);
         $fragment          = $fragment === null || $fragment === '' ? '' : '#' . $fragment;
-        // `02-dashboard.md`, `./02-dashboard.md` or, from a translation folder, `../02-dashboard.md`.
-        if (preg_match('#^(?:\./|\.\./)?([A-Za-z0-9-]+)\.md$#', (string) $path, $match) === 1 && array_key_exists($match[1], $visible)) {
-            if (!$visible[$match[1]]) {
+        // Where the link points, from the docs root (1.2: an external chapter's links start from its own folder).
+        $target = $this->normalise(($docsDir === '' ? '' : $docsDir . '/') . $path);
+        // `02-dashboard.md`, `./02-dashboard.md` or, from a translation folder, `../02-dashboard.md`; from an external
+        // chapter, the manual file's path (`manual/02-dashboard.md`).
+        $slug = null;
+        if (preg_match('#^(?:\./|\.\./)?([A-Za-z0-9-]+)\.md$#', (string) $path, $match) === 1 && $docsDir === basename($this->catalog->directory())) {
+            $slug = $match[1];
+        } elseif (preg_match('#^' . preg_quote(basename($this->catalog->directory()), '#') . '/([A-Za-z0-9-]+)\.md$#', $target, $match) === 1) {
+            $slug = $match[1];
+        }
+        if ($slug !== null && array_key_exists($slug, $visible)) {
+            if (!$visible[$slug]) {
                 // A link to an admin chapter reads as plain text for members.
                 foreach ($node->children() as $child) {
                     $node->insertBefore($child);
@@ -219,14 +229,14 @@ final readonly class ManualRenderer
 
                 return;
             }
-            $node->setUrl(($match[1] === ManualChapter::HOME
+            $node->setUrl(($slug === ManualChapter::HOME
                 ? $this->urls->generate('nowo_manual_index')
-                : $this->urls->generate('nowo_manual_chapter', ['chapter' => $match[1]])) . $fragment);
+                : $this->urls->generate('nowo_manual_chapter', ['chapter' => $slug])) . $fragment);
 
             return;
         }
         // Anything else in the repository (../PRODUCTION.md, a manual file not served): the published copy.
-        $node->setUrl($this->docsUrl . $this->normalise('manual/' . $path) . $fragment);
+        $node->setUrl($this->docsUrl . $target . $fragment);
         $node->data->set('attributes/target', '_blank');
         $node->data->set('attributes/rel', 'noopener noreferrer');
     }
@@ -349,11 +359,14 @@ final readonly class ManualRenderer
      *
      * @return list<array{level: int, id: string, text: string, tags: list<string>}>
      */
-    private function toc(string $html, array $sectionTags): array
+    private function toc(string $html, array $sectionTags, int $depth = 4): array
     {
         preg_match_all('#<h([234])\b[^>]*\bid="([^"]+)"[^>]*>(.*?)</h\1>#s', $html, $matches, PREG_SET_ORDER);
         $toc = [];
         foreach ($matches as [, $level, $id, $inner]) {
+            if ((int) $level > $depth) {
+                continue;
+            }
             $text  = trim(html_entity_decode(strip_tags((string) preg_replace('#<a\b[^>]*class="manual-anchor"[^>]*>.*?</a>#s', '', $inner)), ENT_QUOTES | ENT_HTML5));
             $toc[] = ['level' => (int) $level, 'id' => $id, 'text' => $text, 'tags' => $sectionTags[ManualSearchText::fold($text)] ?? []];
         }

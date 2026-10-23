@@ -7,6 +7,7 @@
 - [Chapters](#chapters)
 - [Links](#links)
 - [Stable anchors](#stable-anchors)
+- [External chapters](#external-chapters)
 - [Audiences](#audiences)
 - [Figures](#figures)
 - [Translations](#translations)
@@ -55,6 +56,8 @@ chapters:
 | `audience` | `member` | `admin`: only `admin_role` may read the chapter. |
 | `icon` | `tabler:book` | Icon name for custom templates (the default template renders none). |
 | `tags` | `[]` | Search keywords and synonyms, in any language. |
+| `file` | — | 1.2: serve another Markdown file of the docs root instead of `{slug}.md`, e.g. `../CHANGELOG.md` — see [External chapters](#external-chapters). |
+| `toc_depth` | `4` | 1.2: deepest heading level listed in "On this page" (2–4), e.g. `2` for a long CHANGELOG. |
 
 A slug that is not `[A-Za-z0-9-]+`, or a listed chapter without its file, throws when the manifest is read — a broken
 manual fails loudly in tests instead of serving a partial one.
@@ -97,6 +100,23 @@ GitHub derives a heading id from its text, so a translated heading gets another 
 
 The heading then carries `id="filters"` in every language, in the app and on GitHub. Keep the same `<a id>` in each
 translation; `nowo:manual:check` reports the ones a translation lacks.
+
+## External chapters
+
+A manifest row with `file` serves a Markdown file that lives elsewhere in the docs root (the folder that holds the
+manual), such as the project CHANGELOG:
+
+```yaml
+chapters:
+    - { slug: changelog, file: ../CHANGELOG.md, group: administration, audience: admin, toc_depth: 2 }
+```
+
+- The path is relative to the manual folder and must resolve to a `.md` file inside the docs root; anything else stops
+  the catalogue with an error.
+- Its relative links start from its own folder: in `docs/CHANGELOG.md`, `UPGRADING.md#to-2` opens the published
+  `docs/UPGRADING.md` (`docs_url`) and `manual/02-dashboard.md` opens the in-app chapter.
+- It is source-only: every locale reads the file as it is, with no "not translated" notice, and `nowo:manual:check`,
+  `nowo:manual:stamp` and `nowo:manual:translate` skip it.
 
 ## Audiences
 

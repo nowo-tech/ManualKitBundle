@@ -7,14 +7,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
-- [[1.1.0] - 2026-10-23](#110---2026-10-23)
+- [[1.2.0] - 2026-10-23](#120---2026-10-23)
   - [Added](#added)
-- [[1.0.1] - 2026-10-23](#101---2026-10-23)
   - [Fixed](#fixed)
-- [[1.0.0] - 2026-10-23](#100---2026-10-23)
+- [[1.1.0] - 2026-10-23](#110---2026-10-23)
   - [Added](#added-1)
+- [[1.0.1] - 2026-10-23](#101---2026-10-23)
+  - [Fixed](#fixed-1)
+- [[1.0.0] - 2026-10-23](#100---2026-10-23)
+  - [Added](#added-2)
 
 ## [Unreleased]
+
+## [1.2.0] - 2026-10-23
+
+### Added
+
+- **External chapters**: a manifest row with `file` (e.g. `../CHANGELOG.md`) serves another Markdown file of the docs
+  root as a source-only chapter — links resolved from its own folder, never translated, skipped by the check / stamp /
+  translate commands. New manifest key `toc_depth` (2–4) limits "On this page". See [USAGE](USAGE.md#external-chapters).
+- `specs/001-baseline` (REQ-SPECKIT-001) with a code inventory.
+
+### Fixed
+
+- PHP 8.5: `getimagesize()` reads SVG files, so vector images got a fixed width / height; SVGs keep no intrinsic size
+  (the CI cells on PHP 8.5 failed).
 
 ## [1.1.0] - 2026-10-23
 

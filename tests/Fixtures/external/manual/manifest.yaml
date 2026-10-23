@@ -1,0 +1,4 @@
+chapters:
+  - { slug: README }
+  - { slug: 01-guide, group: using }
+  - { slug: changelog, file: ../CHANGES.md, group: administration, audience: admin, toc_depth: 2 }
