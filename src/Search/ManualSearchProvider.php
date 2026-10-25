@@ -29,6 +29,9 @@ use function count;
  */
 final readonly class ManualSearchProvider implements SearchProviderInterface
 {
+    /**
+     * Receives the services used to search the manual chapters the current user can read.
+     */
     public function __construct(
         private ManualCatalog $catalog,
         private ManualRenderer $renderer,
@@ -39,6 +42,9 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
     ) {
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function search(SearchQuery $query): ?SearchGroup
     {
         if (!$this->access->canRead()) {

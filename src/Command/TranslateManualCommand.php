@@ -36,6 +36,9 @@ use function strlen;
 #[AsCommand(name: 'nowo:manual:translate', description: 'Machine-translate the missing or outdated chapters of a manual translation.')]
 final readonly class TranslateManualCommand
 {
+    /**
+     * Receives the catalog, translation audit, Markdown translator and UI glossary used to translate chapters.
+     */
     public function __construct(
         private ManualCatalog $catalog,
         private TranslationAudit $audit,

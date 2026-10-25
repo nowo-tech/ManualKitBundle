@@ -22,6 +22,9 @@ final readonly class TranslationAudit
 {
     private const string ANCHOR = '/<a\s+id="([A-Za-z0-9_-]+)"\s*><\/a>/';
 
+    /**
+     * Receives the catalog whose translations are audited.
+     */
     public function __construct(
         private ManualCatalog $catalog,
     ) {

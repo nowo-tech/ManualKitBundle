@@ -38,6 +38,9 @@ final readonly class DeepLTranslator implements MachineTranslatorInterface
     ) {
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function translate(array $texts, string $sourceLocale, string $targetLocale): array
     {
         if ($texts === []) {

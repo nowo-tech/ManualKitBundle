@@ -33,6 +33,9 @@ use function is_file;
 #[AsController]
 final readonly class ManualController
 {
+    /**
+     * Receives the catalog, renderer, access rules, Twig and router used to serve the manual pages.
+     */
     public function __construct(
         private ManualCatalog $catalog,
         private ManualRenderer $renderer,
@@ -43,6 +46,9 @@ final readonly class ManualController
     ) {
     }
 
+    /**
+     * Renders the manual home page for a reader.
+     */
     #[Route('', name: 'nowo_manual_index', methods: ['GET'])]
     public function index(Request $request): Response
     {
@@ -63,6 +69,9 @@ final readonly class ManualController
             : $this->urls->generate('nowo_manual_chapter', ['chapter' => $found->slug]), Response::HTTP_MOVED_PERMANENTLY);
     }
 
+    /**
+     * Serves a manual image; members only get images shown in a chapter they can read.
+     */
     #[Route('/images/{file}', name: 'nowo_manual_image', requirements: ['file' => '[A-Za-z0-9][A-Za-z0-9._-]*\.(?:webp|png|jpe?g|gif|svg)'], methods: ['GET'], priority: 10)]
     public function image(Request $request, string $file): BinaryFileResponse
     {
@@ -82,6 +91,9 @@ final readonly class ManualController
         return $response;
     }
 
+    /**
+     * Renders one manual chapter (the home chapter is only served by index()).
+     */
     #[Route('/{chapter}', name: 'nowo_manual_chapter', requirements: ['chapter' => '[A-Za-z0-9][A-Za-z0-9-]*'], methods: ['GET'])]
     public function chapter(Request $request, string $chapter): Response
     {

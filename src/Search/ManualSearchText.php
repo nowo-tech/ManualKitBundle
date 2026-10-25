@@ -15,6 +15,9 @@ use function Symfony\Component\String\u;
  */
 final class ManualSearchText
 {
+    /**
+     * Folds text for matching: ASCII, lower case, collapsed whitespace.
+     */
     public static function fold(string $text): string
     {
         return trim((string) preg_replace('/\s+/', ' ', u($text)->ascii()->lower()->toString()));

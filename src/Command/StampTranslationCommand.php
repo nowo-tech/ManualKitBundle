@@ -21,11 +21,17 @@ use function sprintf;
 #[AsCommand(name: 'nowo:manual:stamp', description: 'Mark a manual translation as up to date with its source.')]
 final readonly class StampTranslationCommand
 {
+    /**
+     * Receives the translation audit that records the source hash.
+     */
     public function __construct(
         private TranslationAudit $audit,
     ) {
     }
 
+    /**
+     * Marks a chapter translation as up to date with its current source.
+     */
     public function __invoke(
         SymfonyStyle $io,
         #[Argument(description: 'Locale folder, e.g. es')]

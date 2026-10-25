@@ -14,6 +14,9 @@ use Symfony\Component\Security\Core\Authorization\AuthorizationCheckerInterface;
  */
 final readonly class ManualAccess
 {
+    /**
+     * Receives the authorization checker and the reader and admin roles.
+     */
     public function __construct(
         private AuthorizationCheckerInterface $authorization,
         private string $role = 'ROLE_USER',
@@ -21,11 +24,17 @@ final readonly class ManualAccess
     ) {
     }
 
+    /**
+     * Whether the current user may read the manual (an empty reader role makes it public).
+     */
     public function canRead(): bool
     {
         return $this->role === '' || $this->authorization->isGranted($this->role);
     }
 
+    /**
+     * Whether the current user has the admin role (sees admin-only chapters and images).
+     */
     public function isAdmin(): bool
     {
         return $this->authorization->isGranted($this->adminRole);

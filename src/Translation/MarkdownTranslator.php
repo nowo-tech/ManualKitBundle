@@ -57,11 +57,17 @@ final readonly class MarkdownTranslator
 
     private const string PREFIX = '/^(\s*(?:>\s?)*(?:#{1,6}\s+|(?:[-*+]|\d+[.)])\s+(?:\[[ xX]\]\s+)?)?)(.*)$/';
 
+    /**
+     * Uses the machine translator, when one is configured, to translate the text segments.
+     */
     public function __construct(
         private ?MachineTranslatorInterface $translator = null,
     ) {
     }
 
+    /**
+     * Whether a machine translator is configured.
+     */
     public function enabled(): bool
     {
         return $this->translator instanceof MachineTranslatorInterface;

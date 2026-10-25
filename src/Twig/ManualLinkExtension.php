@@ -21,6 +21,9 @@ use Twig\TwigFunction;
  */
 final class ManualLinkExtension extends AbstractExtension
 {
+    /**
+     * Receives the catalog, router and link settings used by the manual Twig functions.
+     */
     public function __construct(
         private readonly ManualCatalog $catalog,
         private readonly UrlGeneratorInterface $urls,
@@ -31,6 +34,9 @@ final class ManualLinkExtension extends AbstractExtension
     ) {
     }
 
+    /**
+     * {@inheritDoc}
+     */
     #[Override]
     public function getFunctions(): array
     {
@@ -42,11 +48,17 @@ final class ManualLinkExtension extends AbstractExtension
         ];
     }
 
+    /**
+     * Returns the in-app URL of a manual document link, or the external docs URL when it is not served in the app.
+     */
     public function href(string $doc): string
     {
         return $this->inAppPath($doc) ?? $this->docsUrl . $doc;
     }
 
+    /**
+     * Whether a manual document link points outside the app.
+     */
     public function isExternal(string $doc): bool
     {
         return $this->inAppPath($doc) === null;

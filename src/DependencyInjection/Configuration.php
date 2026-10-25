@@ -17,6 +17,9 @@ final class Configuration implements ConfigurationInterface
 {
     public const string ALIAS = 'nowo_manual_kit';
 
+    /**
+     * {@inheritDoc}
+     */
     public function getConfigTreeBuilder(): TreeBuilder
     {
         $tree = new TreeBuilder(self::ALIAS);

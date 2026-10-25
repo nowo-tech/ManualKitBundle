@@ -31,6 +31,9 @@ final readonly class LibreTranslateTranslator implements MachineTranslatorInterf
     ) {
     }
 
+    /**
+     * {@inheritDoc}
+     */
     public function translate(array $texts, string $sourceLocale, string $targetLocale): array
     {
         if ($texts === []) {

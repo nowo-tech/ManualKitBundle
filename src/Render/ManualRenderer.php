@@ -65,6 +65,9 @@ final readonly class ManualRenderer
     /** Taller than wide: a phone screenshot. */
     public const string PORTRAIT = 'manual-img--portrait';
 
+    /**
+     * Receives the catalog, router and cache used to render chapters, plus the external docs URL.
+     */
     public function __construct(
         private ManualCatalog $catalog,
         private UrlGeneratorInterface $urls,
@@ -73,6 +76,9 @@ final readonly class ManualRenderer
     ) {
     }
 
+    /**
+     * Renders a chapter to HTML (cached per chapter, locale, translation state and audience).
+     */
     public function render(ManualChapter $chapter, bool $admin): RenderedManualChapter
     {
         $key = 'nowo_manual.' . hash('xxh128', implode('|', [

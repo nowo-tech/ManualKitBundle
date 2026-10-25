@@ -38,6 +38,9 @@ final readonly class ManualChapter
     ) {
     }
 
+    /**
+     * Whether this chapter is the manual home page.
+     */
     public function isHome(): bool
     {
         return $this->slug === self::HOME;

@@ -58,6 +58,9 @@ final class NowoManualKitExtension extends Extension
         }
     }
 
+    /**
+     * Returns the `nowo_manual_kit` configuration alias.
+     */
     public function getAlias(): string
     {
         return Configuration::ALIAS;

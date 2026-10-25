@@ -27,12 +27,18 @@ use function sprintf;
 #[AsCommand(name: 'nowo:manual:check', description: 'Report manifest problems, missing and outdated manual translations and missing stable anchors.')]
 final readonly class CheckTranslationsCommand
 {
+    /**
+     * Receives the translation audit and the catalog it reports on.
+     */
     public function __construct(
         private TranslationAudit $audit,
         private ManualCatalog $catalog,
     ) {
     }
 
+    /**
+     * Reports manifest problems, outdated translations and missing anchors; returns a failure code in strict or sources mode when one is found.
+     */
     public function __invoke(
         SymfonyStyle $io,
         #[Option(description: 'Fail on manifest problems, outdated translations and missing anchors')]

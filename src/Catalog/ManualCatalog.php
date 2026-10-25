@@ -62,11 +62,17 @@ final readonly class ManualCatalog
     ) {
     }
 
+    /**
+     * Returns the manual directory.
+     */
     public function directory(): string
     {
         return $this->directory;
     }
 
+    /**
+     * Returns the locale the source chapters are written in.
+     */
     public function sourceLocale(): string
     {
         return $this->sourceLocale;
@@ -231,6 +237,9 @@ final readonly class ManualCatalog
         return array_values(array_filter($this->all($locale), static fn (ManualChapter $chapter): bool => $admin || !$chapter->adminOnly));
     }
 
+    /**
+     * Finds a chapter by slug in the given locale, or null.
+     */
     public function find(string $slug, ?string $locale = null): ?ManualChapter
     {
         foreach ($this->all($locale) as $chapter) {
@@ -259,11 +268,17 @@ final readonly class ManualCatalog
         return [null, null];
     }
 
+    /**
+     * Returns the path of a source-language chapter file.
+     */
     public function sourcePath(string $slug): string
     {
         return $this->directory . '/' . $slug . '.md';
     }
 
+    /**
+     * Returns the path of a chapter translation file.
+     */
     public function translationPath(string $slug, string $locale): string
     {
         return $this->directory . '/' . $locale . '/' . $slug . '.md';
