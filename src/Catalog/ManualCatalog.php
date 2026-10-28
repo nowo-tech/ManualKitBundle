@@ -20,6 +20,7 @@ use function is_dir;
 use function is_file;
 use function is_int;
 use function is_string;
+use function json_encode;
 use function max;
 use function min;
 use function realpath;
@@ -136,11 +137,16 @@ final readonly class ManualCatalog
 
                     continue;
                 }
+                // audience is "member" (default) or "admin"; anything else (a typo) is treated as admin — fail closed.
+                $audience = $row['audience'] ?? 'member';
+                if ($audience !== 'member' && $audience !== 'admin') {
+                    $problems[] = sprintf('%s: chapter "%s" has an unknown audience %s (use member or admin); it is shown to admins only.', self::MANIFEST, $slug, json_encode($audience));
+                }
                 [$path, $served, $state] = $external === null ? $this->resolve($slug, $locale) : [$external, $this->sourceLocale, TranslationState::Source];
                 $chapters[$slug]         = new ManualChapter(
                     $slug,
                     is_string($row['group'] ?? null) ? $row['group'] : 'using',
-                    'admin' === ($row['audience'] ?? 'member'),
+                    $audience !== 'member',
                     is_string($row['icon'] ?? null) ? $row['icon'] : 'tabler:book',
                     $this->title($path, $slug),
                     $path,

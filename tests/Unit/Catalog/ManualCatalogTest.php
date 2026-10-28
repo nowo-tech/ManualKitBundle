@@ -25,6 +25,22 @@ final class ManualCatalogTest extends TestCase
         new Filesystem()->remove($this->directory);
     }
 
+    /** A typo in `audience` must not publish an admin chapter to members. */
+    public function testUnknownAudienceIsAdminOnlyAndReported(): void
+    {
+        $this->write([
+            "chapters:\n  - { slug: README }\n  - { slug: 02-b, audience: admins }\n",
+            'README' => "# Home\n",
+            '02-b'   => "# Secret\n",
+        ]);
+        $catalog = new ManualCatalog($this->directory);
+
+        $all = $catalog->all();
+        self::assertTrue($all[1]->adminOnly);
+        self::assertCount(1, $catalog->visible(false));
+        self::assertStringContainsString('unknown audience "admins"', implode("\n", $catalog->problems()));
+    }
+
     public function testReadsTheManifestInOrderWithAudienceTitleAndDefaults(): void
     {
         $this->write([

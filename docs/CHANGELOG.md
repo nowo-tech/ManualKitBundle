@@ -22,6 +22,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- **Unknown chapter audience fails closed.** A manifest `audience` other than `member` / `admin` (a typo such as
+  `admins`) made the chapter visible to members; it is now admin-only and reported in `problems()` (like audience
+  blocks, which already failed closed).
+- **`admin_role` cannot be empty.** `''` would have opened admin chapters, blocks and images to everybody; the
+  configuration now rejects it.
+
 ### Changed
 
 - **Developer tooling (REQ-CS-001):** `make validate-phpdoc` is read-only and now part of `make release-check`: it fails when a class or public method in `src/` has no PHPDoc block (the former `@return` check asked for tags that `cs-fix` (`no_superfluous_phpdoc_tags`) removes; `make fix-phpdoc` is gone). Added the 34 missing docblocks.

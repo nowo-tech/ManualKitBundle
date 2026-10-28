@@ -45,6 +45,8 @@ final class Configuration implements ConfigurationInterface
                 ->scalarNode('admin_role')
                     ->info('Readers of `audience: admin` chapters and `<!-- audience: admin -->` blocks.')
                     ->defaultValue('ROLE_ADMIN')
+                    // '' would mean "everyone" for admin content: never allowed.
+                    ->cannotBeEmpty()
                 ->end()
                 ->scalarNode('docs_url')
                     ->info('Base URL of the published docs (e.g. https://github.com/acme/app/blob/main/docs/) for links outside the manual.')
