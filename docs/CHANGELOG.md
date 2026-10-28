@@ -7,9 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.4.0] - 2026-10-28](#140---2026-10-28)
+  - [Security](#security)
+  - [Changed](#changed)
 - [[1.3.0] - 2026-10-23](#130---2026-10-23)
   - [Added](#added)
-  - [Changed](#changed)
+  - [Changed](#changed-1)
 - [[1.2.0] - 2026-10-23](#120---2026-10-23)
   - [Added](#added-1)
   - [Fixed](#fixed)
@@ -21,6 +24,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - [Added](#added-3)
 
 ## [Unreleased]
+
+## [1.4.0] - 2026-10-28
+
+Security: unknown chapter audience fails closed; admin_role cannot be empty. See [UPGRADING](UPGRADING.md#to-140).
 
 ### Security
 

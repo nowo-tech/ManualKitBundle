@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.4.0](#to-140)
 - [1.3.0 (2026-10-23)](#130-2026-10-23)
 - [1.2.0 (2026-10-23)](#120-2026-10-23)
 - [1.1.0 (2026-10-23)](#110-2026-10-23)
@@ -13,6 +14,14 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## To 1.4.0
+
+From **1.3.0**:
+
+```bash
+composer update nowo-tech/manual-kit-bundle
+```
 
 ## 1.3.0 (2026-10-23)
 
