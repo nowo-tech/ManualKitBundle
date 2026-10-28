@@ -15,6 +15,8 @@ admin-only chapters and blocks that fail closed, figures with a lightbox, search
 
 This bundle is **FrankenPHP worker mode friendly**. See [docs/FRANKENPHP-WORKER-AUDIT.md](docs/FRANKENPHP-WORKER-AUDIT.md).
 
+![A manual chapter in the demo: sidebar of chapters, on-this-page table of contents and a figure](docs/images/demo/overview.webp)
+
 ## Features
 
 - **One source for GitHub and the app**: `docs/manual/*.md` in reading order from `manifest.yaml`; links between
