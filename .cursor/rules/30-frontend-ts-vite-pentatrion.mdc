@@ -1,0 +1,27 @@
+---
+description: Frontend rules (TypeScript, Vite, Stimulus) of ManualKitBundle
+globs:
+  - "src/Resources/assets/**/*.ts"
+  - "vite.config.ts"
+  - "vitest.config.ts"
+  - "eslint.config.js"
+  - "package.json"
+  - "demo/symfony8/assets/**/*.ts"
+  - "demo/symfony8/vite.config.ts"
+alwaysApply: false
+---
+
+Layout:
+- `src/Resources/assets/stimulus-peers/manual_lightbox_controller.ts` — Stimulus peer the host bundles (keep the
+  `*_controller.ts` name and its import path stable: hosts re-export it)
+- `src/Resources/assets/src/` — standalone entry (`manual-lightbox.ts`, `register-lightbox.ts`) built by Vite
+  (`vite.config.ts`) into `src/Resources/public/js/manual-lightbox.js`, which is committed; CI fails when it is stale
+- the demo compiles the peer with Pentatrion Vite (`demo/symfony8/assets/app.ts`)
+
+Prefer:
+- strict TypeScript (`pnpm run typecheck`), kebab-case file names except Stimulus `*_controller.ts`
+- `textContent` / DOM nodes — ESLint forbids `innerHTML`, `outerHTML` and `insertAdjacentHTML`
+- English JSDoc with `@param` / `@returns` on exported functions
+- `make assets` after changing the standalone sources, `make test-ts` (Vitest, 100% today) before finishing
+
+Use pnpm only (`packageManager` in package.json). Do not inspect or hand-edit the built `public/js` output.

@@ -1,0 +1,29 @@
+---
+description: PHP and Symfony rules for ManualKitBundle
+globs:
+  - "src/**/*.php"
+  - "src/Resources/config/*.php"
+  - "rector.php"
+  - "phpstan.neon.dist"
+alwaysApply: false
+---
+
+Targets: PHP `>=8.4 <8.6` and Symfony `^7.4 || ^8.0` (composer.json). Every PHP file declares `strict_types=1`.
+
+Prefer:
+- `final` (or `final readonly`) classes, typed properties and explicit return types, PSR-12 / Symfony style
+  (`make cs-check`, `make cs-fix`)
+- constructor injection; services are wired in `src/Resources/config/services.php` and `NowoManualKitExtension`
+- a strict `Configuration` tree: `cannotBeEmpty()`, `enumNode`, `validate()` with messages that name the path and the
+  allowed values (REQ-SF-006); document every key in `docs/CONFIGURATION.md`
+- explicit `timeout` / `max_duration` on every HttpClient request (REQ-RUNTIME-001) and the injected PSR-3 logger
+  for network failures, never logging API keys or chapter texts (REQ-OBS-001)
+- no per-request state in services (FrankenPHP worker mode; `make igor`)
+- English PHPDoc on every class and public method (`make validate-phpdoc`)
+
+Keep the security invariants: only manifest chapters are served (no request path reaches the filesystem), admin
+content answers 404 and `<!-- audience -->` markers fail closed, rendered Markdown always goes through the HTML
+sanitiser.
+
+Do not rename public services, config keys, routes, Twig functions or the `NowoManualKitBundle` Twig namespace /
+translation domain without a BC layer and a `docs/UPGRADING.md` entry.

@@ -1,0 +1,17 @@
+---
+description: Global rules for the ManualKitBundle repository (nowo-tech/manual-kit-bundle)
+alwaysApply: true
+---
+
+This repository is a reusable Symfony bundle: an in-app product manual rendered from the host's `docs/manual`
+Markdown (`src/`, namespace `Nowo\ManualKitBundle\`, config root `nowo_manual_kit`).
+
+Prefer:
+- minimal, local changes, starting with the files already open or explicitly mentioned
+- the smallest viable patch first
+- preserving backward compatibility of config keys, route names (`nowo_manual_*`), Twig functions and template paths
+- running the repository gates through the Makefile (`make qa`, `make release-check`) — they run inside Docker
+
+Do not scan the whole repository unless explicitly required.
+Do not read `vendor/`, `node_modules/`, `coverage/`, `coverage-ts/`, `var/`, `demo/symfony8/vendor/`, lock files or
+`src/Resources/public/js/manual-lightbox.js` (generated) unless the task needs them.

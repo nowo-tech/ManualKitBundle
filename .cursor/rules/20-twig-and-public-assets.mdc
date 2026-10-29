@@ -1,0 +1,21 @@
+---
+description: Twig templates and public bundle assets of ManualKitBundle
+globs:
+  - "src/Resources/views/**/*.twig"
+  - "src/Resources/public/**/*"
+  - "src/Resources/translations/*.yaml"
+alwaysApply: false
+---
+
+Prefer:
+- small, backward-compatible template changes that keep the documented blocks (`title`, `stylesheets`, `body`), CSS
+  classes (`.nowo-manual__*`, `--nowo-manual-*`), `data-testid` hooks and the Stimulus identifier
+  `nowo-manual-lightbox` (see `docs/TEMPLATES.md`)
+- linking published files through the bundle's asset package: `asset('css/manual.css', 'nowo_manual_kit')` — never a
+  hard-coded `/bundles/nowomanualkit/...` path (REQ-ASSETS-004)
+- the `NowoManualKitBundle` translation domain; keep the 7 catalogues in key parity (`make validate-translations`)
+- `rendered.html|raw` only for sanitiser output, inside `.manual-prose`
+
+Do not edit `src/Resources/public/js/manual-lightbox.js` by hand: it is the Vite build of
+`src/Resources/assets/src/manual-lightbox.ts` (`make assets`).
+Do not rewrite whole templates for a local change.

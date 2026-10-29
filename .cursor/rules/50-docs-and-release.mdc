@@ -1,0 +1,20 @@
+---
+description: Documentation and release rules of ManualKitBundle
+globs:
+  - "README.md"
+  - "docs/**/*.md"
+  - "specs/**/*.md"
+alwaysApply: false
+---
+
+Prefer:
+- docs that match the code: config keys and defaults in `docs/CONFIGURATION.md`, runtime behaviour in
+  `docs/USAGE.md`, install steps in `docs/INSTALLATION.md`, threat model and logging policy in `docs/SECURITY.md`
+- every user-facing change under `## [Unreleased]` in `docs/CHANGELOG.md`, plus `docs/UPGRADING.md` when hosts must
+  act
+- keeping `specs/001-baseline/spec.md` and `code-inventory.md` in sync when files under `src/` are added or removed
+  (the inventory total equals `find src -type f -not -name '*.test.ts' | wc -l`)
+- English only; keep the README section order and the Documentation list order (REQ-DOCS-002)
+
+Releases follow `docs/RELEASE.md` (`make release-check`, then tag `vX.Y.Z`; `release.yml` publishes).
+Do not invent features, versions or commands that are not in the repository. Do not rewrite past release history.

@@ -1,0 +1,25 @@
+---
+description: Tests and quality gates of ManualKitBundle
+globs:
+  - "tests/**/*.php"
+  - "src/Resources/assets/**/*.test.ts"
+  - "demo/symfony8/tests/**/*.php"
+  - "demo/symfony8/e2e/**/*.ts"
+  - "phpunit.xml.dist"
+  - "vitest.config.ts"
+alwaysApply: false
+---
+
+Test layout: `tests/Unit`, `tests/Integration` (kernel boot, `tests/Support/TestKernel.php`), `tests/Functional`
+(HTTP + commands), Vitest next to the TypeScript sources, Playwright e2e in `demo/symfony8/e2e`.
+
+When behaviour changes, add or update the nearest test:
+- config validation → `tests/Unit/DependencyInjection/ConfigurationTest.php` (data provider of invalid configs)
+- providers → `tests/Unit/Translation/ProvidersTest.php` (`MockHttpClient`; an empty `MockResponse` chunk simulates a
+  timeout)
+- pages → `tests/Functional/ManualControllerTest.php`
+
+Gates (all inside Docker): `make test`, `make test-coverage-100` (PHP 100% lines), `make test-ts`, `make phpstan`
+(level 8), `make rector-dry`, `make igor`, `make cs-check`, and `make release-check` for the whole chain.
+Fixtures must not contain realistic-looking secrets: use obvious placeholders.
+Do not add testing frameworks or rewrite unrelated tests.
