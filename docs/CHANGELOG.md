@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.5.0] - 2026-10-29](#150---2026-10-29)
   - [Added](#added)
   - [Changed](#changed)
 - [[1.4.0] - 2026-10-28](#140---2026-10-28)
@@ -26,6 +27,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - [Added](#added-4)
 
 ## [Unreleased]
+
+## [1.5.0] - 2026-10-29
+
+ManualKit: provider timeouts + PSR-3 logging, strict config validation, scoped asset package, standalone lightbox build See [UPGRADING](UPGRADING.md#to-150).
 
 ### Added
 
