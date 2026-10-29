@@ -63,7 +63,7 @@ make rector-dry
 make test
 make test-coverage
 make test-ts
-make assets              # installs the Stimulus peer toolchain (nothing to build)
+make assets              # pnpm install + vite build (src/Resources/public/js/manual-lightbox.js, committed)
 ```
 
 Add or update tests under `tests/Unit/`, `tests/Integration/` and `tests/Functional/` (fixture manual: `tests/Fixtures/manual`) for behavior changes.

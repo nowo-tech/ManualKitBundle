@@ -18,6 +18,7 @@ use Nowo\SearchKitBundle\Contract\SearchProviderInterface;
 use Symfony\Component\DependencyInjection\Loader\Configurator\ContainerConfigurator;
 
 use function Symfony\Component\DependencyInjection\Loader\Configurator\param;
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 /*
  * Service definitions for NowoManualKitBundle. The SearchKit provider is registered only when
@@ -49,7 +50,9 @@ return static function (ContainerConfigurator $container): void {
     $services->set(ManualLinkExtension::class)
         ->arg('$docsUrl', param('nowo_manual_kit.docs_url'))
         ->arg('$inApp', param('nowo_manual_kit.in_app'))
-        ->arg('$layout', param('nowo_manual_kit.layout'));
+        ->arg('$layout', param('nowo_manual_kit.layout'))
+        ->arg('$packages', service('assets.packages')->nullOnInvalid())
+        ->arg('$standaloneLightbox', param('nowo_manual_kit.standalone_lightbox'));
 
     $services->set(TranslationAudit::class);
     $services->set(CheckTranslationsCommand::class);

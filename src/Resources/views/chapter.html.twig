@@ -12,7 +12,7 @@
 
 {% block stylesheets %}
     {{ parent() }}
-    <link rel="stylesheet" href="{{ nowo_manual_asset('css/manual.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/manual.css', 'nowo_manual_kit') }}">
 {% endblock %}
 
 {% block body %}
@@ -67,4 +67,7 @@
         </nav>
     </article>
 </div>
+{% if nowo_manual_standalone_lightbox() %}
+    <script src="{{ asset('js/manual-lightbox.js', 'nowo_manual_kit') }}" defer></script>
+{% endif %}
 {% endblock %}

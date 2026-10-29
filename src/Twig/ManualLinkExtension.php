@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Twig;
 
+use LogicException;
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\DependencyInjection\Configuration;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Override;
+use Symfony\Component\Asset\Packages;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
@@ -14,7 +17,9 @@ use Twig\TwigFunction;
 /**
  * `manual_href('manual/05-admin.md#users')`: the in-app chapter when `in_app` is on and the chapter is in the
  * manifest, the published copy (`docs_url` + path) otherwise; `manual_is_external()` says which one it is.
- * `nowo_manual_layout()` and `nowo_manual_asset()` serve the bundle's own chapter template.
+ * `nowo_manual_layout()`, `nowo_manual_asset()` and `nowo_manual_asset_package()` serve the bundle's own chapter
+ * template; published files resolve through the `nowo_manual_kit` asset package (REQ-ASSETS-004), and
+ * `nowo_manual_standalone_lightbox()` says whether the template loads the self-contained lightbox script.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -30,7 +35,8 @@ final class ManualLinkExtension extends AbstractExtension
         private readonly string $docsUrl = '',
         private readonly bool $inApp = true,
         private readonly string $layout = '@NowoManualKitBundle/layout.html.twig',
-        private readonly string $assetsBase = '/bundles/nowomanualkit/',
+        private readonly ?Packages $packages = null,
+        private readonly bool $standaloneLightbox = false,
     ) {
     }
 
@@ -44,8 +50,23 @@ final class ManualLinkExtension extends AbstractExtension
             new TwigFunction('manual_href', $this->href(...)),
             new TwigFunction('manual_is_external', $this->isExternal(...)),
             new TwigFunction('nowo_manual_layout', fn (): string => $this->layout),
-            new TwigFunction('nowo_manual_asset', fn (string $path): string => $this->assetsBase . ltrim($path, '/')),
+            new TwigFunction('nowo_manual_asset', $this->asset(...)),
+            new TwigFunction('nowo_manual_asset_package', static fn (): string => Configuration::ALIAS),
+            new TwigFunction('nowo_manual_standalone_lightbox', fn (): bool => $this->standaloneLightbox),
         ];
+    }
+
+    /**
+     * URL of a file the bundle publishes (`css/manual.css`), through the `nowo_manual_kit` asset package — the same as
+     * `asset('css/manual.css', 'nowo_manual_kit')`.
+     */
+    public function asset(string $path): string
+    {
+        if (!$this->packages instanceof Packages) {
+            throw new LogicException('nowo_manual_asset() needs the Asset component: keep framework.assets enabled.');
+        }
+
+        return $this->packages->getUrl(ltrim($path, '/'), Configuration::ALIAS);
     }
 
     /**

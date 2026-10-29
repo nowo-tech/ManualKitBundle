@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Tests\Unit\Translation;
 
+use Nowo\ManualKitBundle\Tests\Support\RecordingLogger;
 use Nowo\ManualKitBundle\Translation\DeepLTranslator;
 use Nowo\ManualKitBundle\Translation\LibreTranslateTranslator;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
+use Symfony\Component\HttpClient\Exception\TimeoutException;
+use Symfony\Component\HttpClient\Exception\TransportException;
 use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\JsonMockResponse;
+use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class ProvidersTest extends TestCase
 {
@@ -95,6 +99,88 @@ final class ProvidersTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('not a string');
         new LibreTranslateTranslator(new MockHttpClient(new JsonMockResponse(['translatedText' => [1]])), 'http://libre')->translate(['a'], 'en', 'es');
+    }
+
+    /** REQ-RUNTIME-001: every provider request carries an idle timeout and a hard deadline. */
+    public function testRequestsCarryTheConfiguredTimeouts(): void
+    {
+        $options = [];
+        $client  = new MockHttpClient(static function (string $method, string $url, array $o) use (&$options): JsonMockResponse {
+            $options[] = [$o['timeout'], $o['max_duration']];
+
+            return new JsonMockResponse(['translations' => [['text' => 'x']], 'translatedText' => ['x']]);
+        });
+
+        new DeepLTranslator($client, 'k')->translate(['a'], 'en', 'es');
+        new DeepLTranslator($client, 'k', timeout: 5.0, maxDuration: 20.0)->translate(['a'], 'en', 'es');
+        new LibreTranslateTranslator($client, 'http://libre')->translate(['a'], 'en', 'es');
+        new LibreTranslateTranslator($client, 'http://libre', timeout: 3.0, maxDuration: 9.0)->translate(['a'], 'en', 'es');
+
+        self::assertSame([[30.0, 120.0], [5.0, 20.0], [30.0, 120.0], [3.0, 9.0]], $options);
+    }
+
+    /** A stalled provider ends in a domain error (no endless wait) that is logged without the key or the texts. */
+    public function testATimedOutDeepLRequestFailsAndIsLogged(): void
+    {
+        $logger = new RecordingLogger();
+        $client = new MockHttpClient(new MockResponse((static function (): iterable {
+            yield '';
+        })()));
+
+        try {
+            new DeepLTranslator($client, 'placeholder-key:fx', timeout: 0.1, logger: $logger)->translate(['secret text'], 'en', 'es');
+            self::fail('A timeout was expected.');
+        } catch (RuntimeException $e) {
+            self::assertStringStartsWith('DeepL request failed: Idle timeout reached', $e->getMessage());
+            self::assertInstanceOf(TransportException::class, $e->getPrevious());
+        }
+
+        self::assertSame(['info Manual machine translation request started.', 'error Manual machine translation request failed.'], array_column($logger->records, 0));
+        self::assertSame(['bundle' => 'manual_kit', 'provider' => 'deepl', 'target_locale' => 'es', 'texts' => 1, 'error' => TimeoutException::class], $logger->records[1][1]);
+        self::assertStringNotContainsString('placeholder-key', serialize($logger->records));
+        self::assertStringNotContainsString('secret text', serialize($logger->records));
+    }
+
+    public function testATimedOutLibreTranslateRequestFailsAndIsLogged(): void
+    {
+        $logger = new RecordingLogger();
+        $client = new MockHttpClient(new MockResponse((static function (): iterable {
+            yield '';
+        })()));
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('LibreTranslate request failed: Idle timeout reached');
+
+        try {
+            new LibreTranslateTranslator($client, 'http://libre', 'placeholder-key', timeout: 0.1, logger: $logger)->translate(['a'], 'en', 'es');
+        } finally {
+            self::assertSame('error Manual machine translation request failed.', $logger->records[1][0]);
+            self::assertStringNotContainsString('placeholder-key', serialize($logger->records));
+        }
+    }
+
+    public function testSuccessAndMalformedAnswersAreLogged(): void
+    {
+        $logger = new RecordingLogger();
+        new LibreTranslateTranslator(new MockHttpClient(new JsonMockResponse(['translatedText' => ['Hola']])), 'http://libre', logger: $logger)->translate(['a'], 'en', 'es');
+        new DeepLTranslator(new MockHttpClient(new JsonMockResponse(['translations' => [['text' => 'Hola']]])), 'k', logger: $logger)->translate(['a'], 'en', 'es');
+
+        try {
+            new DeepLTranslator(new MockHttpClient(new JsonMockResponse([])), 'k', logger: $logger)->translate(['a'], 'en', 'es');
+        } catch (RuntimeException) {
+        }
+        try {
+            new LibreTranslateTranslator(new MockHttpClient(new JsonMockResponse([])), 'http://libre', logger: $logger)->translate(['a'], 'en', 'es');
+        } catch (RuntimeException) {
+        }
+
+        self::assertSame([
+            'info Manual machine translation request started.', 'info Manual machine translation request succeeded.',
+            'info Manual machine translation request started.', 'info Manual machine translation request succeeded.',
+            'info Manual machine translation request started.', 'error Manual machine translation request failed.',
+            'info Manual machine translation request started.', 'error Manual machine translation request failed.',
+        ], array_column($logger->records, 0));
+        self::assertSame(RuntimeException::class, $logger->records[7][1]['error']);
     }
 
     public function testLibreTranslateRejectsAShortAnswer(): void

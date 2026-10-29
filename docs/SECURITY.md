@@ -48,6 +48,8 @@ and firewall, and the content of the manual (written by the host's team, in the 
 | **Reverse tabnabbing** | External links get `target="_blank" rel="noopener noreferrer"`. |
 | **Information leaks** | Images are `private`, max-age one day; chapter pages are rendered per audience and the cache key includes the audience, so a member never gets the admin rendering. |
 | **Injection** | No SQL, no shell, no `eval`, no `unserialize`. The manifest is parsed with `Yaml::parseFile()` (no PHP objects). |
+| **Stalled third-party HTTP / resource exhaustion** | The only outbound HTTP is the machine-translation provider of the `nowo:manual:translate` console command (off by default, `provider: none`). Every request carries an idle `timeout` (30 s) and a hard `max_duration` (120 s), both configurable and validated (≥ 1 s); a timeout fails the chapter with a domain error. Provider URLs must be absolute `http(s)`; no web request ever calls a provider ([CONFIGURATION](CONFIGURATION.md#timeouts), REQ-RUNTIME-001). |
+| **Invalid or unsafe configuration** | The config tree is strict: unknown keys, empty `admin_role` (would show admin content to everybody), malformed locales, non-`http(s)` `docs_url` / provider URLs and missing provider credentials fail the container compile with the path and the allowed values. |
 | **Worker-mode state leaks** | No per-request data in shared services (see [FRANKENPHP-WORKER-AUDIT.md](FRANKENPHP-WORKER-AUDIT.md)); Igor audit in `release-check`. |
 
 ## Secrets and cryptography
@@ -57,7 +59,17 @@ text (change detection, not security).
 
 ## Logging
 
-The bundle logs nothing.
+What is logged (PSR-3 `logger` service, the application's Monolog channel `app` by default):
+
+| Event | Level | Context |
+| --- | --- | --- |
+| Machine-translation request started / succeeded | `info` | `bundle`, `provider`, `target_locale`, `texts` (a count) |
+| Machine-translation request failed (timeout, transport, HTTP error, malformed answer) | `error` | the same, plus `error` (the exception class) |
+
+What is never logged: the provider API key (sent in a header for DeepL, in the body for LibreTranslate), the chapter
+texts or translations, request bodies, user names or roles. Chapter pages, images and the access checks log nothing
+themselves (Symfony's own security and HTTP logs apply as configured by the host). There is no `dump()`,
+`var_dump()` or `error_log()` in `src/`.
 
 ## Dependencies
 

@@ -199,13 +199,12 @@ Every Nowo bundle with Spec Kit must ship:
 **Audit command (maintainers):**
 
 ```bash
-# Production units = PHP + Twig + translation YAML + the Stimulus peer + the stylesheet under src/
-# (Vitest files *.test.ts excluded).
-find src -type f \( -name '*.php' -o -name '*.twig' -o -name '*.yaml' -o -name '*.ts' -o -name '*.css' \) \
-  -not -name '*.test.ts' | wc -l
+# Production units = every file under src/ except the Vitest files (*.test.ts): PHP, Twig, translation YAML,
+# the TypeScript sources, the stylesheet and the Vite output public/js/manual-lightbox.js.
+find src -type f -not -name '*.test.ts' | wc -l
 ```
 
-The **Total** row of the coverage summary in [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md) must match this count: **30** in **ManualKitBundle** at 1.0.0 (PHP, Twig, translations, the Stimulus peer and the stylesheet). No build output is published.
+The **Total** row of the coverage summary in [`specs/001-baseline/code-inventory.md`](../specs/001-baseline/code-inventory.md) must match this count: **39** in **ManualKitBundle** (2026-10-29). The one build output, `Resources/public/js/manual-lightbox.js`, is listed under *Build outputs* as the product of `Resources/assets/src/manual-lightbox.ts`.
 
 ---
 

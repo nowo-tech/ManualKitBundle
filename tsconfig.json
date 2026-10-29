@@ -20,7 +20,8 @@
     "types": ["vitest/globals"]
   },
   "include": [
-    "src/Resources/assets/stimulus-peers",
+    "src/Resources/assets",
+    "vite.config.ts",
     "vitest.config.ts"
   ]
 }

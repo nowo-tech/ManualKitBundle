@@ -16,7 +16,7 @@ The README percentage must match the latest coverage text / CI artifact.
 
 ## TypeScript line coverage gate
 
-`make test-ts` / `pnpm run test:coverage` run Vitest on `src/Resources/assets/stimulus-peers` with **100%** lines,
+`make test-ts` / `pnpm run test:coverage` run Vitest on `src/Resources/assets` (the Stimulus peer and the standalone entry) with **100%** lines,
 functions, statements and branches (`vitest.config.ts` `coverage.thresholds`); the `make test-ts` gate on the minimum
 of the four is **≥ 90%**.
 

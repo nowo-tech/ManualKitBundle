@@ -16,11 +16,11 @@
 | Rendering | `Render` | `ManualRenderer`: audience filter, CommonMark + GFM, link and image rewriting, sanitiser, DOM pass (stable anchors, figures), toc with section tags, cache |
 | Access | `Security` | `ManualAccess`: `role` (readers) and `admin_role` through the authorisation checker |
 | HTTP | `Controller` | `ManualController`: index, chapter, `.md` redirect, sandboxed images |
-| Twig | `Twig`, `Resources/views` | `ManualLinkExtension` (`manual_href`, `manual_is_external`, `nowo_manual_layout`, `nowo_manual_asset`); `chapter.html.twig`, `layout.html.twig` |
+| Twig | `Twig`, `Resources/views` | `ManualLinkExtension` (`manual_href`, `manual_is_external`, `nowo_manual_layout`, `nowo_manual_asset`, `nowo_manual_asset_package`, `nowo_manual_standalone_lightbox`); `chapter.html.twig`, `layout.html.twig` |
 | Console | `Command` | `nowo:manual:check [--strict]`, `nowo:manual:stamp <locale> <chapter>` |
 | Search | `Search` | `ManualSearchText` (folding, every word matches title or tags); `ManualSearchProvider` (SearchKit SPI, registered only when SearchKit is installed) |
 | DI | `DependencyInjection` | Flat configuration tree → `nowo_manual_kit.*` parameters, Twig paths pass (`@NowoManualKitBundle`, app overrides first) |
-| Browser | `Resources/assets/stimulus-peers`, `Resources/public/css` | `manual_lightbox_controller.ts` (opt-in Stimulus peer), `manual.css` |
+| Browser | `Resources/assets/stimulus-peers`, `Resources/assets/src`, `Resources/public` | `manual_lightbox_controller.ts` (opt-in Stimulus peer); `manual-lightbox.ts` → Vite IIFE `public/js/manual-lightbox.js` (standalone lightbox); `public/css/manual.css`; all served through the `nowo_manual_kit` asset package |
 
 ## Request flow
 

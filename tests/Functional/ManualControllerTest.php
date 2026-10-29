@@ -39,6 +39,7 @@ final class ManualControllerTest extends WebTestCase
         self::assertSame(['README', '01-using'], $crawler->filter('[data-testid^="manual-nav-"]')->each(static fn ($a): string => substr((string) $a->attr('data-testid'), 11)));
         self::assertSame('page', $crawler->filter('[data-testid="manual-nav-README"]')->attr('aria-current'));
         self::assertSame('/bundles/nowomanualkit/css/manual.css', $crawler->filter('link[rel="stylesheet"]')->attr('href'));
+        self::assertSelectorNotExists('script[src="/bundles/nowomanualkit/js/manual-lightbox.js"]');
         self::assertSelectorNotExists('[data-testid="manual-translation-notice"]');
         self::assertSelectorNotExists('[data-testid="manual-previous"]');
         self::assertSame('/en/manual/01-using', $crawler->filter('[data-testid="manual-next"]')->attr('href'));
@@ -145,6 +146,15 @@ final class ManualControllerTest extends WebTestCase
         $client->request('GET', '/en/manual');
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('[data-testid="manual"]', 'the configured template renders');
+    }
+
+    public function testTheStandaloneLightboxScriptComesFromTheAssetPackageWhenEnabled(): void
+    {
+        $client = self::createClient(['manual' => ['standalone_lightbox' => true]], ['PHP_AUTH_USER' => 'alice', 'PHP_AUTH_PW' => 'x']);
+        $client->request('GET', '/en/manual');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorCount(1, 'script[src="/bundles/nowomanualkit/js/manual-lightbox.js"][defer]');
     }
 
     private function signedIn(string $user): KernelBrowser

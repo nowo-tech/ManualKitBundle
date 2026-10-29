@@ -46,14 +46,18 @@ PHP/Symfony compatibility ranges.
 **Goal:** an in-app product manual for Symfony from the repository's `docs/manual` Markdown: one source for GitHub and
 the app, translations per locale with stable anchors, audiences that fail closed, figures with a lightbox, search tags.
 
-**Current state:** `1.0.0` — first release. See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the design.
+**Current state:** `1.4.x` (see [`CHANGELOG.md`](CHANGELOG.md)). See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the design.
 
 **In scope**
 
 - Manifest-driven catalog, per-locale resolution and translation states; `nowo:manual:check` / `nowo:manual:stamp`.
 - GitHub-compatible rendering (heading ids, links, images), sanitised and cached; audience blocks and chapters.
 - Controller (index, chapter, `.md` redirect, sandboxed images), default templates and CSS, Twig link helpers.
-- Stimulus lightbox peer; SearchKit provider when SearchKit is installed; 7 locales.
+- Stimulus lightbox peer and its self-contained Vite build (`standalone_lightbox`), published through the
+  `nowo_manual_kit` asset package; SearchKit provider when SearchKit is installed; 7 locales.
+- Source-only chapters from other files of the docs root (`file`, `include`), e.g. the CHANGELOG.
+- `nowo:manual:translate`: machine translation of missing / outdated chapters (DeepL, LibreTranslate) with request
+  timeouts and logging; strict configuration validated at compile time.
 - Documented integration (root `README.md` and `docs/`), configuration in [`CONFIGURATION.md`](CONFIGURATION.md), runtime behavior in [`USAGE.md`](USAGE.md).
 - Consumer-facing changes in [`CHANGELOG.md`](CHANGELOG.md) and [`UPGRADING.md`](UPGRADING.md).
 
@@ -69,7 +73,7 @@ the app, translations per locale with stable anchors, audiences that fail closed
 
 - Run **`make qa`** or **`make release-check`** as documented in [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - Run **PHPUnit** and **Vitest** locally and in CI for code changes.
-- New or changed behavior should add or adjust tests under `tests/` and next to the Stimulus peer (`src/Resources/assets/stimulus-peers/*.test.ts`).
+- New or changed behavior should add or adjust tests under `tests/` and next to the TypeScript sources (`src/Resources/assets/**/*.test.ts`).
 
 ---
 

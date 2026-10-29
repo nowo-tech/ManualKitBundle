@@ -14,7 +14,7 @@ export default tseslint.config(
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
-    files: ['src/Resources/assets/stimulus-peers/**/*.ts'],
+    files: ['src/Resources/assets/**/*.ts'],
     rules: {
       '@typescript-eslint/no-unused-vars': [
         'error',
@@ -23,7 +23,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['src/Resources/assets/stimulus-peers/**/*.ts'],
+    files: ['src/Resources/assets/**/*.ts'],
     ignores: ['**/*.test.ts'],
     rules: {
       // Captions go through textContent; no HTML string ever reaches the page.

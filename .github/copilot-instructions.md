@@ -10,7 +10,7 @@ Follow these rules when contributing PHP, TypeScript, Twig, and documentation to
 - **PHP:** `>=8.4 <8.6` with `declare(strict_types=1);` in every PHP file.
 - **Symfony:** **7.4**, **8.0**, and **8.1+** (`^7.4 || ^8.0` on `symfony/*` constraints). Symfony 8 requires PHP 8.4+.
 - **Code:** `src/` (`Nowo\ManualKitBundle\`).
-- **Frontend:** one opt-in Stimulus peer in `src/Resources/assets/stimulus-peers/` (TypeScript the application bundles; Vitest + **pnpm** for its tests) and plain CSS in `src/Resources/public/css/manual.css`. No build output is published. The Symfony 8 demo compiles the peer with **Pentatrion Vite** (`vite-plugin-symfony`).
+- **Frontend:** one opt-in Stimulus peer in `src/Resources/assets/stimulus-peers/` (TypeScript the application bundles), its self-contained Vite entry `src/Resources/assets/src/manual-lightbox.ts` → committed IIFE `src/Resources/public/js/manual-lightbox.js` (`make assets`), Vitest + **pnpm**, and plain CSS in `src/Resources/public/css/manual.css`. The Symfony 8 demo compiles the peer with **Pentatrion Vite** (`vite-plugin-symfony`).
 - **Language:** PHPDoc, inline comments, and user-facing docs in **English** only.
 
 ---
@@ -29,7 +29,7 @@ Follow these rules when contributing PHP, TypeScript, Twig, and documentation to
 ## Bundle-specific conventions
 
 - Twig namespace: `@NowoManualKitBundle`; translation domain: `NowoManualKitBundle` (REQ-TWIG-002 / REQ-I18N-003); `nowo_manual_kit` is only the config root key.
-- Public assets under `/bundles/nowomanualkit/` (`assets:install`); the default template links them with `nowo_manual_asset()`.
+- Public assets under `/bundles/nowomanualkit/` (`assets:install`) through the asset package `nowo_manual_kit` registered in `NowoManualKitExtension::prepend()`; templates use `asset('css/manual.css', 'nowo_manual_kit')`, never a hard-coded `/bundles/...` path.
 - CSS classes `.nowo-manual__*`, CSS custom properties `--nowo-manual-*`, DOM hooks `data-testid` / `data-nowo-manual-lightbox-*`, Stimulus identifier `nowo-manual-lightbox`.
 - Only chapters listed in `manifest.yaml` are served: no path from the request reaches the filesystem. Admin chapters answer 404 (not 403) to members; `<!-- audience -->` markers fail closed.
 - Rendered Markdown always goes through the HTML sanitiser; the lightbox writes captions with `textContent`, never `innerHTML`.

@@ -64,8 +64,9 @@ make -C demo up-symfony8
   root (boot + HTTP 200, REQ-TEST-011).
 - **PHP / Symfony policy**: the demo tracks the latest PHP (8.5) and Symfony 8.1; the bundle itself supports PHP 8.4+ and
   Symfony 7.4 / 8.x (see the README requirements).
-- **The manual as an integrator ships it** — the bundle's `chapter.html.twig` links `css/manual.css` from
-  `/bundles/nowomanualkit/` (`assets:install`)
+- **The manual as an integrator ships it** — the bundle's `chapter.html.twig` links
+  `asset('css/manual.css', 'nowo_manual_kit')`, the asset package the bundle registers for `/bundles/nowomanualkit/`
+  (`assets:install`)
 - **Pentatrion Vite + pnpm** — the demo's entry `assets/app.ts` starts Stimulus and registers the bundle's lightbox peer
   (`@bundle/stimulus-peers/manual_lightbox_controller`) as `nowo-manual-lightbox`
 - **No database** — REQ-DEMO-011 does not apply (no `*.db` files either)
@@ -120,11 +121,15 @@ The entrypoint copies `Caddyfile.dev` when mode is `classic`.
 
 ## Timeouts
 
-The bundle opens no outbound connection; a chapter costs one file read and, on a cache miss, one Markdown render. The demo layers its deadlines innermost first (REQ-RUNTIME-001):
+A web request never opens an outbound connection: a chapter costs one file read and, on a cache miss, one Markdown
+render. The bundle's only outbound HTTP is the machine-translation provider of the console command
+`nowo:manual:translate` (off in the demo), bounded by its own `machine_translation.timeout` (30 s idle) and
+`max_duration` (120 s total) per request ([CONFIGURATION](CONFIGURATION.md#timeouts)); CLI PHP has no
+`max_execution_time`, so those are its deadlines. The demo layers the web deadlines innermost first (REQ-RUNTIME-001):
 
 | Layer | Where in the demo | Value |
 | --- | --- | --- |
-| Outbound HTTP (none in the bundle) | `framework.http_client.default_options.timeout` (`config/packages/framework.yaml`) | 5 s |
+| Outbound HTTP from web requests (none in the bundle) | `framework.http_client.default_options.timeout` (`config/packages/framework.yaml`) | 5 s |
 | PHP `max_execution_time` (and `max_input_time`) | `docker/php-dev.ini` | 30 s |
 | Caddy / FrankenPHP write timeout | `servers { timeouts { write 60s } }` in `docker/frankenphp/Caddyfile` and `Caddyfile.dev` | 60 s |
 | FrankenPHP `max_wait_time` | `frankenphp { max_wait_time 30s }` in both Caddyfiles | 30 s (wait for a free PHP thread, then 504) |
@@ -147,7 +152,7 @@ Pentatrion needs `public/build/entrypoints.json`. Run `make -C demo/symfony8 ass
 
 ### Unstyled manual page
 
-The chapter template links `/bundles/nowomanualkit/css/manual.css`. A 404 means the public assets are not installed: run
+The chapter template links `asset('css/manual.css', 'nowo_manual_kit')` (`/bundles/nowomanualkit/css/manual.css`). A 404 means the public assets are not installed: run
 `make -C demo/symfony8 assets-install` (`assets:install public --symlink --relative`, also part of `make install`).
 
 ### Figures do not zoom

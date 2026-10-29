@@ -32,7 +32,7 @@ help:
 	@echo "  install        Install Composer and pnpm dependencies (starts container if needed)"
 	@echo ""
 	@echo "Assets:"
-	@echo "  assets         Install the Stimulus peer test toolchain (nothing to build)"
+	@echo "  assets         pnpm install + pnpm run build (Vite: src/Resources/public/js/manual-lightbox.js)"
 	@echo ""
 	@echo "Tests:"
 	@echo "  test           Run PHPUnit tests"
@@ -110,7 +110,8 @@ install: ensure-up
 
 assets: ensure-up
 	@$(COMPOSE) exec -T -e CI=true $(SERVICE_PHP) pnpm install
-	@echo "Nothing to build: the Stimulus peer is TypeScript the application bundles; the CSS is plain (src/Resources/public/css)."
+	@# REQ-ASSETS-001: vite build -> src/Resources/public/js/manual-lightbox.js (self-contained lightbox, committed).
+	@$(COMPOSE) exec -T -e CI=true $(SERVICE_PHP) pnpm run build
 
 test-ts: ensure-up
 	@$(COMPOSE) exec -T $(SERVICE_PHP) pnpm run test:coverage | tee coverage-ts.txt

@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Translation;
 
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use RuntimeException;
+use Symfony\Contracts\HttpClient\Exception\ExceptionInterface;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 
 use function count;
@@ -24,10 +27,14 @@ final readonly class DeepLTranslator implements MachineTranslatorInterface
     /** DeepL needs a regional variant for these target languages. */
     private const array TARGETS = ['en' => 'EN-GB', 'pt' => 'PT-PT'];
 
+    private LoggerInterface $logger;
+
     /**
      * @param string $formality `default`, `less` or `more` (sent as `prefer_*`, so languages
      *                          without formality still translate)
      * @param array<string, string> $languages locale => DeepL target language, over the defaults
+     * @param float $timeout idle timeout of the request, in seconds (HttpClient `timeout`)
+     * @param float $maxDuration hard deadline of the request, in seconds (HttpClient `max_duration`)
      */
     public function __construct(
         private HttpClientInterface $httpClient,
@@ -35,7 +42,11 @@ final readonly class DeepLTranslator implements MachineTranslatorInterface
         private string $url = '',
         private string $formality = 'default',
         private array $languages = [],
+        private float $timeout = 30.0,
+        private float $maxDuration = 120.0,
+        ?LoggerInterface $logger = null,
     ) {
+        $this->logger = $logger ?? new NullLogger();
     }
 
     /**
@@ -59,21 +70,36 @@ final readonly class DeepLTranslator implements MachineTranslatorInterface
             $body['formality'] = 'prefer_' . $this->formality;
         }
 
-        $data = $this->httpClient->request('POST', $endpoint . '/v2/translate', [
-            'headers' => ['Authorization' => 'DeepL-Auth-Key ' . $this->apiKey],
-            'json'    => $body,
-        ])->toArray();
-
-        $translations = [];
-        foreach (is_array($data['translations'] ?? null) ? $data['translations'] : [] as $row) {
-            if (!is_array($row) || !is_string($row['text'] ?? null)) {
-                throw new RuntimeException('DeepL returned a translation without text.');
+        // The key travels in a header only; the log context never carries it nor the texts.
+        $context = ['bundle' => 'manual_kit', 'provider' => 'deepl', 'target_locale' => $targetLocale, 'texts' => count($texts)];
+        $this->logger->info('Manual machine translation request started.', $context);
+        try {
+            $data = $this->httpClient->request('POST', $endpoint . '/v2/translate', [
+                'headers'      => ['Authorization' => 'DeepL-Auth-Key ' . $this->apiKey],
+                'json'         => $body,
+                'timeout'      => $this->timeout,
+                'max_duration' => $this->maxDuration,
+            ])->toArray();
+            $translations = [];
+            foreach (is_array($data['translations'] ?? null) ? $data['translations'] : [] as $row) {
+                if (!is_array($row) || !is_string($row['text'] ?? null)) {
+                    throw new RuntimeException('DeepL returned a translation without text.');
+                }
+                $translations[] = $row['text'];
             }
-            $translations[] = $row['text'];
+            if (count($translations) !== count($texts)) {
+                throw new RuntimeException(sprintf('DeepL returned %d translations for %d texts.', count($translations), count($texts)));
+            }
+        } catch (ExceptionInterface $e) {
+            $this->logger->error('Manual machine translation request failed.', $context + ['error' => $e::class]);
+
+            throw new RuntimeException(sprintf('DeepL request failed: %s', $e->getMessage()), 0, $e);
+        } catch (RuntimeException $e) {
+            $this->logger->error('Manual machine translation request failed.', $context + ['error' => $e::class]);
+
+            throw $e;
         }
-        if (count($translations) !== count($texts)) {
-            throw new RuntimeException(sprintf('DeepL returned %d translations for %d texts.', count($translations), count($texts)));
-        }
+        $this->logger->info('Manual machine translation request succeeded.', $context);
 
         return $translations;
     }

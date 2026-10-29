@@ -276,7 +276,9 @@ backdrop or the close button to leave. Register it as `nowo-manual-lightbox`:
 export { default } from '../../vendor/nowo-tech/manual-kit-bundle/src/Resources/assets/stimulus-peers/manual_lightbox_controller';
 ```
 
-It needs `@hotwired/stimulus` in your application. Captions are set with `textContent`, never HTML.
+It needs `@hotwired/stimulus` in your application. Without a Stimulus build, set `standalone_lightbox: true`: the
+default template then loads `asset('js/manual-lightbox.js', 'nowo_manual_kit')`, a Vite IIFE of Stimulus plus this
+controller ([CONFIGURATION](CONFIGURATION.md#standalone_lightbox)). Captions are set with `textContent`, never HTML.
 
 ## Search
 

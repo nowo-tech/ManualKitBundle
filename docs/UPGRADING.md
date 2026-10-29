@@ -15,6 +15,26 @@ This guide lists the changes integrators must apply when upgrading between versi
 
 ## Unreleased
 
+```bash
+composer update nowo-tech/manual-kit-bundle
+php bin/console assets:install public   # new file: js/manual-lightbox.js
+```
+
+- **Published assets go through the `nowo_manual_kit` asset package.** The bundle now registers
+  `framework.assets.packages.nowo_manual_kit` (`base_path: /bundles/nowomanualkit`). If an overridden template links
+  `/bundles/nowomanualkit/css/manual.css` by hand, replace it with `{{ asset('css/manual.css', 'nowo_manual_kit') }}`
+  (or keep `nowo_manual_asset('css/manual.css')`, which now resolves through the package). Remove any copy of the
+  package from your `framework.assets.packages`. `symfony/asset` is now a dependency and `framework.assets` must stay
+  enabled.
+- **Stricter configuration.** Values that used to be accepted silently now fail the container compile with the path:
+  empty `directory`, `template`, `layout` or `cache`; a `source_locale` / `locales` entry that is not a locale; a
+  `docs_url` or `machine_translation.url` that is not an absolute `http(s)` URL; `provider: deepl` without `api_key`;
+  `provider: libretranslate` without `url`. Fix the YAML the message points at.
+- **Provider timeouts.** Machine-translation requests now stop after `machine_translation.timeout` (30 s idle) /
+  `max_duration` (120 s total). Raise them for very large chapters on a slow provider.
+- `ManualLinkExtension`'s last constructor argument (`string $assetsBase`) is replaced by `?Packages $packages` and
+  `bool $standaloneLightbox`; only code that builds the extension by hand is affected.
+
 ## To 1.4.0
 
 From **1.3.0**:

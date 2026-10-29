@@ -107,9 +107,9 @@ writing and translating the manual, templates, lightbox, search, commands: [docs
 
 - PHP `>=8.4 <8.6`
 - Symfony 7.4, 8.0, and 8.1+
-- FrameworkBundle, TwigBundle, SecurityBundle (security-core), HtmlSanitizer, Yaml, `league/commonmark` ^2.6
+- FrameworkBundle, TwigBundle, SecurityBundle (security-core), Asset, HtmlSanitizer, Yaml, `league/commonmark` ^2.6
 - Optional: `nowo-tech/search-kit-bundle` ^1.1 (Manual group in the header search), `@hotwired/stimulus` in the
-  application (figure lightbox)
+  application for the figure lightbox peer (or `standalone_lightbox: true`, a self-contained script)
 
 ### Version information
 
@@ -159,13 +159,13 @@ Playwright end-to-end tests: `make -C demo/symfony8 test-e2e` (see [docs/CONTRIB
 
 ## Tests and coverage
 
-- Tests: PHPUnit (unit, integration, functional), Vitest (the Stimulus peer), Playwright (demo e2e)
+- Tests: PHPUnit (unit, integration, functional), Vitest (the Stimulus peer and the standalone lightbox), Playwright (demo e2e)
 - PHP: 100%
 - TS/JS: 100%
 - Python: N/A
 
 PHP line coverage: **100%** of includable `src/` (gate **≥ 99%**). TypeScript: Vitest thresholds 100% statements /
-branches / functions / lines on `src/Resources/assets/stimulus-peers` (make gate **≥ 90%**).
+branches / functions / lines on `src/Resources/assets` (make gate **≥ 90%**).
 
 ```bash
 make test

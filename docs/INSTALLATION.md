@@ -90,11 +90,22 @@ All keys: [CONFIGURATION.md](CONFIGURATION.md).
 
 ## Publish assets
 
-The default chapter template links `/bundles/nowomanualkit/css/manual.css`:
+Run once after every install or upgrade, so the files exist under `public/bundles/nowomanualkit/`:
 
 ```bash
 php bin/console assets:install public
 ```
+
+The bundle registers the asset package `nowo_manual_kit` (base path `/bundles/nowomanualkit`) itself; do not add it to
+`framework.assets.packages`. Link the published files through it in your own templates:
+
+```twig
+<link rel="stylesheet" href="{{ asset('css/manual.css', 'nowo_manual_kit') }}">
+{# only for the self-contained lightbox (standalone_lightbox: true does this for the default template) #}
+<script src="{{ asset('js/manual-lightbox.js', 'nowo_manual_kit') }}" defer></script>
+```
+
+`framework.assets` must stay enabled (it is by default with `symfony/asset`, a dependency of the bundle).
 
 ## Write the first chapter
 
@@ -128,7 +139,15 @@ your Stimulus application (it is TypeScript your bundler compiles; no npm packag
 export { default } from '../../vendor/nowo-tech/manual-kit-bundle/src/Resources/assets/stimulus-peers/manual_lightbox_controller';
 ```
 
-Without it, a click on a figure simply opens the image.
+Applications without a Stimulus build can load the self-contained script instead (Stimulus plus the lightbox, built
+by Vite into `src/Resources/public/js/manual-lightbox.js`):
+
+```yaml
+nowo_manual_kit:
+    standalone_lightbox: true   # the default chapter template adds asset('js/manual-lightbox.js', 'nowo_manual_kit')
+```
+
+Use one or the other, not both. Without either, a click on a figure simply opens the image.
 
 ## Search (optional)
 

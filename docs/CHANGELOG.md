@@ -7,23 +7,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+  - [Added](#added)
+  - [Changed](#changed)
 - [[1.4.0] - 2026-10-28](#140---2026-10-28)
   - [Security](#security)
-  - [Changed](#changed)
-- [[1.3.0] - 2026-10-23](#130---2026-10-23)
-  - [Added](#added)
   - [Changed](#changed-1)
-- [[1.2.0] - 2026-10-23](#120---2026-10-23)
+- [[1.3.0] - 2026-10-23](#130---2026-10-23)
   - [Added](#added-1)
+  - [Changed](#changed-2)
+- [[1.2.0] - 2026-10-23](#120---2026-10-23)
+  - [Added](#added-2)
   - [Fixed](#fixed)
 - [[1.1.0] - 2026-10-23](#110---2026-10-23)
-  - [Added](#added-2)
+  - [Added](#added-3)
 - [[1.0.1] - 2026-10-23](#101---2026-10-23)
   - [Fixed](#fixed-1)
 - [[1.0.0] - 2026-10-23](#100---2026-10-23)
-  - [Added](#added-3)
+  - [Added](#added-4)
 
 ## [Unreleased]
+
+### Added
+
+- `machine_translation.timeout` (30 s idle) and `machine_translation.max_duration` (120 s total) on every DeepL /
+  LibreTranslate request; a stalled provider now fails the chapter with `… request failed: …` (REQ-RUNTIME-001).
+- Provider requests log start / success / failure (`info` / `error`) on the application logger, without the key or
+  the texts; logging policy in [SECURITY](SECURITY.md#logging) (REQ-OBS-001).
+- Asset package `nowo_manual_kit` (`/bundles/nowomanualkit`) registered from the extension's `prepend()`; the default
+  template links `asset('css/manual.css', 'nowo_manual_kit')`; Twig `nowo_manual_asset_package()` (REQ-ASSETS-004).
+- Self-contained lightbox `js/manual-lightbox.js` (Vite IIFE of Stimulus plus the controller, sources in
+  `src/Resources/assets/src`, `make assets` / `pnpm run build`; CI checks the committed build is current) and
+  `standalone_lightbox: true` to load it from the default template (REQ-ASSETS-001).
+- Cursor pack: `.cursor/mcp.json` (Engram), `.cursor/rules/*.mdc` and the Spec Kit skills `.cursor/skills/speckit-*`
+  are now versioned (REQ-IDE-001 / REQ-IDE-003 / REQ-SPECKIT-001).
+
+### Changed
+
+- **Strict configuration (REQ-SF-006):** empty `directory` / `template` / `layout` / `cache`, malformed locales,
+  non-`http(s)` `docs_url` / provider `url`, `deepl` without `api_key` and `libretranslate` without `url` fail the
+  container compile with the path and the allowed values. See [UPGRADING](UPGRADING.md#unreleased).
+- `nowo_manual_asset()` resolves through the asset package instead of a hard-coded `/bundles/nowomanualkit/` prefix.
+- `symfony/asset` and `psr/log` are now explicit dependencies.
+- Spec Kit baseline: the code inventory is grouped by domain with a coverage summary (REQ-SPECKIT-003).
 
 ## [1.4.0] - 2026-10-28
 
