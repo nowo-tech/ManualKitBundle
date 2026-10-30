@@ -28,6 +28,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- **Manual routes registered without the route import:** on Symfony >= 7.3 the `#[Route]` attributes (plus `#[AsController]`) on the autoconfigured `ManualController` gave it the `routing.controller` tag, so the host's default `controllers: { resource: routing.controllers }` registered `nowo_manual_index`, `nowo_manual_chapter`, `nowo_manual_chapter_md` and `nowo_manual_image` without the host importing `@NowoManualKitBundle/Resources/config/routes.php`, and without its prefix (the manual landed on `/` and `/{chapter}`, shadowing host pages; `role` was still enforced). The controller is no longer autoconfigured and no longer carries `#[AsController]` (explicit `controller.service_arguments` tag); the routes exist only through the documented import (REQ-SF-004 rule 7). Regression test with a kernel that only loads `routing.controllers`.
+
 ## [1.5.0] - 2026-10-29
 
 ManualKit: provider timeouts + PSR-3 logging, strict config validation, scoped asset package, standalone lightbox build See [UPGRADING](UPGRADING.md#to-150).

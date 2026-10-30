@@ -42,10 +42,14 @@ return static function (ContainerConfigurator $container): void {
         ->arg('$role', param('nowo_manual_kit.role'))
         ->arg('$adminRole', param('nowo_manual_kit.admin_role'));
 
+    // Not autoconfigured (REQ-SF-004 rule 7): on Symfony >= 7.3 a #[Route] class is autoconfigured with the
+    // routing.controller tag, and the host's `routing.controllers` resource would then register the manual routes
+    // without the host importing routes.php (and without its prefix, i.e. at `/` and `/{chapter}`).
     $services->set(ManualController::class)
+        ->autoconfigure(false)
+        ->tag('controller.service_arguments')
         ->public()
         ->arg('$template', param('nowo_manual_kit.template'));
-    // controller.service_arguments comes from #[AsController] + autoconfigure.
 
     $services->set(ManualLinkExtension::class)
         ->arg('$docsUrl', param('nowo_manual_kit.docs_url'))
