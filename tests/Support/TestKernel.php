@@ -33,8 +33,10 @@ final class TestKernel extends Kernel
 
     /**
      * @param array<string, mixed> $manualConfig merged over the test configuration
+     * @param bool $hostControllersOnly route only the host's default `routing.controllers` import (Symfony >= 7.3
+     *                                  skeleton routes.yaml), without importing the bundle routes.php
      */
-    public function __construct(private readonly array $manualConfig = [])
+    public function __construct(private readonly array $manualConfig = [], private readonly bool $hostControllersOnly = false)
     {
         parent::__construct('test', false);
     }
@@ -56,7 +58,7 @@ final class TestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/nowo-manual-kit-bundle/' . md5(serialize($this->manualConfig)) . '/cache';
+        return sys_get_temp_dir() . '/nowo-manual-kit-bundle/' . md5(serialize([$this->manualConfig, $this->hostControllersOnly])) . '/cache';
     }
 
     public function getLogDir(): string
@@ -102,6 +104,11 @@ final class TestKernel extends Kernel
 
     protected function configureRoutes(RoutingConfigurator $routes): void
     {
+        if ($this->hostControllersOnly) {
+            $routes->import('routing.controllers');
+
+            return;
+        }
         $routes->import('@NowoManualKitBundle/Resources/config/routes.php')->prefix('/{_locale}/manual', false)->requirements(['_locale' => 'en|es']);
     }
 
