@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.5.1](#to-151)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
 - [1.3.0 (2026-10-23)](#130-2026-10-23)
@@ -15,6 +16,14 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## To 1.5.1
+
+From **1.5.0**:
+
+```bash
+composer update nowo-tech/manual-kit-bundle
+```
 
 From **1.5.0**: no action needed if you import `@NowoManualKitBundle/Resources/config/routes.php` (see [INSTALLATION](INSTALLATION.md)). If the manual was reachable in your app only through the default `routing.controllers` import (Symfony >= 7.3), import `routes.php` explicitly with a prefix.
 
