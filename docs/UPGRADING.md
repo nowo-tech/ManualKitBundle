@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.6.0](#to-160)
 - [To 1.5.1](#to-151)
 - [To 1.5.0](#to-150)
 - [To 1.4.0](#to-140)
@@ -16,6 +17,14 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## To 1.6.0
+
+From **1.5.1**:
+
+```bash
+composer update nowo-tech/manual-kit-bundle
+```
 
 No action needed: a manifest without `parent` renders byte for byte as in 1.5.1 (BC test), and every route name and URL
 is unchanged. To use sub-pages (see [USAGE](USAGE.md#sub-pages)):

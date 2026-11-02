@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.6.0] - 2026-11-02](#160---2026-11-02)
   - [Added](#added)
 - [[1.5.1] - 2026-10-30](#151---2026-10-30)
   - [Fixed](#fixed)
@@ -30,6 +31,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - [Added](#added-5)
 
 ## [Unreleased]
+
+## [1.6.0] - 2026-11-02
+
+Sub-pages: chapters nest up to three levels (parent: in the manifest, files in sub-folders per locale), nested routes nowo_manual_child / nowo_manual_grandchild, inherited access that only narrows, tree navigation, breadcrumb, Parent › Child search, sub-folder translation tooling; flat manuals unchanged. See [UPGRADING](https://github.com/nowo-tech/ManualKitBundle/blob/v1.6.0/docs/UPGRADING.md#to-160).
 
 Sub-pages: a chapter may sit under another one, up to three levels. See [UPGRADING](UPGRADING.md#unreleased).
 
