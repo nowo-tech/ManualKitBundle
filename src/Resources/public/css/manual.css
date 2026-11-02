@@ -111,6 +111,107 @@
     color: var(--nowo-manual-accent-deep);
 }
 
+/* 1.6: sub-pages — folded branches in the chapter list, the breadcrumb and the "In this section" list. */
+.nowo-manual__list li {
+    position: relative;
+}
+
+.nowo-manual__list li:has(> .nowo-manual__branch) > a {
+    padding-right: 2rem;
+}
+
+.nowo-manual__branch > summary {
+    position: absolute;
+    top: 0.125rem;
+    right: 0.25rem;
+    display: grid;
+    width: 1.5rem;
+    height: 1.5rem;
+    place-items: center;
+    border-radius: var(--nowo-manual-radius-control);
+    cursor: pointer;
+    list-style: none;
+}
+
+.nowo-manual__branch > summary::-webkit-details-marker {
+    display: none;
+}
+
+.nowo-manual__branch > summary::before {
+    width: 0.4rem;
+    height: 0.4rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    content: "";
+    transform: rotate(-45deg);
+    transition: transform 0.15s ease;
+}
+
+.nowo-manual__branch[open] > summary::before {
+    transform: rotate(45deg);
+}
+
+.nowo-manual__branch > summary:hover,
+.nowo-manual__branch > summary:focus-visible {
+    background: var(--nowo-manual-mist);
+}
+
+.nowo-manual__list--nested {
+    margin: 0.125rem 0 0.25rem 0.75rem;
+    padding-left: 0.5rem;
+    border-left: 1px solid var(--nowo-manual-sand);
+    font-size: 0.9375rem;
+}
+
+.nowo-manual__visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.nowo-manual__breadcrumbs {
+    margin: 0 0 0.5rem;
+    font-size: 0.875rem;
+}
+
+.nowo-manual__breadcrumbs ol {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.nowo-manual__breadcrumbs li {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.nowo-manual__breadcrumbs a,
+.nowo-manual__children a {
+    color: var(--nowo-manual-accent-deep);
+}
+
+.nowo-manual__breadcrumbs [aria-hidden="true"] {
+    opacity: 0.6;
+}
+
+.nowo-manual__children {
+    margin-top: 2rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--nowo-manual-sand);
+    border-radius: var(--nowo-manual-radius);
+}
+
+.nowo-manual__children ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
 .manual-prose {
   min-width: 0;
   font-size: 0.9375rem;

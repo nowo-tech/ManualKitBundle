@@ -60,6 +60,9 @@ required when "provider" is "libretranslate" (e.g. http://libretranslate:5000).
 The manual: `manifest.yaml`, the source-language chapters (`{slug}.md`), `images/` and one folder per translation
 locale (`es/`, `de/` …). Only chapters listed in the manifest are ever served.
 
+1.6: the manual may have sub-folders for nested chapters (`parent` in the manifest, see
+[USAGE](USAGE.md#sub-pages)); no configuration is involved and no file outside `directory` is ever served for them.
+
 ## source_locale
 
 Language of the root files (default `en`). A request in this locale always reads the root files.

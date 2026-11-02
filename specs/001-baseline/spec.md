@@ -134,7 +134,7 @@ listed in "On this page", and translation commands skip it.
 ## Key entities
 
 - **Manifest** (`manifest.yaml`): ordered chapter rows (`slug`, `file`, `include`, `group`, `audience`, `tags`,
-  `toc_depth`, `icon`).
+  `toc_depth`, `icon`, 1.6 `parent`).
 - **ManualChapter**: a served chapter in a locale with its `TranslationState` (`source`, `translated`, `outdated`,
   `missing`); `external` marks a source-only file of the docs root (never translated).
 - **RenderedManualChapter**: sanitised HTML + table of contents for one audience.
@@ -155,7 +155,7 @@ listed in "On this page", and translation commands skip it.
 ## Success criteria
 
 - **SC-001** 100% PHP line coverage gate (`make release-check`), TypeScript coverage gate ≥ 90% (100% today).
-- **SC-002** Every production unit under `src/` (39: `find src -type f -not -name '*.test.ts' | wc -l`) is mapped in
+- **SC-002** Every production unit under `src/` (42: `find src -type f -not -name '*.test.ts' | wc -l`) is mapped in
   [`code-inventory.md`](code-inventory.md); no `FR-SRC-*` placeholder.
 - **SC-003** Invalid configuration fails the container compile with a message naming the path (`BundleBootTest`,
   `ConfigurationTest`).

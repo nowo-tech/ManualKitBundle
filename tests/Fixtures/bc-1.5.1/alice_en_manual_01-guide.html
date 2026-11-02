@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Guide</title>
+        
+    <link rel="stylesheet" href="/bundles/nowomanualkit/css/manual.css">
+</head>
+<body>
+<div class="nowo-manual" data-testid="manual">
+    <nav class="nowo-manual__nav" aria-label="Chapters" data-testid="manual-nav">
+                    <p class="nowo-manual__group">Using the application</p>
+            <ul class="nowo-manual__list">
+                                    <li>
+                        <a href="/en/manual" data-testid="manual-nav-README">Manual home</a>
+                    </li>
+                                    <li>
+                        <a href="/en/manual/01-guide" aria-current="page" data-testid="manual-nav-01-guide">Guide</a>
+                    </li>
+                            </ul>
+            </nav>
+
+    <article class="nowo-manual__chapter" data-testid="manual-chapter" data-chapter="01-guide" data-controller="nowo-manual-lightbox" data-nowo-manual-lightbox-zoom-label-value="Enlarge&#x20;image" data-action="click->nowo-manual-lightbox#zoom">
+                <h1>Guide</h1>
+                    <nav class="nowo-manual__toc" aria-label="On this page" data-testid="manual-toc">
+                <p class="nowo-manual__group">On this page</p>
+                <ul>
+                                            <li class="nowo-manual__toc-item--2"><a href="#start">Start</a></li>
+                                    </ul>
+            </nav>
+                <div class="manual-prose"><h2 id="start">Start<a href="#start" class="manual-anchor" aria-hidden="true" tabindex="-1">#</a></h2>
+<p>Text.</p>
+</div>
+        <dialog class="manual-lightbox" aria-label="Enlarge image" data-nowo-manual-lightbox-target="dialog" data-action="click->nowo-manual-lightbox#backdrop keydown->nowo-manual-lightbox#keydown" data-testid="manual-lightbox">
+            <figure class="manual-lightbox__figure">
+                <img class="manual-lightbox__image" alt="" data-nowo-manual-lightbox-target="image">
+                <figcaption class="manual-lightbox__caption" data-nowo-manual-lightbox-target="caption" hidden></figcaption>
+            </figure>
+            <button type="button" class="manual-lightbox__nav manual-lightbox__nav--previous" data-nowo-manual-lightbox-target="previous" data-action="nowo-manual-lightbox#previous" aria-label="Previous image">‹</button>
+            <button type="button" class="manual-lightbox__nav manual-lightbox__nav--next" data-nowo-manual-lightbox-target="next" data-action="nowo-manual-lightbox#next" aria-label="Next image">›</button>
+            <button type="button" class="manual-lightbox__close" data-action="nowo-manual-lightbox#close" aria-label="Close" data-testid="manual-lightbox-close">×</button>
+        </dialog>
+        <nav class="nowo-manual__pager" aria-label="Previous and next chapter">
+                            <a href="/en/manual" rel="prev" data-testid="manual-previous">← Manual home</a>
+                                </nav>
+    </article>
+</div>
+</body>
+</html>

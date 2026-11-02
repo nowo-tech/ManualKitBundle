@@ -7,28 +7,52 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+  - [Added](#added)
 - [[1.5.1] - 2026-10-30](#151---2026-10-30)
   - [Fixed](#fixed)
 - [[1.5.0] - 2026-10-29](#150---2026-10-29)
-  - [Added](#added)
+  - [Added](#added-1)
   - [Changed](#changed)
 - [[1.4.0] - 2026-10-28](#140---2026-10-28)
   - [Security](#security)
   - [Changed](#changed-1)
 - [[1.3.0] - 2026-10-23](#130---2026-10-23)
-  - [Added](#added-1)
+  - [Added](#added-2)
   - [Changed](#changed-2)
 - [[1.2.0] - 2026-10-23](#120---2026-10-23)
-  - [Added](#added-2)
+  - [Added](#added-3)
   - [Fixed](#fixed-1)
 - [[1.1.0] - 2026-10-23](#110---2026-10-23)
-  - [Added](#added-3)
+  - [Added](#added-4)
 - [[1.0.1] - 2026-10-23](#101---2026-10-23)
   - [Fixed](#fixed-2)
 - [[1.0.0] - 2026-10-23](#100---2026-10-23)
-  - [Added](#added-4)
+  - [Added](#added-5)
 
 ## [Unreleased]
+
+Sub-pages: a chapter may sit under another one, up to three levels. See [UPGRADING](UPGRADING.md#unreleased).
+
+### Added
+
+- Manifest `parent: <slug>` (at most three levels: chapter → child → grandchild). Files may live in sub-folders
+  (`guide/install.md`, translations in `es/guide/install.md`); an unknown parent, a cycle, a fourth level, the home page
+  in the tree or a file outside the manual leave the branch out with a `problems()` entry.
+- Routes `nowo_manual_child` (`/{parent}/{chapter}`), `nowo_manual_grandchild` (`/{grandparent}/{parent}/{chapter}`)
+  and their `.md` redirects; a slug-only URL of a nested chapter redirects to its place in the tree. Existing routes
+  and URLs are unchanged.
+- A child inherits its parent's group and audience (narrowing only); hidden parents hide their branch (404, links as
+  plain text).
+- Chapter list with folded branches (the current one open), depth-first previous / next, "In this section" on parent
+  pages and a breadcrumb on nested pages (UiKit's `breadcrumbs` partial when installed); template variables `ancestors`
+  and `children`, Twig `manual_chapter_path()` and `nowo_manual_breadcrumbs_template()`.
+- Search titles nested chapters "Parent › Child" (own tags, same access); `manual_href()` accepts
+  `manual/<folder>/<slug>.md`; relative links and `../../images/…` resolve from sub-folders; translation check, stamp
+  and machine translation walk the sub-folders.
+- `ManualChapter::ancestors`, `ancestorTitles`, `folder`, `parent()`, `depth()`, `urlPath()`, `trailTitle()`;
+  `ManualCatalog::children()` / `ancestors()`; `ManualRoutes`.
+- Translations `breadcrumbs`, `children`, `nav.subpages` (7 locales). Demo: three-level example, search page,
+  Playwright e2e with axe.
 
 ## [1.5.1] - 2026-10-30
 

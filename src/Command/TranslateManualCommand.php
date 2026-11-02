@@ -79,7 +79,7 @@ final readonly class TranslateManualCommand
             if ($found->external || ($chapter !== [] && !in_array($found->slug, $chapter, true))) {
                 continue;
             }
-            $path     = $this->catalog->translationPath($found->slug, $locale);
+            $path     = $this->catalog->translationPath($found->slug, $locale, $found->folder);
             $existing = is_file($path) ? (string) file_get_contents($path) : null;
             if ($found->translation === TranslationState::Translated && !$force) {
                 continue;
@@ -88,7 +88,7 @@ final readonly class TranslateManualCommand
                 $rows[] = [$found->slug, $found->translation->value, 'skipped: edited by a person (review it, or --force)'];
                 continue;
             }
-            $source = (string) file_get_contents($this->catalog->sourcePath($found->slug));
+            $source = (string) file_get_contents($this->catalog->sourcePath($found->slug, $found->folder));
             if ($dryRun) {
                 $rows[] = [$found->slug, $found->translation->value, sprintf('would translate (%d characters)', strlen($source))];
                 continue;

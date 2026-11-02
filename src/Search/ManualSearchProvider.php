@@ -7,6 +7,7 @@ namespace Nowo\ManualKitBundle\Search;
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
+use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccess;
 use Nowo\SearchKitBundle\Contract\SearchProviderInterface;
 use Nowo\SearchKitBundle\Model\SearchGroup;
@@ -22,7 +23,8 @@ use function count;
 /**
  * SearchKit group "Manual" (registered only when nowo-tech/search-kit-bundle is installed): the chapters and their
  * h2–h4 sections whose title or tags match ({@see ManualSearchText}), among those the viewer may read, in the request
- * locale. Chapter titles first, then sections in manual order.
+ * locale. Chapter titles first, then sections in manual order. 1.6: nested chapters are indexed with their own tags,
+ * behind the same access rules, and titled with their parents ("Parent › Child").
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -56,13 +58,15 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
         $chapters = [];
         $sections = [];
         foreach ($this->catalog->visible($admin, $locale) as $chapter) {
-            $url = $chapter->isHome() ? $this->urls->generate('nowo_manual_index') : $this->urls->generate('nowo_manual_chapter', ['chapter' => $chapter->slug]);
+            $url = ManualRoutes::generate($this->urls, $chapter);
+            // 1.6: a nested chapter reads "Parent › Child" (its own title and tags are what match).
+            $title = $chapter->trailTitle();
             if (ManualSearchText::matches($query->text, $chapter->title, $chapter->tags)) {
-                $chapters[] = new SearchItem($chapter->title, $url, $this->groupLabel($chapter), 'tabler:book');
+                $chapters[] = new SearchItem($title, $url, $this->groupLabel($chapter), 'tabler:book');
             }
             foreach ($this->renderer->render($chapter, $admin)->toc as $entry) {
                 if (ManualSearchText::matches($query->text, $entry['text'], $entry['tags'])) {
-                    $sections[] = new SearchItem($entry['text'], $url . '#' . $entry['id'], $chapter->title, 'tabler:section');
+                    $sections[] = new SearchItem($entry['text'], $url . '#' . $entry['id'], $title, 'tabler:section');
                 }
             }
         }

@@ -19,6 +19,7 @@ use LogicException;
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Model\RenderedManualChapter;
+use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Search\ManualSearchText;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizer;
 use Symfony\Component\HtmlSanitizer\HtmlSanitizerConfig;
@@ -31,6 +32,9 @@ use function count;
 use function implode;
 use function in_array;
 use function is_array;
+use function str_starts_with;
+use function strlen;
+use function substr;
 
 use const ENT_HTML5;
 use const ENT_QUOTES;
@@ -125,9 +129,16 @@ final readonly class ManualRenderer
 
     private function build(ManualChapter $chapter, bool $admin): RenderedManualChapter
     {
-        $visible = [];
+        $visible  = [];
+        $chapters = [];
+        $files    = [];
         foreach ($this->catalog->all() as $candidate) {
-            $visible[$candidate->slug] = $admin || !$candidate->adminOnly;
+            $visible[$candidate->slug]  = $admin || !$candidate->adminOnly;
+            $chapters[$candidate->slug] = $candidate;
+            if (!$candidate->external) {
+                // 1.6: `manual/guide/install.md` → install (what a relative link resolves to, from the docs root).
+                $files[$candidate->docsDir . '/' . $candidate->slug . '.md'] = $candidate->slug;
+            }
         }
 
         $environment = new Environment([
@@ -149,8 +160,8 @@ final readonly class ManualRenderer
         $environment->addExtension(new GithubFlavoredMarkdownExtension());
         $environment->addExtension(new HeadingPermalinkExtension());
         $environment->addExtension(new AttributesExtension());
-        $environment->addEventListener(DocumentParsedEvent::class, function (DocumentParsedEvent $event) use ($visible, $chapter): void {
-            $this->rewrite($event, $visible, $chapter->docsDir);
+        $environment->addEventListener(DocumentParsedEvent::class, function (DocumentParsedEvent $event) use ($visible, $chapter, $chapters, $files): void {
+            $this->rewrite($event, new LinkContext($visible, $chapters, $files, $chapter));
         }, -10);
 
         $markdown = self::audienceFiltered((string) file_get_contents($chapter->path), $admin);
@@ -161,10 +172,7 @@ final readonly class ManualRenderer
         return new RenderedManualChapter($chapter, $html, $this->toc($html, $this->sectionTags($markdown), $chapter->tocDepth));
     }
 
-    /**
-     * @param array<string, bool> $visible chapter slug => readable by this viewer
-     */
-    private function rewrite(DocumentParsedEvent $event, array $visible, string $docsDir): void
+    private function rewrite(DocumentParsedEvent $event, LinkContext $context): void
     {
         // Collected first: unlinking detaches nodes, which would break a live walk.
         foreach (iterator_to_array($event->getDocument()->iterator(), false) as $node) {
@@ -174,7 +182,7 @@ final readonly class ManualRenderer
                 continue;
             }
             if ($node instanceof Link) {
-                $this->link($node, $visible, $docsDir);
+                $this->link($node, $context);
             }
         }
     }
@@ -198,12 +206,11 @@ final readonly class ManualRenderer
         $node->data->set('attributes/decoding', 'async');
     }
 
-    /**
-     * @param array<string, bool> $visible
-     */
-    private function link(Link $node, array $visible, string $docsDir = 'manual'): void
+    private function link(Link $node, LinkContext $context): void
     {
-        $url = $node->getUrl();
+        $visible = $context->visible;
+        $docsDir = $context->chapter->docsDir;
+        $url     = $node->getUrl();
         if ($url === '' || str_starts_with($url, '#')) {
             return;
         }
@@ -225,6 +232,7 @@ final readonly class ManualRenderer
         } elseif (preg_match('#^' . preg_quote(basename($this->catalog->directory()), '#') . '/([A-Za-z0-9-]+)\.md$#', $target, $match) === 1) {
             $slug = $match[1];
         }
+        $slug ??= $this->nestedSlug((string) $path, $target, $context);
         if ($slug !== null && array_key_exists($slug, $visible)) {
             if (!$visible[$slug]) {
                 // A link to an admin chapter reads as plain text for members.
@@ -235,9 +243,7 @@ final readonly class ManualRenderer
 
                 return;
             }
-            $node->setUrl(($slug === ManualChapter::HOME
-                ? $this->urls->generate('nowo_manual_index')
-                : $this->urls->generate('nowo_manual_chapter', ['chapter' => $slug])) . $fragment);
+            $node->setUrl(ManualRoutes::generate($this->urls, $context->chapters[$slug]) . $fragment);
 
             return;
         }
@@ -245,6 +251,37 @@ final readonly class ManualRenderer
         $node->setUrl($this->docsUrl . $target . $fragment);
         $node->data->set('attributes/target', '_blank');
         $node->data->set('attributes/rel', 'noopener noreferrer');
+    }
+
+    /**
+     * 1.6: the chapter a relative link of the tree points at — a file of a sub-folder (`guide/install.md`,
+     * `../faq.md`), the same link read from a translation's own folder (`es/guide/…`), or a bare `install.md` written
+     * in a nested chapter. Null for anything else.
+     */
+    private function nestedSlug(string $path, string $target, LinkContext $context): ?string
+    {
+        if (isset($context->files[$target])) {
+            return $context->files[$target];
+        }
+        $chapter = $context->chapter;
+        if ($chapter->external) {
+            return null;
+        }
+        if ($chapter->locale !== $this->catalog->sourceLocale()) {
+            $root       = basename($this->catalog->directory());
+            $translated = $this->normalise($root . '/' . $chapter->locale . ($chapter->folder === '' ? '' : '/' . $chapter->folder) . '/' . $path);
+            $prefix     = $root . '/' . $chapter->locale . '/';
+            // `es/guide/x.md` stands for `guide/x.md`; `../../faq.md` from `es/guide/` already reaches the source file.
+            $source = str_starts_with($translated, $prefix) ? $root . '/' . substr($translated, strlen($prefix)) : $translated;
+            if (isset($context->files[$source])) {
+                return $context->files[$source];
+            }
+        }
+        if ($chapter->folder !== '' && preg_match('#^(?:\./)?([A-Za-z0-9-]+)\.md$#', $path, $match) === 1 && isset($context->chapters[$match[1]])) {
+            return $match[1];
+        }
+
+        return null;
     }
 
     /**
@@ -337,10 +374,13 @@ final readonly class ManualRenderer
         return $figure;
     }
 
-    /** `images/x.webp` (source) or `../images/x.webp` (a translation folder) — the shared images directory. */
+    /**
+     * `images/x.webp` (source), `../images/x.webp` (a translation folder) or, 1.6, `../../images/x.webp` from a
+     * sub-folder (up to three levels up) — the shared images directory.
+     */
     private function imageFile(string $url): ?string
     {
-        return preg_match('#^(?:\./|\.\./)?images/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:webp|png|jpe?g|gif|svg))$#i', $url, $match) === 1 ? $match[1] : null;
+        return preg_match('#^(?:\./|(?:\.\./){1,3})?images/([A-Za-z0-9][A-Za-z0-9._-]*\.(?:webp|png|jpe?g|gif|svg))$#i', $url, $match) === 1 ? $match[1] : null;
     }
 
     /**

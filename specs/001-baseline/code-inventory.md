@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/manual-kit-bundle`  
-**Last audited**: 2026-10-29
+**Last audited**: 2026-11-02 (1.6 sub-pages: [`../002-sub-pages/spec.md`](../002-sub-pages/spec.md))
 
 Every production unit under `src/` and the requirement that covers it. Vitest files (`*.test.ts`) are test code and
 out of scope; the built `public/js/manual-lightbox.js` is listed as the output of its named sources.
@@ -21,8 +21,8 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Catalog/ManualCatalog.php` | Manifest, locales, translation states | FR-CAT-001 |
-| `Catalog/TranslationAudit.php` | Translation audit and stamping | FR-CAT-002 |
+| `Catalog/ManualCatalog.php` | Manifest, locales, translation states, chapter tree | FR-CAT-001, FR-TREE-001 |
+| `Catalog/TranslationAudit.php` | Translation audit and stamping | FR-CAT-002, FR-TREE-006 |
 
 ## CLI
 
@@ -30,22 +30,24 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | --- | --- | --- |
 | `Command/CheckTranslationsCommand.php` | `nowo:manual:check` | FR-CMD-001 |
 | `Command/StampTranslationCommand.php` | `nowo:manual:stamp` | FR-CMD-002 |
-| `Command/TranslateManualCommand.php` | `nowo:manual:translate` | FR-CMD-003 |
+| `Command/TranslateManualCommand.php` | `nowo:manual:translate` | FR-CMD-003, FR-TREE-006 |
 
 ## HTTP & security
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Controller/ManualController.php` | Index, chapter, `.md` redirect, images | FR-HTTP-001 |
+| `Controller/ManualController.php` | Index, chapter, `.md` redirect, images, nested routes | FR-HTTP-001, FR-TREE-002, FR-TREE-003 |
 | `Resources/config/routes.php` | Attribute route import | FR-HTTP-001 |
+| `Routing/ManualRoutes.php` | Route of a chapter by its place in the tree | FR-TREE-002 |
 | `Security/ManualAccess.php` | Reader / admin roles | FR-SEC-001 |
 
 ## Rendering & model
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Render/ManualRenderer.php` | Markdown rendering, sanitising, cache | FR-RENDER-001 |
-| `Model/ManualChapter.php` | Chapter value object | FR-MODEL-001 |
+| `Render/ManualRenderer.php` | Markdown rendering, sanitising, cache, tree links | FR-RENDER-001, FR-TREE-005 |
+| `Render/LinkContext.php` | Link rewriting context (internal) | FR-TREE-005 |
+| `Model/ManualChapter.php` | Chapter value object, place in the tree | FR-MODEL-001, FR-TREE-001 |
 | `Model/RenderedManualChapter.php` | Rendered chapter value object | FR-MODEL-001 |
 | `Model/TranslationState.php` | Translation state enum | FR-MODEL-001 |
 
@@ -53,15 +55,16 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Search/ManualSearchProvider.php` | SearchKit provider | FR-SEARCH-001 |
+| `Search/ManualSearchProvider.php` | SearchKit provider | FR-SEARCH-001, FR-TREE-004 |
 | `Search/ManualSearchText.php` | Query matcher | FR-SEARCH-002 |
 
 ## Twig
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Twig/ManualLinkExtension.php` | Twig functions | FR-TWIG-001 |
-| `Resources/views/chapter.html.twig` | Chapter page | FR-TWIG-003 |
+| `Twig/ManualLinkExtension.php` | Twig functions | FR-TWIG-001, FR-TREE-003, FR-TREE-005 |
+| `Resources/views/chapter.html.twig` | Chapter page, tree navigation | FR-TWIG-003, FR-TREE-003 |
+| `Resources/views/_breadcrumbs.html.twig` | Breadcrumb without UiKit | FR-TREE-003 |
 | `Resources/views/layout.html.twig` | Bare layout | FR-TWIG-003 |
 
 ## Machine translation
@@ -108,14 +111,14 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | Bundle & DI | 5 |
 | Catalog | 2 |
 | CLI | 3 |
-| HTTP & security | 3 |
-| Rendering & model | 4 |
+| HTTP & security | 4 |
+| Rendering & model | 5 |
 | Search | 2 |
-| Twig | 3 |
+| Twig | 4 |
 | Machine translation | 5 |
 | Frontend assets | 4 |
 | Build outputs | 1 |
 | Translations | 7 |
-| **Total** | **39** |
+| **Total** | **42** |
 
-Audit: `find src -type f -not -name '*.test.ts' | wc -l` → **39** (excluded: 2 `*.test.ts`).
+Audit: `find src -type f -not -name '*.test.ts' | wc -l` → **42** (excluded: 2 `*.test.ts`).

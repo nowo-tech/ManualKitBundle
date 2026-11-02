@@ -1,6 +1,11 @@
 # The demo manual: chapters in reading order. `group` sorts them in the sidebar, `audience: admin` hides a chapter from
-# members (404), `tags` are search synonyms (any language).
+# members (404), `tags` are search synonyms (any language). 1.6: `parent` nests a chapter under another one (three
+# levels at most); its file may live in the parent's sub-folder (03-guide/projects/sharing.md).
 chapters:
   - { slug: README, icon: 'tabler:home' }
   - { slug: 01-getting-started, group: using, tags: [start, begin, inicio, empezar] }
+  - { slug: 03-guide, group: using, tags: [guide, guía] }
+  - { slug: projects, parent: 03-guide, tags: [project, proyecto] }
+  - { slug: sharing, parent: projects, tags: [share, invite, compartir] }
+  - { slug: billing, parent: 03-guide, audience: admin, tags: [invoice, factura] }
   - { slug: 02-admin, group: administration, audience: admin, tags: [users, usuarios] }

@@ -14,6 +14,8 @@ demo:
     audience: 'Entra como admin para leer el capítulo de Administración y los bloques solo para administradores (404 para demo)'
     figures: 'Pulsa una figura para ampliarla (visor con anterior / siguiente)'
     check: 'bin/console nowo:manual:check lista las traducciones que faltan o están desactualizadas'
+    tree: 'Subpáginas: Guía de uso › Proyectos › Compartir un proyecto — ramas plegables, ruta de navegación, «En esta sección»'
+    search: 'Busca en el manual: las subpáginas salen como «Padre › Hijo», las de administración solo para admin'
     theming: 'Plantillas sobrescribibles y propiedades CSS --nowo-manual-*'
   try:
     title: 'Pruébalo'
@@ -28,3 +30,10 @@ demo:
     password: Contraseña
     submit: 'Entrar'
     signed_in: 'Sesión iniciada como %user%.'
+  search:
+    nav: 'Buscar'
+    title: 'Buscar en el manual'
+    label: 'Buscar'
+    placeholder: 'p. ej. invitar'
+    submit: 'Buscar'
+    empty: 'No se ha encontrado nada.'

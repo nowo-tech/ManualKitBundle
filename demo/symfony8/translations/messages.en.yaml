@@ -14,6 +14,8 @@ demo:
     audience: 'Sign in as admin to read the Administration chapter and the admin-only blocks (404 for demo)'
     figures: 'Click a figure to zoom it (lightbox with previous / next)'
     check: 'bin/console nowo:manual:check lists missing and outdated translations'
+    tree: 'Sub-pages: User guide › Projects › Sharing a project — folded branches, breadcrumb, "In this section"'
+    search: 'Search the manual: sub-pages show as "Parent › Child", admin pages only for admin'
     theming: 'Overridable templates and --nowo-manual-* CSS custom properties'
   try:
     title: 'Try it'
@@ -28,3 +30,10 @@ demo:
     password: Password
     submit: 'Sign in'
     signed_in: 'Signed in as %user%.'
+  search:
+    nav: 'Search'
+    title: 'Search the manual'
+    label: 'Search'
+    placeholder: 'e.g. invite'
+    submit: 'Search'
+    empty: 'Nothing found.'

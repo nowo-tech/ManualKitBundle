@@ -10,10 +10,13 @@ use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
 use function array_map;
+use function array_reverse;
 use function array_unique;
 use function basename;
+use function count;
 use function dirname;
 use function glob;
+use function implode;
 use function in_array;
 use function is_array;
 use function is_dir;
@@ -34,6 +37,7 @@ use function substr;
 use function trim;
 
 use const DIRECTORY_SEPARATOR;
+use const JSON_UNESCAPED_SLASHES;
 
 /**
  * The chapters of `{directory}/manifest.yaml` in order, with their audience, resolved for a locale.
@@ -49,6 +53,9 @@ use const DIRECTORY_SEPARATOR;
 final readonly class ManualCatalog
 {
     public const string MANIFEST = 'manifest.yaml';
+
+    /** A chapter slug (also a URL segment and a file name). */
+    public const string SLUG = '/^[A-Za-z0-9-]+$/';
 
     /** `<!-- translation-of: 1a2b3c4d5e6f -->` in a translated file. */
     public const string TRANSLATION_MARKER = '/<!--\s*translation-of:\s*([a-f0-9]{12})\s*-->/';
@@ -123,7 +130,8 @@ final readonly class ManualCatalog
         }
         $rows = is_array($manifest) && is_array($manifest['chapters'] ?? null) ? $manifest['chapters'] : [];
 
-        $chapters = [];
+        /** @var array<string, array{row: array<mixed>, external: string|null, parent: string|null, audience: mixed}> $entries */
+        $entries  = [];
         $problems = [];
         foreach ($rows as $index => $row) {
             if (!is_array($row)) {
@@ -131,8 +139,15 @@ final readonly class ManualCatalog
 
                 continue;
             }
-            foreach ($this->sources($row, $problems) as [$slug, $external]) {
-                if (isset($chapters[$slug])) {
+            // 1.6: `parent` puts the row's chapters under another chapter (their files may sit in its sub-folder).
+            $parent = $row['parent'] ?? null;
+            if ($parent !== null && (!is_string($parent) || preg_match(self::SLUG, $parent) !== 1)) {
+                $problems[] = sprintf('%s: the parent %s is not a chapter slug; the row is left out.', self::MANIFEST, json_encode($parent, JSON_UNESCAPED_SLASHES));
+
+                continue;
+            }
+            foreach ($this->sources($row, $problems, $parent !== null) as [$slug, $external]) {
+                if (isset($entries[$slug])) {
                     $problems[] = sprintf('%s: the slug "%s" is listed twice; the second one is left out.', self::MANIFEST, $slug);
 
                     continue;
@@ -142,25 +157,196 @@ final readonly class ManualCatalog
                 if ($audience !== 'member' && $audience !== 'admin') {
                     $problems[] = sprintf('%s: chapter "%s" has an unknown audience %s (use member or admin); it is shown to admins only.', self::MANIFEST, $slug, json_encode($audience));
                 }
-                [$path, $served, $state] = $external === null ? $this->resolve($slug, $locale) : [$external, $this->sourceLocale, TranslationState::Source];
-                $chapters[$slug]         = new ManualChapter(
-                    $slug,
-                    is_string($row['group'] ?? null) ? $row['group'] : 'using',
-                    $audience !== 'member',
-                    is_string($row['icon'] ?? null) ? $row['icon'] : 'tabler:book',
-                    $this->title($path, $slug),
-                    $path,
-                    is_array($row['tags'] ?? null) ? array_values(array_filter(array_map(strval(...), $row['tags']), static fn (string $tag): bool => trim($tag) !== '')) : [],
-                    $served,
-                    $state,
-                    $external !== null,
-                    $external === null ? basename($this->directory) : $this->docsDir($external),
-                    is_int($row['toc_depth'] ?? null) ? max(2, min(4, $row['toc_depth'])) : 4,
-                );
+                $entries[$slug] = ['row' => $row, 'external' => $external, 'parent' => $parent, 'audience' => $audience];
             }
         }
 
-        return [array_values($chapters), $problems];
+        // 1.6: the tree — every ancestor known, no cycle, at most MAX_DEPTH levels, a file for every nested chapter.
+        /** @var array<string, false|list<string>> $ancestry */
+        $ancestry = [];
+        foreach ($entries as $slug => $entry) {
+            $this->ancestry($slug, $entries, $ancestry, $problems);
+        }
+        $nodes = [];
+        foreach ($entries as $slug => $entry) {
+            $ancestors = $ancestry[$slug];
+            if ($ancestors === false) {
+                continue;
+            }
+            $folder = '';
+            if ($entry['external'] === null && $ancestors !== []) {
+                $folder = $this->nestedFolder($slug, $ancestors);
+                if ($folder === null) {
+                    $problems[]      = sprintf('%s lists "%s", which has no Markdown file (looked in %s/ and at the manual root).', self::MANIFEST, $slug, implode('/', $ancestors));
+                    $ancestry[$slug] = false;
+
+                    continue;
+                }
+            }
+            $nodes[$slug] = [$entry, $ancestors, $folder];
+        }
+
+        $built = [];
+        foreach ($nodes as $slug => [$entry, $ancestors, $folder]) {
+            // A chapter whose ancestor was left out (no file) goes with it.
+            foreach ($ancestors as $ancestor) {
+                if (!isset($nodes[$ancestor])) {
+                    continue 2;
+                }
+            }
+            $row                     = $entry['row'];
+            $external                = $entry['external'];
+            [$path, $served, $state] = $external === null ? $this->resolve($slug, $locale, $folder) : [$external, $this->sourceLocale, TranslationState::Source];
+            $top                     = $ancestors === [] ? $row : $nodes[$ancestors[0]][0]['row'];
+            // A child inherits its parent's audience and group and may only narrow the audience.
+            $adminOnly = false;
+            foreach ([...$ancestors, $slug] as $own) {
+                $adminOnly = $adminOnly || $nodes[$own][0]['audience'] !== 'member';
+            }
+            if ($ancestors !== [] && is_string($row['group'] ?? null) && $row['group'] !== ($top['group'] ?? 'using')) {
+                $problems[] = sprintf('%s: chapter "%s" sits under "%s" and takes its group; its own group "%s" is ignored.', self::MANIFEST, $slug, $ancestors[0], $row['group']);
+            }
+            $built[$slug] = new ManualChapter(
+                $slug,
+                is_string($top['group'] ?? null) ? $top['group'] : 'using',
+                $adminOnly,
+                is_string($row['icon'] ?? null) ? $row['icon'] : 'tabler:book',
+                $this->title($path, $slug),
+                $path,
+                is_array($row['tags'] ?? null) ? array_values(array_filter(array_map(strval(...), $row['tags']), static fn (string $tag): bool => trim($tag) !== '')) : [],
+                $served,
+                $state,
+                $external !== null,
+                $external === null ? $this->manualDir($folder) : $this->docsDir($external),
+                is_int($row['toc_depth'] ?? null) ? max(2, min(4, $row['toc_depth'])) : 4,
+                $ancestors,
+                [],
+                $folder,
+            );
+        }
+
+        return [$this->depthFirst($built), $problems];
+    }
+
+    /**
+     * The slugs above `$slug`, top-level first, or false (with a problem) for an unknown parent, a cycle, a tree
+     * deeper than {@see ManualChapter::MAX_DEPTH} or the home page in the tree.
+     *
+     * @param array<string, array{row: array<mixed>, external: string|null, parent: string|null, audience: mixed}> $entries
+     * @param array<string, false|list<string>> $ancestry memo, filled in
+     * @param list<string> $problems
+     *
+     * @return false|list<string>
+     */
+    private function ancestry(string $slug, array $entries, array &$ancestry, array &$problems): array|false
+    {
+        $chain  = [];
+        $cursor = $entries[$slug]['parent'];
+        while ($cursor !== null) {
+            if ($cursor === $slug || in_array($cursor, $chain, true)) {
+                $problems[] = sprintf('%s: the parents of "%s" form a cycle; it is left out.', self::MANIFEST, $slug);
+
+                return $ancestry[$slug] = false;
+            }
+            if (!isset($entries[$cursor])) {
+                $problems[] = sprintf('%s: chapter "%s" has an unknown parent "%s"; it is left out.', self::MANIFEST, $slug, $cursor);
+
+                return $ancestry[$slug] = false;
+            }
+            $chain[] = $cursor;
+            if (count($chain) >= ManualChapter::MAX_DEPTH) {
+                $problems[] = sprintf('%s: chapter "%s" is nested deeper than %d levels; it is left out.', self::MANIFEST, $slug, ManualChapter::MAX_DEPTH);
+
+                return $ancestry[$slug] = false;
+            }
+            $cursor = $entries[$cursor]['parent'];
+        }
+        if ($chain !== [] && ($slug === ManualChapter::HOME || in_array(ManualChapter::HOME, $chain, true))) {
+            $problems[] = sprintf('%s: the home page (%s) cannot have a parent or children; "%s" is left out.', self::MANIFEST, ManualChapter::HOME, $slug);
+
+            return $ancestry[$slug] = false;
+        }
+
+        // The walk above meets every reason an ancestor could be left out (unknown, cycle, depth, home page).
+        return $ancestry[$slug] = array_reverse($chain);
+    }
+
+    /**
+     * 1.6: where a nested chapter's file lives — `{directory}/{ancestors…}/{slug}.md` when it exists, else the manual
+     * root — or null. Slugs are `[A-Za-z0-9-]+`, so the folder cannot climb out of the manual; a symbolic link that
+     * points outside it is refused too.
+     *
+     * @param list<string> $ancestors
+     */
+    private function nestedFolder(string $slug, array $ancestors): ?string
+    {
+        $folder = implode('/', $ancestors);
+        foreach ([$folder, ''] as $candidate) {
+            $file = $this->sourcePath($slug, $candidate);
+            if (is_file($file) && $this->insideManual($file)) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /** Whether a file resolves (links followed) inside the manual directory. */
+    private function insideManual(string $file): bool
+    {
+        $root = realpath($this->directory);
+        $path = realpath($file);
+
+        return $root !== false && $path !== false && str_starts_with($path, $root . DIRECTORY_SEPARATOR);
+    }
+
+    /** The docs-root folder of a manual file: `manual`, or `manual/guide` for a file of a sub-folder. */
+    private function manualDir(string $folder): string
+    {
+        return basename($this->directory) . ($folder === '' ? '' : '/' . $folder);
+    }
+
+    /**
+     * Every chapter followed by its descendants (manifest order among siblings), the titles of the ancestors filled in.
+     *
+     * @param array<string, ManualChapter> $built
+     *
+     * @return list<ManualChapter>
+     */
+    private function depthFirst(array $built): array
+    {
+        /** @var array<string, list<ManualChapter>> $children */
+        $children = [];
+        foreach ($built as $chapter) {
+            $children[$chapter->parent() ?? ''][] = $chapter;
+        }
+        $ordered = [];
+        $walk    = static function (string $parent, array $titles) use (&$walk, &$ordered, $children): void {
+            $titles = array_values(array_map(strval(...), $titles));
+            foreach ($children[$parent] ?? [] as $chapter) {
+                $ordered[] = $titles === [] ? $chapter : new ManualChapter(
+                    $chapter->slug,
+                    $chapter->group,
+                    $chapter->adminOnly,
+                    $chapter->icon,
+                    $chapter->title,
+                    $chapter->path,
+                    $chapter->tags,
+                    $chapter->locale,
+                    $chapter->translation,
+                    $chapter->external,
+                    $chapter->docsDir,
+                    $chapter->tocDepth,
+                    $chapter->ancestors,
+                    $titles,
+                    $chapter->folder,
+                );
+                $walk($chapter->slug, [...$titles, $chapter->title]);
+            }
+        };
+        $walk('', []);
+
+        return $ordered;
     }
 
     /**
@@ -170,10 +356,11 @@ final readonly class ManualCatalog
      *
      * @param array<mixed> $row
      * @param list<string> $problems
+     * @param bool $nested 1.6: the row has a `parent`, so its file is looked for once the tree is known
      *
      * @return list<array{0: string, 1: string|null}> slug, external path (null = `{directory}/{slug}.md`)
      */
-    private function sources(array $row, array &$problems): array
+    private function sources(array $row, array &$problems, bool $nested = false): array
     {
         if (is_string($row['include'] ?? null)) {
             $files = $this->included($row['include'], $problems);
@@ -181,7 +368,7 @@ final readonly class ManualCatalog
             return array_map(static fn (string $file): array => [self::slugFor($file), $file], $files);
         }
         $slug = $row['slug'] ?? null;
-        if (!is_string($slug) || preg_match('/^[A-Za-z0-9-]+$/', $slug) !== 1) {
+        if (!is_string($slug) || preg_match(self::SLUG, $slug) !== 1) {
             $problems[] = sprintf('%s: a chapter needs a slug made of letters, digits and dashes (or an include).', self::MANIFEST);
 
             return [];
@@ -196,7 +383,7 @@ final readonly class ManualCatalog
 
             return [[$slug, $file]];
         }
-        if (!is_file($this->sourcePath($slug))) {
+        if (!$nested && !is_file($this->sourcePath($slug))) {
             $problems[] = sprintf('%s lists "%s", which has no Markdown file.', self::MANIFEST, $slug);
 
             return [];
@@ -275,19 +462,48 @@ final readonly class ManualCatalog
     }
 
     /**
-     * Returns the path of a source-language chapter file.
+     * 1.6: the chapters right under `$chapter` that the viewer may read, in manual order.
+     *
+     * @return list<ManualChapter>
      */
-    public function sourcePath(string $slug): string
+    public function children(ManualChapter $chapter, bool $admin, ?string $locale = null): array
     {
-        return $this->directory . '/' . $slug . '.md';
+        return array_values(array_filter($this->visible($admin, $locale), static fn (ManualChapter $candidate): bool => $candidate->parent() === $chapter->slug));
     }
 
     /**
-     * Returns the path of a chapter translation file.
+     * 1.6: the chapters above `$chapter`, top-level first (all readable whenever `$chapter` is: a hidden parent hides
+     * its children).
+     *
+     * @return list<ManualChapter>
      */
-    public function translationPath(string $slug, string $locale): string
+    public function ancestors(ManualChapter $chapter, ?string $locale = null): array
     {
-        return $this->directory . '/' . $locale . '/' . $slug . '.md';
+        $found = [];
+        foreach ($chapter->ancestors as $slug) {
+            $ancestor = $this->find($slug, $locale);
+            if ($ancestor instanceof ManualChapter) {
+                $found[] = $ancestor;
+            }
+        }
+
+        return $found;
+    }
+
+    /**
+     * Returns the path of a source-language chapter file (1.6: `$folder` = its sub-folder of the manual).
+     */
+    public function sourcePath(string $slug, string $folder = ''): string
+    {
+        return $this->directory . '/' . ($folder === '' ? '' : $folder . '/') . $slug . '.md';
+    }
+
+    /**
+     * Returns the path of a chapter translation file (1.6: in the same sub-folder as its source).
+     */
+    public function translationPath(string $slug, string $locale, string $folder = ''): string
+    {
+        return $this->directory . '/' . $locale . '/' . ($folder === '' ? '' : $folder . '/') . $slug . '.md';
     }
 
     /** First 12 hex digits of the SHA-256 of a source file's content (what a translation records). */
@@ -305,13 +521,13 @@ final readonly class ManualCatalog
     /**
      * @return array{0: string, 1: string, 2: TranslationState} path, locale of that file, state
      */
-    private function resolve(string $slug, ?string $locale): array
+    private function resolve(string $slug, ?string $locale, string $folder = ''): array
     {
-        $source = $this->sourcePath($slug);
+        $source = $this->sourcePath($slug, $folder);
         if ($locale === null || !$this->translates($locale)) {
             return [$source, $this->sourceLocale, TranslationState::Source];
         }
-        $translation = $this->translationPath($slug, $locale);
+        $translation = $this->translationPath($slug, $locale, $folder);
         if (!is_file($translation)) {
             return [$source, $this->sourceLocale, TranslationState::Missing];
         }

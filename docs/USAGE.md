@@ -7,6 +7,7 @@
 - [Chapters](#chapters)
 - [Links](#links)
 - [Stable anchors](#stable-anchors)
+- [Sub-pages](#sub-pages)
 - [External chapters](#external-chapters)
 - [Audiences](#audiences)
 - [Figures](#figures)
@@ -59,6 +60,7 @@ chapters:
 | `file` | — | 1.2: serve another Markdown file of the docs root instead of `{slug}.md`, e.g. `../CHANGELOG.md` — see [External chapters](#external-chapters). |
 | `include` | — | 1.3: a glob (`../adr/*.md`) or a folder (`../ops/`) of the docs root: one chapter per Markdown file, slug from the file name, the row's other keys for all of them (no `slug`). |
 | `toc_depth` | `4` | 1.2: deepest heading level listed in "On this page" (2–4), e.g. `2` for a long CHANGELOG. |
+| `parent` | — | 1.6: the slug of the chapter this one sits under — see [Sub-pages](#sub-pages). |
 
 A slug that is not `[A-Za-z0-9-]+`, or a listed chapter without its file, throws when the manifest is read — a broken
 manual fails loudly in tests instead of serving a partial one.
@@ -101,6 +103,55 @@ GitHub derives a heading id from its text, so a translated heading gets another 
 
 The heading then carries `id="filters"` in every language, in the app and on GitHub. Keep the same `<a id>` in each
 translation; `nowo:manual:check` reports the ones a translation lacks.
+
+## Sub-pages
+
+1.6: `parent` nests a chapter under another one, up to **three levels** (chapter → child → grandchild):
+
+```yaml
+chapters:
+  - { slug: README }
+  - { slug: guide, group: using }
+  - { slug: install, parent: guide, tags: [setup] }        # docs/manual/guide/install.md
+  - { slug: docker, parent: install, tags: [container] }   # docs/manual/guide/install/docker.md
+  - { slug: billing, parent: guide, audience: admin }
+```
+
+```text
+docs/manual/
+├── guide.md
+├── guide/
+│   ├── install.md
+│   ├── install/docker.md
+│   └── billing.md
+└── es/guide/install.md          # translations mirror the sub-folders
+```
+
+- **Files.** A nested chapter's file is `{parent path}/{slug}.md` (`guide/install/docker.md`); when that file does not
+  exist, `{slug}.md` at the manual root is used. Translations sit in the same sub-folder under the locale
+  (`es/guide/install.md`). Slugs stay unique across the whole manual.
+- **URLs.** `/manual/guide`, `/manual/guide/install`, `/manual/guide/install/docker` (routes `nowo_manual_chapter`,
+  `nowo_manual_child`, `nowo_manual_grandchild`), plus the `.md` forms that redirect (`/manual/guide/install.md`).
+  A nested chapter answers only under its own parents; `/manual/docker` redirects (301) to its place in the tree.
+  Anchors are unchanged (`#section`). In templates, link a chapter with `manual_chapter_path(chapter)`.
+- **Access.** A child takes its parent's `group` and audience and may only narrow the audience: `audience: member`
+  under an admin chapter stays admin-only. A page the viewer cannot open answers 404 and links to it read as plain
+  text; a hidden parent hides its whole branch.
+- **Navigation.** The chapter list shows children under their parent in a folded `<details>` branch, open along the
+  current chapter's branch; previous / next walk the tree depth-first; a parent page lists its sub-pages ("In this
+  section"); a nested page shows a breadcrumb *Manual › Parent › Child* — UiKit's `breadcrumbs` partial when UiKit is
+  installed (page contract), the same markup from the bundle otherwise.
+- **Search.** Sub-pages are indexed with their own `tags` and sections, behind the same access rules, and titled
+  "Parent › Child".
+- **Links.** Relative links work as on GitHub: `guide/install.md` from the top level, `../guide.md` and
+  `install/docker.md` from `guide/install.md`, `../../faq.md` from a grandchild; a bare `child.md` naming another
+  chapter also resolves. `nowo:manual:check`, `nowo:manual:stamp` and `nowo:manual:translate` walk the sub-folders.
+- **Validation.** An unknown parent, a cycle, a fourth level, a parent under the home page, a parent that is not a slug
+  or a nested chapter without a file inside the manual (a symbolic link out of it included) leaves that chapter and its
+  branch out and records a problem; `nowo:manual:check --strict` / `--sources` fail on it. A child's own `group` is
+  ignored (and reported).
+
+A manifest without `parent` renders exactly as in 1.5.
 
 ## External chapters
 

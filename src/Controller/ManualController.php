@@ -7,6 +7,7 @@ namespace Nowo\ManualKitBundle\Controller;
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
+use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccess;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -25,6 +26,9 @@ use function is_file;
  * The manual inside the application: `{directory}/*.md` rendered for readers (`role`), in the request locale when a
  * translation exists; the administrators' chapters for `admin_role` only (404 for everyone else — no existence
  * oracle). Images are served from `{directory}/images` — to members only those their chapters show.
+ *
+ * 1.6: nested chapters are served under their parents (`/{parent}/{chapter}`, `/{grandparent}/{parent}/{chapter}`),
+ * with the same access rules — a child is never more visible than its parent.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -60,11 +64,26 @@ final readonly class ManualController
     public function markdownAlias(string $chapter): RedirectResponse
     {
         $this->requireReader();
-        $found = $this->readable($this->catalog->find($chapter));
 
-        return new RedirectResponse($found->isHome()
-            ? $this->urls->generate('nowo_manual_index')
-            : $this->urls->generate('nowo_manual_chapter', ['chapter' => $found->slug]), Response::HTTP_MOVED_PERMANENTLY);
+        return new RedirectResponse(ManualRoutes::generate($this->urls, $this->readable($this->catalog->find($chapter))), Response::HTTP_MOVED_PERMANENTLY);
+    }
+
+    /** 1.6: `guide/install.md` (a link written for GitHub inside a sub-folder) redirects to the child chapter. */
+    #[Route('/{parent}/{chapter}.md', name: 'nowo_manual_child_md', requirements: ['parent' => ManualRoutes::SEGMENT, 'chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
+    public function childMarkdownAlias(string $parent, string $chapter): RedirectResponse
+    {
+        $this->requireReader();
+
+        return new RedirectResponse(ManualRoutes::generate($this->urls, $this->nested($chapter, [$parent], null)), Response::HTTP_MOVED_PERMANENTLY);
+    }
+
+    /** 1.6: `guide/install/docker.md` redirects to the grandchild chapter. */
+    #[Route('/{grandparent}/{parent}/{chapter}.md', name: 'nowo_manual_grandchild_md', requirements: ['grandparent' => ManualRoutes::SEGMENT, 'parent' => ManualRoutes::SEGMENT, 'chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
+    public function grandchildMarkdownAlias(string $grandparent, string $parent, string $chapter): RedirectResponse
+    {
+        $this->requireReader();
+
+        return new RedirectResponse(ManualRoutes::generate($this->urls, $this->nested($chapter, [$grandparent, $parent], null)), Response::HTTP_MOVED_PERMANENTLY);
     }
 
     /**
@@ -92,7 +111,7 @@ final readonly class ManualController
     /**
      * Renders one manual chapter (the home chapter is only served by index()).
      */
-    #[Route('/{chapter}', name: 'nowo_manual_chapter', requirements: ['chapter' => '[A-Za-z0-9][A-Za-z0-9-]*'], methods: ['GET'])]
+    #[Route('/{chapter}', name: 'nowo_manual_chapter', requirements: ['chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
     public function chapter(Request $request, string $chapter): Response
     {
         $this->requireReader();
@@ -100,8 +119,50 @@ final readonly class ManualController
         if ($found->isHome()) {
             throw new NotFoundHttpException();
         }
+        if ($found->ancestors !== []) {
+            // 1.6: a nested chapter lives under its parents; a link built from the slug alone still reaches it.
+            return new RedirectResponse(ManualRoutes::generate($this->urls, $found), Response::HTTP_MOVED_PERMANENTLY);
+        }
 
         return $this->page($request, $found);
+    }
+
+    /**
+     * 1.6: renders a chapter that sits under a top-level one (`/{parent}/{chapter}`).
+     */
+    #[Route('/{parent}/{chapter}', name: 'nowo_manual_child', requirements: ['parent' => ManualRoutes::SEGMENT, 'chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
+    public function child(Request $request, string $parent, string $chapter): Response
+    {
+        $this->requireReader();
+
+        return $this->page($request, $this->nested($chapter, [$parent], $request->getLocale()));
+    }
+
+    /**
+     * 1.6: renders a chapter two levels down (`/{grandparent}/{parent}/{chapter}`).
+     */
+    #[Route('/{grandparent}/{parent}/{chapter}', name: 'nowo_manual_grandchild', requirements: ['grandparent' => ManualRoutes::SEGMENT, 'parent' => ManualRoutes::SEGMENT, 'chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
+    public function grandchild(Request $request, string $grandparent, string $parent, string $chapter): Response
+    {
+        $this->requireReader();
+
+        return $this->page($request, $this->nested($chapter, [$grandparent, $parent], $request->getLocale()));
+    }
+
+    /**
+     * A nested chapter the viewer may read, reached through its own parents only (404 otherwise: no other path to
+     * it, no existence oracle).
+     *
+     * @param list<string> $ancestors
+     */
+    private function nested(string $slug, array $ancestors, ?string $locale): ManualChapter
+    {
+        $found = $this->readable($this->catalog->find($slug, $locale));
+        if ($found->ancestors !== $ancestors) {
+            throw new NotFoundHttpException();
+        }
+
+        return $found;
     }
 
     private function page(Request $request, ManualChapter $chapter): Response
@@ -115,6 +176,9 @@ final readonly class ManualController
             'chapters' => $this->catalog->visible($admin, $locale),
             'previous' => $previous,
             'next'     => $next,
+            // 1.6: the chapter's parents (breadcrumb) and the sub-pages the viewer may read.
+            'ancestors' => $this->catalog->ancestors($chapter, $locale),
+            'children'  => $this->catalog->children($chapter, $admin, $locale),
         ]));
     }
 

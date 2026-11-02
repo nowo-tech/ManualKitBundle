@@ -4,6 +4,10 @@ title: Manual
 home: Início do manual
 chapters: Capítulos
 on_this_page: Nesta página
+breadcrumbs: Trilha de navegação
+children: Nesta secção
+nav:
+  subpages: "Subpáginas de %title%"
 pager: Capítulo anterior e seguinte
 zoom: Ampliar imagem
 lightbox:
