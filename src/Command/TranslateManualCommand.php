@@ -79,7 +79,12 @@ final readonly class TranslateManualCommand
             if ($found->external || ($chapter !== [] && !in_array($found->slug, $chapter, true))) {
                 continue;
             }
-            $path     = $this->catalog->translationPath($found->slug, $locale, $found->folder);
+            // 1.6: never read or write through a symbolic link out of the manual.
+            $path = $this->catalog->writableTranslationPath($found->slug, $locale, $found->folder);
+            if ($path === null) {
+                $rows[] = [$found->slug, $found->translation->value, 'skipped: the translation path leaves the manual'];
+                continue;
+            }
             $existing = is_file($path) ? (string) file_get_contents($path) : null;
             if ($found->translation === TranslationState::Translated && !$force) {
                 continue;

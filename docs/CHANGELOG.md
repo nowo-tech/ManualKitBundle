@@ -51,6 +51,9 @@ Sub-pages: a chapter may sit under another one, up to three levels. See [UPGRADI
   and machine translation walk the sub-folders.
 - `ManualChapter::ancestors`, `ancestorTitles`, `folder`, `parent()`, `depth()`, `urlPath()`, `trailTitle()`;
   `ManualCatalog::children()` / `ancestors()`; `ManualRoutes`.
+- Containment: top-level sources, translations and locale sub-folders that resolve (symbolic links) outside the
+  manual are ignored with a problem, and stamp / translate never write through them; slugs no longer accept a
+  trailing newline (`\z`); `guide/x.md` naming a hidden child kept at the manual root reads as plain text.
 - Translations `breadcrumbs`, `children`, `nav.subpages` (7 locales). Demo: three-level example, search page,
   Playwright e2e with axe.
 

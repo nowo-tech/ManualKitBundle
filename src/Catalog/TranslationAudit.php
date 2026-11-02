@@ -72,8 +72,9 @@ final readonly class TranslationAudit
             return false;
         }
         // 1.6: a nested chapter's translation sits in the same sub-folder as its source (`es/guide/install.md`).
-        $path = $this->catalog->translationPath($slug, $locale, $chapter->folder);
-        if (!is_file($path)) {
+        // Never through a symbolic link out of the manual.
+        $path = $this->catalog->writableTranslationPath($slug, $locale, $chapter->folder);
+        if ($path === null || !is_file($path)) {
             return false;
         }
         $marker      = '<!-- translation-of: ' . ManualCatalog::sourceHash((string) file_get_contents($this->catalog->sourcePath($slug, $chapter->folder))) . ' -->';

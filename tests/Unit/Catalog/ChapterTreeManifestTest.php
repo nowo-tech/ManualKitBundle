@@ -83,6 +83,32 @@ final class ChapterTreeManifestTest extends TestCase
         ], $catalog->problems());
     }
 
+    /** Audit CR L1: a top-level source linked out of the manual is left out too. */
+    public function testAFlatSourceLinkedOutOfTheManualIsLeftOut(): void
+    {
+        file_put_contents($this->root . '/leak.md', "# Leak\n");
+        symlink($this->root . '/leak.md', $this->directory . '/leak.md');
+        $this->write("  - { slug: top }\n  - { slug: leak }\n", ['top']);
+        $catalog = new ManualCatalog($this->directory);
+
+        self::assertSame(['top'], $this->slugs($catalog));
+        self::assertSame(['manifest.yaml: the file of "leak" resolves outside ' . $this->directory . '; it is left out.'], $catalog->problems());
+    }
+
+    /** Audit CR I3: a slug or parent with a trailing newline is not a slug. */
+    public function testATrailingNewlineIsNotASlug(): void
+    {
+        $this->write("  - { slug: top }\n  - { slug: kid, parent: \"top\\n\" }\n  - { slug: \"x\\n\" }\n", ['top', 'kid']);
+        $catalog = new ManualCatalog($this->directory);
+
+        self::assertSame(['top'], $this->slugs($catalog));
+        self::assertSame([
+            'manifest.yaml: the parent "top\\n" is not a chapter slug; the row is left out.',
+            'manifest.yaml: a chapter needs a slug made of letters, digits and dashes (or an include).',
+        ], $catalog->problems());
+        self::assertSame(0, preg_match(ManualCatalog::SLUG, "top\n"));
+    }
+
     public function testExternalAndIncludedChaptersMayHangUnderAChapter(): void
     {
         file_put_contents($this->root . '/CHANGES.md', "# Changes\n");

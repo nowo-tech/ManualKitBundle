@@ -55,7 +55,7 @@ final readonly class ManualCatalog
     public const string MANIFEST = 'manifest.yaml';
 
     /** A chapter slug (also a URL segment and a file name). */
-    public const string SLUG = '/^[A-Za-z0-9-]+$/';
+    public const string SLUG = '/^[A-Za-z0-9-]+\z/';
 
     /** `<!-- translation-of: 1a2b3c4d5e6f -->` in a translated file. */
     public const string TRANSLATION_MARKER = '/<!--\s*translation-of:\s*([a-f0-9]{12})\s*-->/';
@@ -197,7 +197,15 @@ final readonly class ManualCatalog
             $row                     = $entry['row'];
             $external                = $entry['external'];
             [$path, $served, $state] = $external === null ? $this->resolve($slug, $locale, $folder) : [$external, $this->sourceLocale, TranslationState::Source];
-            $top                     = $ancestors === [] ? $row : $nodes[$ancestors[0]][0]['row'];
+            if ($external === null && $locale === null) {
+                foreach ($this->locales as $translated) {
+                    $file = $this->translates($translated) ? $this->translationPath($slug, $translated, $folder) : null;
+                    if ($file !== null && is_file($file) && !$this->insideManual($file)) {
+                        $problems[] = sprintf('%s: the %s translation of "%s" resolves outside %s; it is ignored.', self::MANIFEST, $translated, $slug, $this->directory);
+                    }
+                }
+            }
+            $top = $ancestors === [] ? $row : $nodes[$ancestors[0]][0]['row'];
             // A child inherits its parent's audience and group and may only narrow the audience.
             $adminOnly = false;
             foreach ([...$ancestors, $slug] as $own) {
@@ -289,6 +297,26 @@ final readonly class ManualCatalog
         }
 
         return null;
+    }
+
+    /**
+     * 1.6: the translation file of a chapter when the commands may write it — null when the file, or the nearest
+     * existing folder on its way, resolves (links followed) outside the manual.
+     */
+    public function writableTranslationPath(string $slug, string $locale, string $folder = ''): ?string
+    {
+        $path = $this->translationPath($slug, $locale, $folder);
+        if (file_exists($path) || is_link($path)) {
+            return $this->insideManual($path) ? $path : null;
+        }
+        $existing = dirname($path);
+        while (!is_dir($existing) && dirname($existing) !== $existing) {
+            $existing = dirname($existing);
+        }
+        $root = realpath($this->directory);
+        $real = realpath($existing);
+
+        return $root !== false && $real !== false && ($real === $root || str_starts_with($real, $root . DIRECTORY_SEPARATOR)) ? $path : null;
     }
 
     /** Whether a file resolves (links followed) inside the manual directory. */
@@ -385,6 +413,12 @@ final readonly class ManualCatalog
         }
         if (!$nested && !is_file($this->sourcePath($slug))) {
             $problems[] = sprintf('%s lists "%s", which has no Markdown file.', self::MANIFEST, $slug);
+
+            return [];
+        }
+        if (!$nested && !$this->insideManual($this->sourcePath($slug))) {
+            // 1.6: a symbolic link out of the manual is never served.
+            $problems[] = sprintf('%s: the file of "%s" resolves outside %s; it is left out.', self::MANIFEST, $slug, $this->directory);
 
             return [];
         }
@@ -528,7 +562,8 @@ final readonly class ManualCatalog
             return [$source, $this->sourceLocale, TranslationState::Source];
         }
         $translation = $this->translationPath($slug, $locale, $folder);
-        if (!is_file($translation)) {
+        // 1.6: a translation (or locale sub-folder) linked out of the manual is ignored — the source is served.
+        if (!is_file($translation) || !$this->insideManual($translation)) {
             return [$source, $this->sourceLocale, TranslationState::Missing];
         }
         $marker = preg_match(self::TRANSLATION_MARKER, (string) file_get_contents($translation), $match) ? $match[1] : null;

@@ -138,6 +138,10 @@ final readonly class ManualRenderer
             if (!$candidate->external) {
                 // 1.6: `manual/guide/install.md` → install (what a relative link resolves to, from the docs root).
                 $files[$candidate->docsDir . '/' . $candidate->slug . '.md'] = $candidate->slug;
+                if ($candidate->ancestors !== [] && $candidate->folder === '') {
+                    // Kept at the manual root: `guide/x.md` still names it (plain text when it is hidden).
+                    $files[$candidate->docsDir . '/' . implode('/', $candidate->ancestors) . '/' . $candidate->slug . '.md'] = $candidate->slug;
+                }
             }
         }
 

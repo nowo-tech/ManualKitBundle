@@ -47,7 +47,7 @@ final class ChapterTreeTest extends WebTestCase
 
         self::assertSame([], $catalog->problems());
         self::assertSame(
-            ['README', 'guide', 'install', 'docker', 'secrets', 'faq', 'flat-child', 'ops', 'backup'],
+            ['README', 'guide', 'install', 'docker', 'secrets', 'hidden-root', 'faq', 'flat-child', 'ops', 'backup'],
             array_map(static fn (ManualChapter $c): string => $c->slug, $catalog->all()),
         );
         $docker = $catalog->find('docker') ?? self::fail('docker');
@@ -70,7 +70,7 @@ final class ChapterTreeTest extends WebTestCase
 
         $guide = $catalog->find('guide') ?? self::fail('guide');
         self::assertSame(['install'], array_map(static fn (ManualChapter $c): string => $c->slug, $catalog->children($guide, false)));
-        self::assertSame(['install', 'secrets'], array_map(static fn (ManualChapter $c): string => $c->slug, $catalog->children($guide, true)));
+        self::assertSame(['install', 'secrets', 'hidden-root'], array_map(static fn (ManualChapter $c): string => $c->slug, $catalog->children($guide, true)));
         self::assertSame(['guide', 'install'], array_map(static fn (ManualChapter $c): string => $c->slug, $catalog->ancestors($docker)));
 
         [$previous, $next] = $catalog->neighbours($docker, false);
@@ -116,6 +116,8 @@ final class ChapterTreeTest extends WebTestCase
         self::assertSame('/en/manual/guide/install#requirements', $prose->filter('a:contains("short form")')->attr('href'), 'child.md from the parent');
         self::assertCount(0, $prose->filter('a:contains("Secrets")'), 'a link to a page the reader cannot open is plain text');
         self::assertStringContainsString('Secrets', $prose->text());
+        self::assertCount(0, $prose->filter('a:contains("Hidden root")'), 'audit CR I1: guide/x.md naming a hidden child kept at the root');
+        self::assertStringContainsString('Hidden root', $prose->text());
 
         $crawler = $client->request('GET', '/en/manual/guide/install');
         self::assertSame(['docker'], $crawler->filter('[data-testid^="manual-child-"]')->each(static fn (Crawler $a): string => substr((string) $a->attr('data-testid'), 13)));
@@ -151,7 +153,8 @@ final class ChapterTreeTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $crawler = $admin->request('GET', '/en/manual/guide');
         self::assertSame('/en/manual/guide/secrets', $crawler->filter('.manual-prose a:contains("Secrets")')->attr('href'));
-        self::assertSame(['install', 'secrets'], $crawler->filter('[data-testid^="manual-child-"]')->each(static fn (Crawler $a): string => substr((string) $a->attr('data-testid'), 13)));
+        self::assertSame('/en/manual/guide/hidden-root', $crawler->filter('.manual-prose a:contains("Hidden root")')->attr('href'));
+        self::assertSame(['install', 'secrets', 'hidden-root'], $crawler->filter('[data-testid^="manual-child-"]')->each(static fn (Crawler $a): string => substr((string) $a->attr('data-testid'), 13)));
     }
 
     public function testTranslationsLiveInTheSameSubFolders(): void
@@ -199,6 +202,46 @@ final class ChapterTreeTest extends WebTestCase
             self::assertFileExists($directory . '/es/guide/install/docker.md');
         } finally {
             (new Filesystem())->remove($directory);
+        }
+    }
+
+    /** Audit CR L1: a translation file or locale sub-folder linked out of the manual is never served nor written. */
+    public function testSymlinksOutOfTheManualAreNeitherServedNorWritten(): void
+    {
+        $root      = sys_get_temp_dir() . '/nowo-manual-link-' . bin2hex(random_bytes(4));
+        $directory = $root . '/manual';
+        $fs        = new Filesystem();
+        $fs->mirror(__DIR__ . '/../Fixtures/tree/manual', $directory);
+        mkdir($root . '/outside');
+        file_put_contents($root . '/outside/install.md', "<!-- translation-of: 000000000000 -->\n# Outside\n\nsecret-outside-content\n");
+        unlink($directory . '/es/guide/install.md');
+        symlink($root . '/outside/install.md', $directory . '/es/guide/install.md');
+        symlink($root . '/outside', $directory . '/es/guide/install');
+        try {
+            $config = ['directory' => $directory, 'machine_translation' => ['provider' => 'libretranslate', 'url' => 'https://translate.example.test']];
+            $client = self::createClient(['manual' => $config], ['PHP_AUTH_USER' => 'alice', 'PHP_AUTH_PW' => 'x']);
+            $client->request('GET', '/es/manual/guide/install');
+            self::assertResponseIsSuccessful();
+            self::assertStringNotContainsString('secret-outside-content', (string) $client->getResponse()->getContent());
+            self::assertSelectorTextSame('h1', 'Install', 'the source is served instead');
+
+            $catalog = self::getContainer()->get(ManualCatalog::class);
+            self::assertInstanceOf(ManualCatalog::class, $catalog);
+            self::assertSame(TranslationState::Missing, ($catalog->find('install', 'es') ?? self::fail('install'))->translation);
+            self::assertContains('manifest.yaml: the es translation of "install" resolves outside ' . $directory . '; it is ignored.', $catalog->problems());
+            self::assertNull($catalog->writableTranslationPath('docker', 'es', 'guide/install'), 'a locale sub-folder linked out');
+            self::assertSame($directory . '/es/faq.md', $catalog->writableTranslationPath('faq', 'es'));
+
+            $application = new Application(self::$kernel ?? self::fail('kernel'));
+            $stamp       = new CommandTester($application->find('nowo:manual:stamp'));
+            self::assertSame(1, $stamp->execute(['locale' => 'es', 'chapter' => 'install']));
+            $translate = new CommandTester($application->find('nowo:manual:translate'));
+            self::assertSame(0, $translate->execute(['locale' => 'es', '--chapter' => ['install', 'docker']]));
+            self::assertStringContainsString('skipped: the translation path leaves the manual', $translate->getDisplay());
+            self::assertSame(['install.md'], array_values(array_diff((array) scandir($root . '/outside'), ['.', '..'])), 'nothing written outside');
+            self::assertStringContainsString('000000000000', (string) file_get_contents($root . '/outside/install.md'));
+        } finally {
+            $fs->remove($root);
         }
     }
 

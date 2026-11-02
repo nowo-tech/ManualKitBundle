@@ -148,7 +148,7 @@ docs/manual/
   chapter also resolves. `nowo:manual:check`, `nowo:manual:stamp` and `nowo:manual:translate` walk the sub-folders.
 - **Validation.** An unknown parent, a cycle, a fourth level, a parent under the home page, a parent that is not a slug
   or a nested chapter without a file inside the manual (a symbolic link out of it included) leaves that chapter and its
-  branch out and records a problem; `nowo:manual:check --strict` / `--sources` fail on it. A child's own `group` is
+  branch out; a translation linked out of the manual is ignored (the source is served) and records a problem; `nowo:manual:check --strict` / `--sources` fail on it. A child's own `group` is
   ignored (and reported).
 
 A manifest without `parent` renders exactly as in 1.5.

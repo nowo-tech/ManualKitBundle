@@ -71,6 +71,8 @@ v1.5.1 code (`tests/Fixtures/bc-1.5.1`).
 - No request value reaches the filesystem: URL segments are only compared with catalogue slugs; files come from the
   manifest. Folder names are built from manifest slugs (`[A-Za-z0-9-]+`, validated before use; `parent` values that are
   not slugs are rejected) and the resolved file must `realpath()` inside `directory`.
+- Top-level sources, translation files and locale sub-folders are `realpath()`-contained as well (audit CR L1):
+  outside → ignored with a problem; stamp / translate refuse to write through them (`writableTranslationPath()`).
 - `file` / `include` rows with a `parent` keep the 1.2/1.3 docs-root allow-list (`externalFile()`), unchanged.
 - Access: inheritance can only narrow; 404 for unreadable, wrong-path and unknown pages alike (no oracle); 301
   redirects are issued only after the read check.
