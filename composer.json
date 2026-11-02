@@ -135,7 +135,10 @@
     },
     "config": {
         "sort-packages": true,
-        "root-version": "1.0.0-dev"
+        "root-version": "1.0.0-dev",
+        "platform": {
+            "php": "8.4.1"
+        }
     },
     "minimum-stability": "stable",
     "prefer-stable": true,
