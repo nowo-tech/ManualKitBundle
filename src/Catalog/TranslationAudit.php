@@ -14,6 +14,7 @@ use function is_file;
 /**
  * What `nowo:manual:check` reports: per locale and chapter, the translation state and the stable anchors
  * (`<a id="…"></a>`) of the source that the translation lacks — the app's links to those sections would break.
+ * 1.6: nested chapters included, each compared with the file of its own sub-folder.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -47,7 +48,7 @@ final readonly class TranslationAudit
                 $missing = [];
                 if ($chapter->translation !== TranslationState::Missing) {
                     $missing = array_values(array_diff(
-                        self::anchors((string) file_get_contents($this->catalog->sourcePath($chapter->slug))),
+                        self::anchors((string) file_get_contents($this->catalog->sourcePath($chapter->slug, $chapter->folder))),
                         self::anchors((string) file_get_contents($chapter->path)),
                     ));
                 }
@@ -70,11 +71,13 @@ final readonly class TranslationAudit
         if (!$this->catalog->translates($locale) || !$chapter instanceof ManualChapter || $chapter->external) {
             return false;
         }
-        $path = $this->catalog->translationPath($slug, $locale);
-        if (!is_file($path)) {
+        // 1.6: a nested chapter's translation sits in the same sub-folder as its source (`es/guide/install.md`).
+        // Never through a symbolic link out of the manual.
+        $path = $this->catalog->writableTranslationPath($slug, $locale, $chapter->folder);
+        if ($path === null || !is_file($path)) {
             return false;
         }
-        $marker      = '<!-- translation-of: ' . ManualCatalog::sourceHash((string) file_get_contents($this->catalog->sourcePath($slug))) . ' -->';
+        $marker      = '<!-- translation-of: ' . ManualCatalog::sourceHash((string) file_get_contents($this->catalog->sourcePath($slug, $chapter->folder))) . ' -->';
         $translation = (string) file_get_contents($path);
         $stamped     = preg_match(ManualCatalog::TRANSLATION_MARKER, $translation) === 1
             ? (string) preg_replace(ManualCatalog::TRANSLATION_MARKER, $marker, $translation, 1)

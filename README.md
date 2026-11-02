@@ -17,6 +17,8 @@ This bundle is **FrankenPHP worker mode friendly**. See [docs/FRANKENPHP-WORKER-
 
 ![A manual chapter in the demo: sidebar of chapters, on-this-page table of contents and a figure](docs/images/demo/overview.webp)
 
+![Sub-pages in the demo: a grandchild page with its open branch in the chapter list and the breadcrumb](docs/images/demo/sub-pages.webp)
+
 ## Features
 
 - **One source for GitHub and the app**: `docs/manual/*.md` in reading order from `manifest.yaml`; links between
@@ -32,6 +34,9 @@ This bundle is **FrankenPHP worker mode friendly**. See [docs/FRANKENPHP-WORKER-
   unclosed or misspelt marker hides the rest of the chapter
 - **Figures**: images become figures with their title as caption, intrinsic width / height, lazy loading, phone
   screenshots sized down, several images of one paragraph side by side, and an opt-in Stimulus lightbox
+- **Sub-pages (1.6)**: `parent: <slug>` nests chapters up to three levels (`/manual/guide/install/docker`, files in
+  sub-folders, translations alongside); folded branches in the chapter list, breadcrumb, depth-first pager, inherited
+  access that can only narrow, search results as "Parent › Child"
 - **Search**: `tags` in the manifest and `<!-- tags: … -->` under a heading feed the SearchKit "Manual" group
   (chapters and sections the viewer may read, in their locale)
 - **Translation checks for CI**: `nowo:manual:check --strict` fails on outdated translations and missing stable

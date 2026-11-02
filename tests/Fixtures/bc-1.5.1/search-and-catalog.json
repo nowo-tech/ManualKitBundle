@@ -1,0 +1,67 @@
+{
+    "search": [
+        [
+            "manual",
+            "Manual",
+            "/en/manual",
+            "Manual · Using the application"
+        ],
+        [
+            "buscar",
+            "Filter the list",
+            "/en/manual/01-using#filters",
+            "Using the app"
+        ],
+        [
+            "users",
+            "Users",
+            "/en/manual/02-admin#users",
+            "Administration"
+        ],
+        [
+            "inicio",
+            "Using the app",
+            "/en/manual/01-using",
+            "Manual · Using the application"
+        ],
+        [
+            "admin",
+            "Administration",
+            "/en/manual/02-admin",
+            "Manual · Administration"
+        ]
+    ],
+    "catalog": [
+        [
+            "README",
+            "using",
+            false,
+            "Manual",
+            "es",
+            "translated",
+            "manual",
+            4
+        ],
+        [
+            "01-using",
+            "using",
+            false,
+            "Usar la aplicación",
+            "es",
+            "outdated",
+            "manual",
+            4
+        ],
+        [
+            "02-admin",
+            "administration",
+            true,
+            "Administration",
+            "en",
+            "missing",
+            "manual",
+            4
+        ]
+    ],
+    "problems": []
+}

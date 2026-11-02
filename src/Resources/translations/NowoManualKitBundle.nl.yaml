@@ -4,6 +4,10 @@ title: Handleiding
 home: Start van de handleiding
 chapters: Hoofdstukken
 on_this_page: Op deze pagina
+breadcrumbs: Kruimelpad
+children: In dit hoofdstuk
+nav:
+  subpages: "Subpagina's van %title%"
 pager: Vorig en volgend hoofdstuk
 zoom: Afbeelding vergroten
 lightbox:

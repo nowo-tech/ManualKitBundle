@@ -17,6 +17,18 @@ This guide lists the changes integrators must apply when upgrading between versi
 
 ## Unreleased
 
+No action needed: a manifest without `parent` renders byte for byte as in 1.5.1 (BC test), and every route name and URL
+is unchanged. To use sub-pages (see [USAGE](USAGE.md#sub-pages)):
+
+- Add `parent: <slug>` to the child rows of `manifest.yaml`; move their files to `docs/manual/<parent>/<slug>.md` if
+  you like (translations to `docs/manual/<locale>/<parent>/<slug>.md`).
+- **Own chapter template?** Link chapters with `manual_chapter_path(item)` instead of
+  `path('nowo_manual_chapter', {chapter: item.slug})` — the old form still works for nested chapters through a 301 —
+  and use the new `ancestors` / `children` variables for a breadcrumb and a sub-page list (the default template shows
+  how; `nowo_manual_breadcrumbs_template()` gives UiKit's breadcrumb partial when installed). `chapters` now also
+  holds nested chapters, each right after its parent; filter `c.ancestors is empty` for the top level.
+- BreadcrumbKit trails keyed on `nowo_manual_chapter` do not cover `nowo_manual_child` / `nowo_manual_grandchild`.
+
 ## To 1.5.1
 
 From **1.5.0**:

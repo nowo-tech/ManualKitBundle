@@ -1,0 +1,12 @@
+# 1.6: a three-level tree — guide → install → docker; an admin branch; a child kept at the manual root.
+chapters:
+  - { slug: README }
+  - { slug: guide, group: using, tags: [handbook] }
+  - { slug: install, parent: guide, tags: [setup, instalar] }
+  - { slug: docker, parent: install, tags: [container] }
+  - { slug: secrets, parent: guide, audience: admin }
+  - { slug: hidden-root, parent: guide, audience: admin }
+  - { slug: faq, group: using }
+  - { slug: flat-child, parent: faq }
+  - { slug: ops, group: administration, audience: admin }
+  - { slug: backup, parent: ops, audience: member }

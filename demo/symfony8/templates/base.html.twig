@@ -22,6 +22,7 @@
                 <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
                     <a class="nav-link text-white" href="{{ path('nowo_manual_index', { _locale: app.request.locale }) }}" data-testid="nav-manual">{{ 'demo.manual'|trans }}</a>
                     {% if app.user %}
+                        <a class="nav-link text-white" href="{{ path('demo_manual_search', { _locale: app.request.locale }) }}" data-testid="nav-search">{{ 'demo.search.nav'|trans }}</a>
                         <span class="navbar-text text-white-50 small">{{ app.user.userIdentifier }}</span>
                         <a class="nav-link text-white" href="{{ path('demo_logout') }}">{{ 'demo.logout'|trans }}</a>
                     {% else %}

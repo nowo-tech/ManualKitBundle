@@ -13,12 +13,21 @@ test.beforeAll(() => {
 
 test.use({ viewport: { width: 1280, height: 800 } });
 
-test('overview — a chapter of the manual', async ({ page }) => {
+test.beforeEach(async ({ page }) => {
   await page.goto('/en/login');
   await page.getByLabel('Username').fill('admin');
   await page.getByLabel('Password').fill('admin');
   await page.getByRole('button', { name: 'Sign in' }).click();
+});
+
+test('overview — a chapter of the manual', async ({ page }) => {
   await page.goto('/en/manual/01-getting-started');
   await expect(page.getByTestId('manual-chapter')).toBeVisible();
   await page.screenshot({ path: resolve(outDir, 'overview.png') });
+});
+
+test('sub-pages — a grandchild with its open branch and breadcrumb', async ({ page }) => {
+  await page.goto('/en/manual/03-guide/projects/sharing');
+  await expect(page.getByTestId('manual-breadcrumbs')).toBeVisible();
+  await page.screenshot({ path: resolve(outDir, 'sub-pages.png') });
 });

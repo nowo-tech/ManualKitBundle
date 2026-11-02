@@ -1,0 +1,19 @@
+{#
+ # 1.6: the breadcrumb of a nested chapter when UiKit is not installed — the same markup and data as UiKit's
+ # `breadcrumbs` partial (REQ-UI-003 page contract), which nowo_manual_breadcrumbs_template() picks when it is.
+ # Variables: header ({breadcrumbs: [{label, href}], breadcrumbsMode, breadcrumbCollection}), bundle.
+ #}
+<nav class="nowo-ui-breadcrumbs" aria-label="{{ 'breadcrumbs'|trans({}, 'NowoManualKitBundle') }}">
+    <ol class="nowo-ui-breadcrumbs__list">
+        {% for crumb in header.breadcrumbs %}
+            <li class="nowo-ui-breadcrumbs__item">
+                {%- if not loop.first %}<span class="nowo-ui-breadcrumbs__separator" aria-hidden="true">/</span>{% endif %}
+                {% if crumb.href and not loop.last %}
+                    <a class="nowo-ui-breadcrumbs__link" href="{{ crumb.href }}">{{ crumb.label }}</a>
+                {% else %}
+                    <span class="nowo-ui-breadcrumbs__current"{% if loop.last %} aria-current="page"{% endif %}>{{ crumb.label }}</span>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ol>
+</nav>

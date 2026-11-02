@@ -4,6 +4,10 @@ title: Handbuch
 home: Handbuch-Startseite
 chapters: Kapitel
 on_this_page: Auf dieser Seite
+breadcrumbs: Brotkrümelnavigation
+children: In diesem Abschnitt
+nav:
+  subpages: "Unterseiten von %title%"
 pager: Vorheriges und nächstes Kapitel
 zoom: Bild vergrößern
 lightbox:

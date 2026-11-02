@@ -4,6 +4,10 @@ title: Manual
 home: Manual home
 chapters: Chapters
 on_this_page: On this page
+breadcrumbs: Breadcrumb
+children: In this section
+nav:
+  subpages: "Sub-pages of %title%"
 pager: Previous and next chapter
 zoom: Enlarge image
 lightbox:

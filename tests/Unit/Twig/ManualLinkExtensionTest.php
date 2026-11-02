@@ -16,6 +16,8 @@ use Symfony\Component\Routing\Generator\UrlGenerator;
 use Symfony\Component\Routing\RequestContext;
 use Symfony\Component\Routing\Route;
 use Symfony\Component\Routing\RouteCollection;
+use Twig\Environment;
+use Twig\Loader\ArrayLoader;
 use Twig\TwigFunction;
 
 use function dirname;
@@ -35,7 +37,7 @@ final class ManualLinkExtensionTest extends TestCase
             $functions[$function->getName()] = $callable;
         }
 
-        self::assertSame(['manual_href', 'manual_is_external', 'nowo_manual_layout', 'nowo_manual_asset', 'nowo_manual_asset_package', 'nowo_manual_standalone_lightbox'], array_keys($functions));
+        self::assertSame(['manual_href', 'manual_is_external', 'manual_chapter_path', 'nowo_manual_breadcrumbs_template', 'nowo_manual_layout', 'nowo_manual_asset', 'nowo_manual_asset_package', 'nowo_manual_standalone_lightbox'], array_keys($functions));
         self::assertSame('@NowoManualKitBundle/layout.html.twig', $functions['nowo_manual_layout']());
         // Resolved by the `nowo_manual_kit` asset package (here on a CDN), never a hard-coded /bundles path.
         self::assertSame('https://cdn.example/manual/css/manual.css', $functions['nowo_manual_asset']('/css/manual.css'));
@@ -67,6 +69,17 @@ final class ManualLinkExtensionTest extends TestCase
         $this->expectException(LogicException::class);
         $this->expectExceptionMessage('framework.assets');
         $extension->asset('css/manual.css');
+    }
+
+    /** 1.6: UiKit's breadcrumb partial (page contract) when UiKit is installed, the bundle's own otherwise. */
+    public function testTheBreadcrumbTemplateIsUiKitsWhenInstalled(): void
+    {
+        $twig = new Environment(new ArrayLoader());
+        self::assertSame(ManualLinkExtension::BREADCRUMBS, ManualLinkExtension::breadcrumbsTemplate($twig));
+
+        $twig = new Environment(new ArrayLoader());
+        $twig->addFunction(new TwigFunction('nowo_ui_partial', static fn (string $name, ?string $bundle = null): string => '@NowoUiKit/partials/_' . $name . '.' . $bundle . '.html.twig'));
+        self::assertSame('@NowoUiKit/partials/_breadcrumbs.NowoManualKitBundle.html.twig', ManualLinkExtension::breadcrumbsTemplate($twig));
     }
 
     private function extension(bool $inApp): ManualLinkExtension

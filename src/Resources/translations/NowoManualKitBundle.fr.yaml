@@ -4,6 +4,10 @@ title: Manuel
 home: Accueil du manuel
 chapters: Chapitres
 on_this_page: Sur cette page
+breadcrumbs: Fil d’Ariane
+children: Dans cette section
+nav:
+  subpages: "Sous-pages de %title%"
 pager: Chapitre précédent et suivant
 zoom: Agrandir l’image
 lightbox:
