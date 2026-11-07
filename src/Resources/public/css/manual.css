@@ -415,10 +415,66 @@
   border: 0;
   background: transparent;
   overflow: visible;
+  /* UiKit's motion scale, read with own fallbacks. */
+  --nowo-manual-motion-open: var(--nowo-ui-motion-medium, 200ms);
+  --nowo-manual-motion-close: var(--nowo-ui-motion-medium-close, 150ms);
+  --nowo-manual-motion-scale: var(--nowo-ui-motion-scale, 0.98);
 
   &::backdrop {
     background: color-mix(in srgb, #0b0f0d 82%, transparent);
   }
+
+  &[open] {
+    animation: nowo-manual-lightbox-in var(--nowo-manual-motion-open) var(--nowo-ui-motion-ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+
+  &[open]::backdrop {
+    animation: nowo-manual-lightbox-fade var(--nowo-manual-motion-open, 200ms) var(--nowo-ui-motion-ease-out, cubic-bezier(0.2, 0, 0, 1));
+  }
+
+  /* The close waits for this fade (motion.ts), then runs dialog.close(). */
+  &[data-manual-closing] {
+    animation: none;
+    opacity: 0;
+    transform: scale(var(--nowo-manual-motion-scale));
+    transition:
+      opacity var(--nowo-manual-motion-close) var(--nowo-ui-motion-ease-in, cubic-bezier(0.4, 0, 1, 1)),
+      transform var(--nowo-manual-motion-close) var(--nowo-ui-motion-ease-in, cubic-bezier(0.4, 0, 1, 1));
+  }
+
+  &[data-manual-closing]::backdrop {
+    animation: none;
+    opacity: 0;
+    transition: opacity var(--nowo-manual-motion-close, 150ms) var(--nowo-ui-motion-ease-in, cubic-bezier(0.4, 0, 1, 1));
+  }
+}
+
+@keyframes nowo-manual-lightbox-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--nowo-manual-motion-scale));
+  }
+}
+
+@keyframes nowo-manual-lightbox-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Reduced motion keeps a short fade and no movement; html[data-motion='full'] keeps the full effect. */
+@media (prefers-reduced-motion: reduce) {
+  html:not([data-motion='full']) .manual-lightbox {
+    --nowo-manual-motion-open: var(--nowo-ui-motion-medium, 80ms);
+    --nowo-manual-motion-close: var(--nowo-ui-motion-medium-close, 80ms);
+    --nowo-manual-motion-scale: 1;
+  }
+}
+
+[data-motion='reduce'] .manual-lightbox {
+  --nowo-manual-motion-open: var(--nowo-ui-motion-medium, 80ms);
+  --nowo-manual-motion-close: var(--nowo-ui-motion-medium-close, 80ms);
+  --nowo-manual-motion-scale: 1;
 }
 
 .manual-lightbox__figure {

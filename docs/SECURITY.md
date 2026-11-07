@@ -107,6 +107,8 @@ dependencies current. Security fixes are released as patch versions of the suppo
 | Result | 1 medium, 5 low. Fixed before 1.0.0: images are served to members only when a chapter they can read shows them; the `.md` alias and an admin-only home answer 404 to members (no existence oracle); audience markers are case-insensitive and any malformed `audience` comment cuts the rest for members; `nowo:manual:stamp` only writes translation files of configured locales and manifest chapters. Accepted: the sanitiser keeps `id` on `a` and `class` on `a` / `img` (stable anchors and image sizing); only a malicious Markdown author could use them, and the manual's Markdown is reviewed like code. |
 | Recorded in | This file |
 
+**Motion batch:** Batch audit Appendix HW (2026-11-07), at `b263c76`: Pass (good). HW-L5 fixed at `9e3dddb`; delta audit: **Pass (good)**.
+
 ## Reporting a vulnerability
 
 Report security issues **privately**:
