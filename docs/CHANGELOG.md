@@ -35,6 +35,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Changed
 
 - **Lightbox motion:** the dialog and its backdrop open and close on UiKit's `--nowo-ui-motion-medium*`, `--nowo-ui-motion-scale` and easing tokens (own fallbacks: 200 ms in, 150 ms out, scale 0.98). The close button, a backdrop click and Escape wait for the fade before `dialog.close()`, with a timer if `transitionend` never fires. Reduced motion keeps an 80 ms fade with no movement; `html[data-motion="full"]` keeps the full effect. No `!important`.
+- **Turbo:** running fades finish on `turbo:before-cache`, so that a cached page never holds a half-closed surface. Lightbox: audit finding HW-L5.
+- **Development only, already on `main` since 1.6.0:** `ci.yml` alias `symfony/event-dispatcher-contracts:dev-main as 3.8.99`, wider `phpunit`, `igor-php` and `twig-cs-fixer` constraints, lock files. Nothing reaches a host.
 
 ## [1.6.0] - 2026-11-02
 
