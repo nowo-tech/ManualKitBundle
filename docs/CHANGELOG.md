@@ -32,6 +32,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- **Lightbox motion:** the dialog and its backdrop open and close on UiKit's `--nowo-ui-motion-medium*`, `--nowo-ui-motion-scale` and easing tokens (own fallbacks: 200 ms in, 150 ms out, scale 0.98). The close button, a backdrop click and Escape wait for the fade before `dialog.close()`, with a timer if `transitionend` never fires. Reduced motion keeps an 80 ms fade with no movement; `html[data-motion="full"]` keeps the full effect. No `!important`.
+
 ## [1.6.0] - 2026-11-02
 
 Sub-pages: chapters nest up to three levels (parent: in the manifest, files in sub-folders per locale), nested routes nowo_manual_child / nowo_manual_grandchild, inherited access that only narrows, tree navigation, breadcrumb, Parent › Child search, sub-folder translation tooling; flat manuals unchanged. See [UPGRADING](https://github.com/nowo-tech/ManualKitBundle/blob/v1.6.0/docs/UPGRADING.md#to-160).

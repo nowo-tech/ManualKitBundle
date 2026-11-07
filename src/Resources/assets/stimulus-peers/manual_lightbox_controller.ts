@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { closeWithEffect, finishClosing } from './motion';
 
 /**
  * Click a manual image to see it full size in a native <dialog> — caption (figcaption, else the alt text),
@@ -19,11 +20,22 @@ export default class extends Controller<HTMLElement> {
 
   private index = -1;
 
+  /** Escape closes the dialog natively and at once: it goes through the same fade instead. */
+  private readonly onCancel = (event: Event): void => {
+    event.preventDefault();
+    this.close();
+  };
+
   override connect(): void {
+    this.dialogTarget.addEventListener('cancel', this.onCancel);
     this.links().forEach((link) => {
       const alt = link.querySelector('img')?.alt ?? '';
       link.setAttribute('aria-label', `${this.zoomLabelValue}${alt === '' ? '' : `: ${alt}`}`);
     });
+  }
+
+  override disconnect(): void {
+    this.dialogTarget.removeEventListener('cancel', this.onCancel);
   }
 
   zoom(event: MouseEvent): void {
@@ -32,6 +44,7 @@ export default class extends Controller<HTMLElement> {
       return;
     }
     event.preventDefault();
+    finishClosing(this.dialogTarget);
     this.show(this.links().indexOf(link));
     if (!this.dialogTarget.open) {
       this.dialogTarget.showModal();
@@ -47,7 +60,7 @@ export default class extends Controller<HTMLElement> {
   }
 
   close(): void {
-    this.dialogTarget.close();
+    closeWithEffect(this.dialogTarget, () => this.dialogTarget.close());
   }
 
   keydown(event: KeyboardEvent): void {

@@ -1,5 +1,5 @@
 import { Application } from '@hotwired/stimulus';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ManualLightboxController from './manual_lightbox_controller';
 
 describe('manual lightbox controller', () => {
@@ -95,5 +95,29 @@ describe('manual lightbox controller', () => {
     const controller = application.getControllerForElementAndIdentifier(document.querySelector('article') as HTMLElement, 'manual-lightbox') as ManualLightboxController;
     controller.zoom({ target: null } as unknown as MouseEvent);
     expect(dialog.open).toBe(false);
+  });
+
+  it('fades before closing, also on Escape, with no fade without a transition', async () => {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const dialog = document.querySelector('dialog') as HTMLDialogElement;
+    const close = vi.spyOn(dialog, 'close');
+    const open = (): void => {
+      document.querySelector<HTMLAnchorElement>('a.manual-zoom')?.click();
+    };
+    open();
+    const cancel = new Event('cancel', { cancelable: true });
+    dialog.dispatchEvent(cancel);
+    expect(cancel.defaultPrevented).toBe(true);
+    expect(close).toHaveBeenCalledOnce();
+
+    const style = vi.spyOn(window, 'getComputedStyle').mockReturnValue({ transitionDuration: '0.15s', transitionDelay: '0s' } as CSSStyleDeclaration);
+    open();
+    dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+    expect(close).toHaveBeenCalledOnce();
+    expect(dialog.hasAttribute('data-manual-closing')).toBe(true);
+    dialog.dispatchEvent(new Event('transitionend'));
+    expect(close).toHaveBeenCalledTimes(2);
+    expect(dialog.hasAttribute('data-manual-closing')).toBe(false);
+    style.mockRestore();
   });
 });
