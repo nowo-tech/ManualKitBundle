@@ -14,6 +14,7 @@ nowo_manual_kit:
     in_app: true
     template: '@NowoManualKitBundle/chapter.html.twig'
     layout: '@NowoManualKitBundle/layout.html.twig'
+    groups: []                  # 1.8: [{key, label, translation_domain}] or [key], navigation order and labels
     standalone_lightbox: false
     cache: cache.app
     machine_translation:
@@ -48,6 +49,7 @@ required when "provider" is "libretranslate" (e.g. http://libretranslate:5000).
 - [in_app](#in_app)
 - [template](#template)
 - [layout](#layout)
+- [groups](#groups)
 - [standalone_lightbox](#standalone_lightbox)
 - [cache](#cache)
 - [machine_translation](#machine_translation)
@@ -97,14 +99,34 @@ applications that ship the manual on GitHub only.
 ## template
 
 Twig template of a chapter page. Variables: `rendered` (`RenderedManualChapter`: `chapter`, `html`, `toc`), `chapters`
-(the chapters the viewer may read, in the request locale), `previous`, `next`. Point it at one of your templates for a
-fully custom page ([TEMPLATES.md](TEMPLATES.md)).
+(the chapters the viewer may read, in the request locale), `previous`, `next`, `ancestors`, `children` and `groups`
+(1.8). Point it at one of your templates for a fully custom page, or at a template that extends
+`@NowoManualKitBundle/chapter.html.twig` and fills its blocks (1.8: `manual_nav`, `manual_body`, ...; see
+[TEMPLATES.md](TEMPLATES.md#blocks)).
 
 ## layout
 
 Layout the default chapter template extends. It must define the blocks `title`, `stylesheets` (the template calls
 `parent()`) and `body`. The bundle's own layout is a bare HTML page; set your application's base layout to frame the
 manual in your navigation.
+
+## groups
+
+1.8. Order and headings of the chapter groups (manifest `group`) in the navigation. Each entry is a key or
+`{key, label, translation_domain}`:
+
+```yaml
+nowo_manual_kit:
+    groups:
+        - { key: using, label: manual.group.using }          # translated in `messages` (the default domain)
+        - { key: project, label: manual.group.project }
+        - { key: administration, label: admin.manual, translation_domain: admin }
+        - organization                                        # label null: group.organization of NowoManualKitBundle
+```
+
+Listed groups come first, in this order; groups of the manifest that are not listed follow in manifest order, so no
+chapter disappears. Groups without a chapter the viewer may read are left out. A key may appear once. `[]` (default)
+keeps the manifest order and the bundle's `group.<key>` labels. The chapter template receives the result as `groups`.
 
 ## standalone_lightbox
 

@@ -1,0 +1,20 @@
+{# A host chapter page built on the 1.8 blocks: its own navigation (search, icons, nested tree) and an aside. #}
+{% extends '@NowoManualKitBundle/chapter.html.twig' %}
+{% import '@NowoManualKitBundle/_macros.html.twig' as nav %}
+
+{% block manual_nav %}
+    <nav class="host-nav" data-testid="host-nav">
+        {% for group in groups %}
+            <p data-testid="host-group-{{ group.key }}">{{ group.label ?? group.key }}</p>
+            <ul>
+                {% for item in chapters|filter(c => c.group == group.key and c.ancestors is empty) %}
+                    <li><i data-icon="{{ item.icon }}"></i><a href="{{ manual_chapter_path(item) }}">{{ item.title }}</a>{{ chapters|filter(c => c.parent == item.slug) is not empty ? nav.branch(item, chapters, chapter) }}</li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    </nav>
+{% endblock %}
+
+{% block manual_body_start %}<button type="button" data-testid="host-search">Search</button>{% endblock %}
+
+{% block manual_aside %}<aside data-testid="host-aside">{{ rendered.toc|length }}</aside>{% endblock %}

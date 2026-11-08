@@ -49,7 +49,8 @@ return static function (ContainerConfigurator $container): void {
         ->autoconfigure(false)
         ->tag('controller.service_arguments')
         ->public()
-        ->arg('$template', param('nowo_manual_kit.template'));
+        ->arg('$template', param('nowo_manual_kit.template'))
+        ->arg('$groups', param('nowo_manual_kit.groups'));
 
     $services->set(ManualLinkExtension::class)
         ->arg('$docsUrl', param('nowo_manual_kit.docs_url'))

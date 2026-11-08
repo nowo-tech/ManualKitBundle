@@ -19,6 +19,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Twig\Environment;
 
+use function array_values;
 use function basename;
 use function is_file;
 
@@ -37,6 +38,9 @@ final readonly class ManualController
 {
     /**
      * Receives the catalog, renderer, access rules, Twig and router used to serve the manual pages.
+     *
+     * @param list<array{key: string, label: string|null, translation_domain: string}> $groups 1.8: `groups` (order and
+     *                                                                                         labels of the navigation)
      */
     public function __construct(
         private ManualCatalog $catalog,
@@ -45,6 +49,7 @@ final readonly class ManualController
         private Environment $twig,
         private UrlGeneratorInterface $urls,
         private string $template = '@NowoManualKitBundle/chapter.html.twig',
+        private array $groups = [],
     ) {
     }
 
@@ -171,15 +176,45 @@ final readonly class ManualController
         $locale            = $request->getLocale();
         [$previous, $next] = $this->catalog->neighbours($chapter, $admin, $locale);
 
+        $chapters = $this->catalog->visible($admin, $locale);
+
         return new Response($this->twig->render($this->template, [
             'rendered' => $this->renderer->render($chapter, $admin),
-            'chapters' => $this->catalog->visible($admin, $locale),
+            'chapters' => $chapters,
+            // 1.8: the navigation groups that have chapters, in the configured order.
+            'groups'   => $this->navGroups($chapters),
             'previous' => $previous,
             'next'     => $next,
             // 1.6: the chapter's parents (breadcrumb) and the sub-pages the viewer may read.
             'ancestors' => $this->catalog->ancestors($chapter, $locale),
             'children'  => $this->catalog->children($chapter, $admin, $locale),
         ]));
+    }
+
+    /**
+     * 1.8: the groups of these chapters: the configured ones first (in `groups` order), then the others in the order
+     * they first appear. Groups without a chapter the viewer may read are left out.
+     *
+     * @param list<ManualChapter> $chapters
+     *
+     * @return list<array{key: string, label: string|null, translation_domain: string}>
+     */
+    private function navGroups(array $chapters): array
+    {
+        $present = [];
+        foreach ($chapters as $chapter) {
+            $present[$chapter->group] ??= ['key' => $chapter->group, 'label' => null, 'translation_domain' => 'messages'];
+        }
+
+        $groups = [];
+        foreach ($this->groups as $group) {
+            if (isset($present[$group['key']])) {
+                $groups[] = $group;
+                unset($present[$group['key']]);
+            }
+        }
+
+        return [...$groups, ...array_values($present)];
     }
 
     /** The chapter, or a 404 when it does not exist or is for administrators only (no existence oracle). */

@@ -93,7 +93,8 @@ final class TestKernel extends Kernel
             $container->services()->set('test.translation_responses', EchoTranslationResponses::class);
             $container->extension('framework', ['http_client' => ['mock_response_factory' => 'test.translation_responses']]);
         }
-        $container->extension('twig', ['strict_variables' => true]);
+        // 1.8: host templates extending the bundle chapter page (tests/Fixtures/templates, namespace @ManualTest).
+        $container->extension('twig', ['strict_variables' => true, 'paths' => ['%kernel.project_dir%/tests/Fixtures/templates' => 'ManualTest']]);
         // The 404 / 401 the tests provoke stay out of the output.
         $container->services()->set('logger', NullLogger::class);
         $container->extension('nowo_manual_kit', array_replace([
