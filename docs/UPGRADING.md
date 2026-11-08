@@ -19,6 +19,23 @@ This guide lists the changes integrators must apply when upgrading between versi
 
 ## Unreleased
 
+No action required: with `groups: []` (default) and no block filled, the chapter page renders byte for byte as in 1.7.
+
+An application with its own chapter page (`nowo_manual_kit.template`) can now extend the bundle's instead of copying it:
+
+1. Move the group order and labels to config:
+
+   ```yaml
+   nowo_manual_kit:
+       groups:
+           - { key: using, label: manual.group.using }
+           - { key: project, label: manual.group.project }
+   ```
+
+2. Make the template extend `@NowoManualKitBundle/chapter.html.twig`, import `@NowoManualKitBundle/_macros.html.twig`
+   when it needs the sub-page tree, and keep only the blocks it changes (`manual_nav`, `manual_nav_start`,
+   `manual_body`, `manual_body_start`, `manual_aside`). See [TEMPLATES — Blocks](TEMPLATES.md#blocks).
+
 ## To 1.7.0
 
 From **1.6.0**:

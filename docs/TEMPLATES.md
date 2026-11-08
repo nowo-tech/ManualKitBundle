@@ -47,9 +47,49 @@ All strings come from the `NowoManualKitBundle` domain (`title`, `home`, `chapte
 | `rendered` | `RenderedManualChapter` | `chapter` (`ManualChapter`), `html` (sanitised), `toc` (`level`, `id`, `text`, `tags`) |
 | `chapters` | `list<ManualChapter>` | The chapters the viewer may read, resolved for the request locale |
 | `previous`, `next` | `ManualChapter\|null` | Neighbours among those chapters |
+| `ancestors`, `children` | `list<ManualChapter>` | 1.6: the chapters above this one (top level first) and its readable sub-pages |
+| `groups` | `list<{key, label, translation_domain}>` | 1.8: the navigation groups with chapters, in the [`groups`](CONFIGURATION.md#groups) order; `label` null = `group.<key>` of the bundle domain |
 
 `ManualChapter`: `slug`, `group`, `adminOnly`, `icon`, `title`, `path`, `tags`, `locale`, `translation`
 (`TranslationState`: `.value` is `source`, `translated`, `outdated` or `missing`), `isHome()`.
+
+## Blocks
+
+1.8. The chapter page has blocks so a host page can extend it instead of copying it. Defaults render byte for byte
+what 1.7 rendered.
+
+| Block | Where | Default |
+| --- | --- | --- |
+| `manual_nav` | first child of `.nowo-manual` | the chapter list: groups, top-level chapters, the foldable sub-page tree (`nav.branch`) |
+| `manual_nav_start` | inside `nav.nowo-manual__nav`, before the groups | empty (a search button, for example) |
+| `manual_body` | after the navigation | the chapter `article` (notice, breadcrumb, title, On this page, body, sub-pages, lightbox, pager) |
+| `manual_body_start` | first thing inside the `article` | empty (a mobile chapter list, a "back" link) |
+| `manual_aside` | after the `article`, inside `.nowo-manual` | empty (a sticky On this page column) |
+
+The macros are in `@NowoManualKitBundle/_macros.html.twig` (`branch(parent, chapters, current)`: the foldable sub-pages
+of a chapter; `children(children)`: the sub-page list after the text). A template that extends the page imports them
+itself:
+
+```twig
+{# templates/manual/chapter.html.twig, nowo_manual_kit.template #}
+{% extends '@NowoManualKitBundle/chapter.html.twig' %}
+{% import '@NowoManualKitBundle/_macros.html.twig' as nav %}
+
+{% block manual_nav %}
+    <nav class="manual-nav" aria-label="{{ 'manual.chapters'|trans }}" data-testid="manual-nav">
+        {% for group in groups %}
+            <p class="manual-nav__group">{{ group.label is null ? ('group.' ~ group.key)|trans({}, 'NowoManualKitBundle') : group.label|trans({}, group.translation_domain) }}</p>
+            <ul>
+                {% for item in chapters|filter(c => c.group == group.key and c.ancestors is empty) %}
+                    <li>{{ ux_icon(item.icon, {'aria-hidden': 'true'}) }}<a href="{{ manual_chapter_path(item) }}">{{ item.title }}</a>{{ chapters|filter(c => c.parent == item.slug) is not empty ? nav.branch(item, chapters, chapter) }}</li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    </nav>
+{% endblock %}
+
+{% block manual_body_start %}{{ include('manual/_search_button.html.twig') }}{% endblock %}
+```
 
 ## Overrides
 

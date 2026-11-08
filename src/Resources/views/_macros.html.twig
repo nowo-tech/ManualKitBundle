@@ -1,0 +1,32 @@
+{#
+ # 1.8: the chapter page macros, in their own file so a host template that extends chapter.html.twig (or replaces
+ # manual_nav) can import them: {% import '@NowoManualKitBundle/_macros.html.twig' as nav %}.
+ #}
+{% trans_default_domain 'NowoManualKitBundle' %}
+
+{# 1.6: the sub-pages of a chapter in the chapter list, folded unless the current chapter is in that branch. #}
+{% macro branch(parent, chapters, current) %}
+    {% import _self as nav %}
+    <details class="nowo-manual__branch"{% if parent.slug == current.slug or parent.slug in current.ancestors %} open{% endif %} data-testid="manual-branch-{{ parent.slug }}">
+        <summary class="nowo-manual__toggle"><span class="nowo-manual__visually-hidden">{{ 'nav.subpages'|trans({'%title%': parent.title}, 'NowoManualKitBundle') }}</span></summary>
+        <ul class="nowo-manual__list nowo-manual__list--nested">
+            {% for item in chapters|filter(c => c.parent == parent.slug) %}
+                <li>
+                    <a href="{{ manual_chapter_path(item) }}"{% if item.slug == current.slug %} aria-current="page"{% endif %} data-testid="manual-nav-{{ item.slug }}">{{ item.title }}</a>{{ chapters|filter(c => c.parent == item.slug) is not empty ? nav.branch(item, chapters, current) }}
+                </li>
+            {% endfor %}
+        </ul>
+    </details>
+{% endmacro %}
+
+{# 1.6: the sub-pages of the current chapter, after its text. #}
+{% macro children(children) %}
+    <nav class="nowo-manual__children" aria-label="{{ 'children'|trans({}, 'NowoManualKitBundle') }}" data-testid="manual-children">
+        <p class="nowo-manual__group">{{ 'children'|trans({}, 'NowoManualKitBundle') }}</p>
+        <ul>
+            {% for item in children %}
+                <li><a href="{{ manual_chapter_path(item) }}" data-testid="manual-child-{{ item.slug }}">{{ item.title }}</a></li>
+            {% endfor %}
+        </ul>
+    </nav>
+{% endmacro %}

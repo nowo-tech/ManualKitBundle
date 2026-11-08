@@ -8,6 +8,9 @@ use InvalidArgumentException;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
+use function array_column;
+use function array_unique;
+use function count;
 use function is_string;
 use function sprintf;
 
@@ -88,6 +91,35 @@ final class Configuration implements ConfigurationInterface
                     ->info('Layout the default chapter template extends (blocks: title, stylesheets, body).')
                     ->defaultValue('@NowoManualKitBundle/layout.html.twig')
                     ->cannotBeEmpty()
+                ->end()
+                ->arrayNode('groups')
+                    ->info('1.8: order and labels of the chapter groups in the navigation. Listed groups come first, in this order; groups of the manifest not listed follow in manifest order. A null label uses group.<key> of the NowoManualKitBundle domain. Empty (default): manifest order, bundle labels.')
+                    ->arrayPrototype()
+                        ->beforeNormalization()
+                            ->ifString()
+                            ->then(static fn (string $key): array => ['key' => $key])
+                        ->end()
+                        ->children()
+                            ->scalarNode('key')
+                                ->info('The manifest `group` value.')
+                                ->isRequired()
+                                ->cannotBeEmpty()
+                            ->end()
+                            ->scalarNode('label')
+                                ->info('Translation key of the heading (null: group.<key> in NowoManualKitBundle).')
+                                ->defaultNull()
+                            ->end()
+                            ->scalarNode('translation_domain')
+                                ->info('Domain of `label`.')
+                                ->defaultValue('messages')
+                                ->cannotBeEmpty()
+                            ->end()
+                        ->end()
+                    ->end()
+                    ->validate()
+                        ->ifTrue(static fn (array $groups): bool => count(array_unique(array_column($groups, 'key'))) !== count($groups))
+                        ->thenInvalid('nowo_manual_kit.groups lists a group key twice.')
+                    ->end()
                 ->end()
                 ->booleanNode('standalone_lightbox')
                     ->info('The default chapter template loads the self-contained lightbox script (js/manual-lightbox.js) — for applications that do not register the Stimulus peer in their own build.')

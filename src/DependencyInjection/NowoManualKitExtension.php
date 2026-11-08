@@ -53,7 +53,7 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
      */
     public function load(array $configs, ContainerBuilder $container): void
     {
-        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string, docs_url: string, in_app: bool, template: string, layout: string, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
+        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string, docs_url: string, in_app: bool, template: string, layout: string, groups: list<array{key: string, label: string|null, translation_domain: string}>, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
         $config = $this->processConfiguration(new Configuration(), $configs);
 
         foreach ($config as $key => $value) {

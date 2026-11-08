@@ -4,11 +4,18 @@
 {#
  # A chapter page. Variables: rendered (RenderedManualChapter: chapter, html, toc), chapters (the chapters the viewer
  # may read, in the locale, each followed by its sub-pages), previous, next, ancestors (1.6: the chapters above this
- # one, top-level first) and children (1.6: its sub-pages the viewer may read). Override it in
+ # one, top-level first), children (1.6: its sub-pages the viewer may read) and groups (1.8: the navigation groups,
+ # [{key, label, translation_domain}] in the `groups` order; label null = group.<key> of this bundle). Override it in
  # templates/bundles/NowoManualKitBundle/chapter.html.twig, or set `nowo_manual_kit.template` to one of the
  # application's templates. Link chapters with manual_chapter_path(chapter): it knows their place in the tree.
+ #
+ # 1.8 blocks, so a host template can extend this one instead of copying it: manual_nav (the chapter list, with
+ # manual_nav_start before the groups), manual_body (the chapter article, with manual_body_start at its top) and
+ # manual_aside (after the article, empty). The macros live in @NowoManualKitBundle/_macros.html.twig (branch, children):
+ # a host template imports them itself.
  #}
 {% set chapter = rendered.chapter %}
+{% import '@NowoManualKitBundle/_macros.html.twig' as nav %}
 
 {% block title %}{{ chapter.isHome ? 'title'|trans : chapter.title }}{% endblock %}
 
@@ -17,43 +24,19 @@
     <link rel="stylesheet" href="{{ asset('css/manual.css', 'nowo_manual_kit') }}">
 {% endblock %}
 
-{# 1.6: the sub-pages of a chapter in the chapter list, folded unless the current chapter is in that branch. #}
-{% macro branch(parent, chapters, current) %}
-    {% import _self as nav %}
-    <details class="nowo-manual__branch"{% if parent.slug == current.slug or parent.slug in current.ancestors %} open{% endif %} data-testid="manual-branch-{{ parent.slug }}">
-        <summary class="nowo-manual__toggle"><span class="nowo-manual__visually-hidden">{{ 'nav.subpages'|trans({'%title%': parent.title}, 'NowoManualKitBundle') }}</span></summary>
-        <ul class="nowo-manual__list nowo-manual__list--nested">
-            {% for item in chapters|filter(c => c.parent == parent.slug) %}
-                <li>
-                    <a href="{{ manual_chapter_path(item) }}"{% if item.slug == current.slug %} aria-current="page"{% endif %} data-testid="manual-nav-{{ item.slug }}">{{ item.title }}</a>{{ chapters|filter(c => c.parent == item.slug) is not empty ? nav.branch(item, chapters, current) }}
-                </li>
-            {% endfor %}
-        </ul>
-    </details>
-{% endmacro %}
-
-{# 1.6: the sub-pages of the current chapter, after its text. #}
-{% macro children(children) %}
-    <nav class="nowo-manual__children" aria-label="{{ 'children'|trans({}, 'NowoManualKitBundle') }}" data-testid="manual-children">
-        <p class="nowo-manual__group">{{ 'children'|trans({}, 'NowoManualKitBundle') }}</p>
-        <ul>
-            {% for item in children %}
-                <li><a href="{{ manual_chapter_path(item) }}" data-testid="manual-child-{{ item.slug }}">{{ item.title }}</a></li>
-            {% endfor %}
-        </ul>
-    </nav>
-{% endmacro %}
-
 {% block body %}
-{% import _self as nav %}
+{% if groups is not defined %}
 {% set groups = [] %}
-{% for item in chapters %}{% if item.group not in groups %}{% set groups = groups|merge([item.group]) %}{% endif %}{% endfor %}
+{% for item in chapters %}{% if item.group not in groups|column('key') %}{% set groups = groups|merge([{key: item.group, label: null, translation_domain: 'messages'}]) %}{% endif %}{% endfor %}
+{% endif %}
 <div class="nowo-manual" data-testid="manual">
+    {% block manual_nav -%}
     <nav class="nowo-manual__nav" aria-label="{{ 'chapters'|trans }}" data-testid="manual-nav">
+{% block manual_nav_start %}{% endblock %}
         {% for group in groups %}
-            <p class="nowo-manual__group">{{ ('group.' ~ group)|trans }}</p>
+            <p class="nowo-manual__group">{{ group.label is null ? ('group.' ~ group.key)|trans : group.label|trans({}, group.translation_domain) }}</p>
             <ul class="nowo-manual__list">
-                {% for item in chapters|filter(c => c.group == group and c.ancestors is empty) %}
+                {% for item in chapters|filter(c => c.group == group.key and c.ancestors is empty) %}
                     <li>
                         <a href="{{ manual_chapter_path(item) }}"{% if item.slug == chapter.slug %} aria-current="page"{% endif %} data-testid="manual-nav-{{ item.slug }}">{{ item.isHome ? 'home'|trans : item.title }}</a>{{ chapters|filter(c => c.parent == item.slug) is not empty ? nav.branch(item, chapters, chapter) }}
                     </li>
@@ -61,8 +44,11 @@
             </ul>
         {% endfor %}
     </nav>
+{% endblock %}
 
+    {% block manual_body -%}
     <article class="nowo-manual__chapter" data-testid="manual-chapter" data-chapter="{{ chapter.slug }}" data-controller="nowo-manual-lightbox" data-nowo-manual-lightbox-zoom-label-value="{{ 'zoom'|trans|e('html_attr') }}" data-action="click->nowo-manual-lightbox#zoom">
+{% block manual_body_start %}{% endblock %}
         {% if chapter.translation.value in ['missing', 'outdated'] %}
             <p class="nowo-manual__notice nowo-manual__notice--{{ chapter.translation.value }}" role="note" data-testid="manual-translation-notice">{{ ('notice.' ~ chapter.translation.value)|trans }}</p>
         {% endif %}
@@ -101,6 +87,8 @@
             {% endif %}
         </nav>
     </article>
+{% endblock %}
+{% block manual_aside %}{% endblock %}
 </div>
 {% if nowo_manual_standalone_lightbox() %}
     <script src="{{ asset('js/manual-lightbox.js', 'nowo_manual_kit') }}" defer></script>

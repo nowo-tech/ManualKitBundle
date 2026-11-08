@@ -32,6 +32,7 @@ final class BundleBootTest extends TestCase
             'in_app'              => true,
             'template'            => '@NowoManualKitBundle/chapter.html.twig',
             'layout'              => '@NowoManualKitBundle/layout.html.twig',
+            'groups'              => [],
             'standalone_lightbox' => false,
             'cache'               => 'cache.app',
             'machine_translation' => ['provider' => 'none', 'api_key' => '', 'url' => '', 'timeout' => 30.0, 'max_duration' => 120.0, 'formality' => 'default', 'languages' => [], 'glossary_domains' => ['messages']],

@@ -7,32 +7,43 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+  - [Added](#added)
 - [[1.7.0] - 2026-11-07](#170---2026-11-07)
   - [Changed](#changed)
 - [[1.6.0] - 2026-11-02](#160---2026-11-02)
-  - [Added](#added)
+  - [Added](#added-1)
 - [[1.5.1] - 2026-10-30](#151---2026-10-30)
   - [Fixed](#fixed)
 - [[1.5.0] - 2026-10-29](#150---2026-10-29)
-  - [Added](#added-1)
+  - [Added](#added-2)
   - [Changed](#changed-1)
 - [[1.4.0] - 2026-10-28](#140---2026-10-28)
   - [Security](#security)
   - [Changed](#changed-2)
 - [[1.3.0] - 2026-10-23](#130---2026-10-23)
-  - [Added](#added-2)
+  - [Added](#added-3)
   - [Changed](#changed-3)
 - [[1.2.0] - 2026-10-23](#120---2026-10-23)
-  - [Added](#added-3)
+  - [Added](#added-4)
   - [Fixed](#fixed-1)
 - [[1.1.0] - 2026-10-23](#110---2026-10-23)
-  - [Added](#added-4)
+  - [Added](#added-5)
 - [[1.0.1] - 2026-10-23](#101---2026-10-23)
   - [Fixed](#fixed-2)
 - [[1.0.0] - 2026-10-23](#100---2026-10-23)
-  - [Added](#added-5)
+  - [Added](#added-6)
 
 ## [Unreleased]
+
+### Added
+
+- `groups` option: order and labels of the chapter groups in the navigation (`[{key, label, translation_domain}]` or
+  plain keys). Listed groups come first, the others follow in manifest order; groups with no readable chapter are left
+  out. The chapter template receives the result as `groups`. Default `[]` keeps the manifest order and bundle labels.
+- Chapter page blocks `manual_nav` (with `manual_nav_start`), `manual_body` (with `manual_body_start`) and
+  `manual_aside`, so a host page extends the bundle template instead of copying it.
+- `_macros.html.twig`: the `branch` (foldable sub-page tree) and `children` macros, importable from a host template.
+  The default chapter page still renders byte for byte what 1.7 rendered (golden tests unchanged).
 
 ## [1.7.0] - 2026-11-07
 
