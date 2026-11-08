@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.8.0] - 2026-11-08](#180---2026-11-08)
   - [Added](#added)
 - [[1.7.0] - 2026-11-07](#170---2026-11-07)
   - [Changed](#changed)
@@ -34,6 +35,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - [Added](#added-6)
 
 ## [Unreleased]
+
+## [1.8.0] - 2026-11-08
+
+Navigation groups and chapter page blocks, so a host page extends the bundle template instead of copying it (Beacon override B7 / MK-1). Audit: Appendix IL, Pass.
 
 ### Added
 

@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.8.0](#to-180)
 - [To 1.7.0](#to-170)
 - [To 1.6.0](#to-160)
 - [To 1.5.1](#to-151)
@@ -18,6 +19,14 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## To 1.8.0
+
+From **1.7.0**:
+
+```bash
+composer update nowo-tech/manual-kit-bundle
+```
 
 No action required: with `groups: []` (default) and no block filled, the chapter page renders byte for byte as in 1.7.
 
