@@ -20,6 +20,7 @@
 - [Lightbox](#lightbox)
 - [Search](#search)
 - [Services for your own code](#services-for-your-own-code)
+- [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
 
 ## The manual folder
 
@@ -356,3 +357,68 @@ The group label is the translation `search.group`; the subtitle of a chapter is 
 
 A useful application test renders every chapter for both audiences and asserts that every in-app link, anchor and image
 resolves, and that each `manual/x.md#anchor` your templates reference exists.
+
+## Using it from a DDD / hexagonal application
+
+ManualKit is a **presentation** module: an in-app help UI (controller, Twig, routes, an optional SearchKit group)
+over a read-only catalog of Markdown files in `docs/manual`. It has no Doctrine entities, no persistence and no host
+entity types in its API, so your domain never has to know about it.
+
+**Keep the domain free of the bundle**
+
+- Import its routes and templates in your UI layer only (`@NowoManualKitBundle/Resources/config/routes.php`,
+  `manual_href()` / `manual_chapter_path()` in Twig).
+- Access is decided by Symfony security, not by a user class: `role` and `admin_role` are any `isGranted()`
+  attribute. Map them to your own voter (e.g. `role: MANUAL_READ`) to put your access policy behind your ACL.
+- If application code needs manual data (a "help" link, a list of chapters), wrap `ManualCatalog` /
+  `ManualRenderer` behind a port of your own; their results are value objects (`ManualChapter`,
+  `RenderedManualChapter`, `TranslationState`), never entities.
+
+```php
+// Your port (application layer)
+interface HelpLinks
+{
+    public function chapterUrl(string $slug, ?string $locale = null): ?string;
+}
+
+// Your adapter (infrastructure layer)
+final readonly class ManualKitHelpLinks implements HelpLinks
+{
+    public function __construct(
+        private \Nowo\ManualKitBundle\Catalog\ManualCatalog $catalog,
+        private \Nowo\ManualKitBundle\Security\ManualAccess $access,
+        private \Symfony\Component\Routing\Generator\UrlGeneratorInterface $urls,
+    ) {
+    }
+
+    public function chapterUrl(string $slug, ?string $locale = null): ?string
+    {
+        $chapter = $this->catalog->find($slug, $locale);
+        if ($chapter === null || ($chapter->adminOnly && !$this->access->isAdmin())) {
+            return null;
+        }
+
+        return \Nowo\ManualKitBundle\Routing\ManualRoutes::generate($this->urls, $chapter);
+    }
+}
+```
+
+**Ports and extension points**
+
+| Point | Kind | Use |
+| --- | --- | --- |
+| `Translation\MachineTranslatorInterface::translate(list<string>, source, target): list<string>` | SPI | Machine translation for `nowo:manual:translate` (DeepL and LibreTranslate built in) |
+| `role`, `admin_role` | security attributes | Hook your voter / ACL |
+| `Search\ManualSearchProvider` | SearchKit `SearchProviderInterface` | "Manual" group in the global search, only when SearchKit is installed |
+| `template`, `layout`, `templates/bundles/NowoManualKitBundle/` | config / Twig | Your own page and layout |
+| `cache` | config | Cache pool for rendered chapters |
+
+**Known limitations**
+
+- A custom `MachineTranslatorInterface` cannot be selected from configuration (`provider` is `none`, `deepl` or
+  `libretranslate`); to use your own, redefine the `Nowo\ManualKitBundle\Translation\MarkdownTranslator` service with
+  your implementation as `$translator`.
+- `ManualAccess` is a final class and checks the two attributes without a subject: per-chapter rules beyond
+  `audience: admin` (plan, tenant, feature flag) are not supported.
+- The bundle dispatches no events (chapter viewed, translation written).
+- Chapters are read from the filesystem only; `ManualChapter::$path` is an absolute file path.
