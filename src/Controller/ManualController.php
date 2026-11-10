@@ -8,7 +8,8 @@ use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
-use Nowo\ManualKitBundle\Security\ManualAccess;
+use Nowo\ManualKitBundle\Security\ManualAccessInterface;
+use Nowo\ManualKitBundle\Security\ReadableChapters;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,9 +20,12 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Twig\Environment;
 
+use function array_map;
+use function array_search;
 use function array_values;
 use function basename;
 use function is_file;
+use function is_int;
 
 /**
  * The manual inside the application: `{directory}/*.md` rendered for readers (`role`), in the request locale when a
@@ -45,7 +49,7 @@ final readonly class ManualController
     public function __construct(
         private ManualCatalog $catalog,
         private ManualRenderer $renderer,
-        private ManualAccess $access,
+        private ManualAccessInterface $access,
         private Environment $twig,
         private UrlGeneratorInterface $urls,
         private string $template = '@NowoManualKitBundle/chapter.html.twig',
@@ -172,11 +176,12 @@ final readonly class ManualController
 
     private function page(Request $request, ManualChapter $chapter): Response
     {
-        $admin             = $this->access->isAdmin();
-        $locale            = $request->getLocale();
-        [$previous, $next] = $this->catalog->neighbours($chapter, $admin, $locale);
-
-        $chapters = $this->catalog->visible($admin, $locale);
+        $admin   = $this->access->isAdmin();
+        $locale  = $request->getLocale();
+        $visible = $this->catalog->visible($admin, $locale);
+        // 1.9: the host's per-chapter rule (ManualAccessInterface::canReadChapter) on top of the admin-only rule.
+        $chapters          = ReadableChapters::filter($visible, $visible, $this->access);
+        [$previous, $next] = $this->neighbours($chapter, $chapters);
 
         return new Response($this->twig->render($this->template, [
             'rendered' => $this->renderer->render($chapter, $admin),
@@ -187,7 +192,7 @@ final readonly class ManualController
             'next'     => $next,
             // 1.6: the chapter's parents (breadcrumb) and the sub-pages the viewer may read.
             'ancestors' => $this->catalog->ancestors($chapter, $locale),
-            'children'  => $this->catalog->children($chapter, $admin, $locale),
+            'children'  => ReadableChapters::filter($this->catalog->children($chapter, $admin, $locale), $visible, $this->access),
         ]));
     }
 
@@ -217,11 +222,33 @@ final readonly class ManualController
         return [...$groups, ...array_values($present)];
     }
 
-    /** The chapter, or a 404 when it does not exist or is for administrators only (no existence oracle). */
+    /**
+     * The chapters before and after `$chapter` among those the viewer may open.
+     *
+     * @param list<ManualChapter> $chapters
+     *
+     * @return array{0: ManualChapter|null, 1: ManualChapter|null}
+     */
+    private function neighbours(ManualChapter $chapter, array $chapters): array
+    {
+        $index = array_search($chapter->slug, array_map(static fn (ManualChapter $candidate): string => $candidate->slug, $chapters), true);
+
+        return is_int($index) ? [$chapters[$index - 1] ?? null, $chapters[$index + 1] ?? null] : [null, null];
+    }
+
+    /**
+     * The chapter, or a 404 when it does not exist, is for administrators only or (1.9) is refused by the host's
+     * per-chapter rule, itself or through a parent (no existence oracle).
+     */
     private function readable(?ManualChapter $chapter): ManualChapter
     {
-        if (!$chapter instanceof ManualChapter || ($chapter->adminOnly && !$this->access->isAdmin())) {
+        if (!$chapter instanceof ManualChapter || !$this->access->canReadChapter($chapter)) {
             throw new NotFoundHttpException();
+        }
+        foreach ($this->catalog->ancestors($chapter) as $ancestor) {
+            if (!$this->access->canReadChapter($ancestor)) {
+                throw new NotFoundHttpException();
+            }
         }
 
         return $chapter;

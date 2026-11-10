@@ -62,7 +62,7 @@ final readonly class TranslateManualCommand
         bool $dryRun = false,
     ): int {
         if (!$this->markdown->enabled()) {
-            $io->error('No machine translation provider: set nowo_manual_kit.machine_translation.provider (deepl or libretranslate).');
+            $io->error('No machine translation provider: set nowo_manual_kit.machine_translation.provider (deepl, libretranslate or service).');
 
             return Command::FAILURE;
         }

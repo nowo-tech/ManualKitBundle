@@ -36,6 +36,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+Target 1.9.0: ports for DDD / hexagonal hosts (audit 2026-11-09, P2). See [UPGRADING](UPGRADING.md#to-190).
+
+### Added
+
+- **`machine_translation.provider: service`** + **`machine_translation.service`**: `nowo:manual:translate` uses your own
+  `MachineTranslatorInterface` service (a translation gateway, another provider). `MachineTranslatorInterface` is now
+  aliased to the configured provider (`nowo_manual_kit.machine_translator`).
+- **`Security\ManualAccessInterface`** (`canRead()`, `isAdmin()`, `canReadChapter(ManualChapter)`), implemented by
+  `ManualAccess` and aliased to it; the controller and the search provider depend on the interface.
+- **`Security\ManualChapterAccessCheckerInterface`**: a per-chapter rule of the host (plan, tenant, feature flag),
+  checked after the admin-only rule for navigation, previous / next, sub-pages, search and the page itself (404). A
+  refused chapter hides its sub-pages. Default `AllowAllManualChapterAccessChecker` (no extra rule, as before).
+
 ### Changed
 
 - Docs: new USAGE section "Using it from a DDD / hexagonal application" (where the bundle sits in a hexagonal host, the ports, events and DTOs to build an anti-corruption layer on, and the known limitations).

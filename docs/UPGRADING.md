@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.9.0](#to-190)
 - [To 1.8.0](#to-180)
 - [To 1.7.0](#to-170)
 - [To 1.6.0](#to-160)
@@ -19,6 +20,37 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## To 1.9.0
+
+From **1.8.0**:
+
+```bash
+composer update nowo-tech/manual-kit-bundle
+```
+
+No breaking change; with the default configuration the pages, navigation and search are the same.
+
+- `ManualController` and `ManualSearchProvider` now take `ManualAccessInterface` instead of the `ManualAccess` class
+  (`ManualAccess` implements it, so code that builds them by hand keeps working). `ManualAccess` takes an optional 4th
+  argument, the `ManualChapterAccessCheckerInterface`.
+- Optional, per-chapter rule:
+
+  ```yaml
+  services:
+      Nowo\ManualKitBundle\Security\ManualChapterAccessCheckerInterface: '@App\Help\PlanChapterAccess'
+  ```
+
+  Links to a refused chapter inside another chapter's text stay links (the rendered chapters are cached per
+  audience, not per user); they lead to a 404.
+- Optional, own machine translator:
+
+  ```yaml
+  nowo_manual_kit:
+      machine_translation:
+          provider: service
+          service: App\Infrastructure\Translation\GatewayMachineTranslator
+  ```
 
 ## To 1.8.0
 

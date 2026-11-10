@@ -8,7 +8,8 @@ use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
-use Nowo\ManualKitBundle\Security\ManualAccess;
+use Nowo\ManualKitBundle\Security\ManualAccessInterface;
+use Nowo\ManualKitBundle\Security\ReadableChapters;
 use Nowo\SearchKitBundle\Contract\SearchProviderInterface;
 use Nowo\SearchKitBundle\Model\SearchGroup;
 use Nowo\SearchKitBundle\Model\SearchItem;
@@ -37,7 +38,7 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
     public function __construct(
         private ManualCatalog $catalog,
         private ManualRenderer $renderer,
-        private ManualAccess $access,
+        private ManualAccessInterface $access,
         private UrlGeneratorInterface $urls,
         private TranslatorInterface $translator,
         private RequestStack $requests,
@@ -57,7 +58,9 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
 
         $chapters = [];
         $sections = [];
-        foreach ($this->catalog->visible($admin, $locale) as $chapter) {
+        $visible  = $this->catalog->visible($admin, $locale);
+        // 1.9: only the chapters the host's per-chapter rule lets the user open.
+        foreach (ReadableChapters::filter($visible, $visible, $this->access) as $chapter) {
             $url = ManualRoutes::generate($this->urls, $chapter);
             // 1.6: a nested chapter reads "Parent › Child" (its own title and tags are what match).
             $title = $chapter->trailTitle();

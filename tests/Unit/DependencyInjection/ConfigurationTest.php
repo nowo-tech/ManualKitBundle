@@ -56,7 +56,8 @@ final class ConfigurationTest extends TestCase
         yield 'empty layout' => [['layout' => ''], 'The path "nowo_manual_kit.layout" cannot contain an empty value'];
         yield 'empty cache' => [['cache' => ''], 'The path "nowo_manual_kit.cache" cannot contain an empty value'];
         yield 'unknown key' => [['colour' => 'blue'], 'Unrecognized option "colour" under "nowo_manual_kit"'];
-        yield 'unknown provider' => [['machine_translation' => ['provider' => 'google']], 'Permissible values: "none", "deepl", "libretranslate"'];
+        yield 'unknown provider' => [['machine_translation' => ['provider' => 'google']], 'Permissible values: "none", "deepl", "libretranslate", "service"'];
+        yield 'service without id' => [['machine_translation' => ['provider' => 'service']], '"nowo_manual_kit.machine_translation.service" is required when "provider" is "service"'];
         yield 'libretranslate without url' => [['machine_translation' => ['provider' => 'libretranslate']], '"nowo_manual_kit.machine_translation.url" is required when "provider" is "libretranslate"'];
         yield 'deepl without key' => [['machine_translation' => ['provider' => 'deepl']], '"nowo_manual_kit.machine_translation.api_key" is required when "provider" is "deepl" (e.g. %env(DEEPL_API_KEY)%).'];
         yield 'ftp provider url' => [['machine_translation' => ['url' => 'ftp://libre']], '"nowo_manual_kit.machine_translation.url" must be "" or an absolute http(s) URL'];
