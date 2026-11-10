@@ -43,6 +43,10 @@ No breaking change; with the default configuration the pages, navigation and sea
 
   Links to a refused chapter inside another chapter's text stay links (the rendered chapters are cached per
   audience, not per user); they lead to a 404.
+  With such a rule active, images are only served when they appear in a chapter the viewer may open (administrators
+  included); an image that no readable chapter shows becomes a 404. Without a host rule, images behave as in 1.8.
+- A replaced `ManualAccessInterface` cannot open `audience: admin` chapters to non-admins: the bundle checks
+  `adminOnly` against `isAdmin()` itself before `canReadChapter()`.
 - Optional, own machine translator:
 
   ```yaml

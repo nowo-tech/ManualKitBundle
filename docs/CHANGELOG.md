@@ -48,6 +48,11 @@ Target 1.9.0: ports for DDD / hexagonal hosts (audit 2026-11-09, P2). See [UPGRA
 - **`Security\ManualChapterAccessCheckerInterface`**: a per-chapter rule of the host (plan, tenant, feature flag),
   checked after the admin-only rule for navigation, previous / next, sub-pages, search and the page itself (404). A
   refused chapter hides its sub-pages. Default `AllowAllManualChapterAccessChecker` (no extra rule, as before).
+  Once the host rule refuses a chapter, `/images/{file}` only serves an image shown in a chapter the viewer may open,
+  for administrators too (audit KN-M-L1). The page routes always enforce `audience: admin` themselves, whatever
+  `ManualAccessInterface` implementation is aliased (KN-M-L2).
+- `machine_translation.service` is checked at container compile time: it must implement `MachineTranslatorInterface`
+  (KN-M-I2).
 
 ### Changed
 

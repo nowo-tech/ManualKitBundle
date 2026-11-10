@@ -27,8 +27,10 @@ interface ManualAccessInterface
     public function isAdmin(): bool;
 
     /**
-     * Whether the current user may open this chapter (navigation, previous / next, sub-pages, search and the page
-     * itself). A chapter under a parent the user may not open is hidden too.
+     * Whether the current user may open this chapter (navigation, previous / next, sub-pages, search, images and the
+     * page itself). A chapter under a parent the user may not open is hidden too. The bundle always enforces the
+     * `audience: admin` rule itself (`adminOnly` needs {@see self::isAdmin()}), so an implementation only has to
+     * add its own rule; it cannot widen access to admin-only chapters.
      */
     public function canReadChapter(ManualChapter $chapter): bool;
 }

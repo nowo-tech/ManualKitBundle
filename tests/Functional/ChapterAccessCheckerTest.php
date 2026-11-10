@@ -10,6 +10,7 @@ use Nowo\ManualKitBundle\Security\ManualAccess;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
 use Nowo\ManualKitBundle\Security\ManualChapterAccessCheckerInterface;
 use Nowo\ManualKitBundle\Tests\Support\NoInstallChapterAccess;
+use Nowo\ManualKitBundle\Tests\Support\PermissiveAccessPolicy;
 use Nowo\ManualKitBundle\Tests\Support\TestKernel;
 use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchQuery;
@@ -33,11 +34,16 @@ use function array_key_exists;
 final class ChapterAccessCheckerTest extends WebTestCase
 {
     /**
-     * @param array{checker?: class-string|null} $options
+     * @param array{checker?: class-string|null, policy?: class-string|null, manual?: array<string, mixed>} $options
      */
     protected static function createKernel(array $options = []): KernelInterface
     {
-        return new TestKernel(['directory' => '%kernel.project_dir%/tests/Fixtures/tree/manual'], false, array_key_exists('checker', $options) ? $options['checker'] : NoInstallChapterAccess::class);
+        return new TestKernel(
+            $options['manual'] ?? ['directory' => '%kernel.project_dir%/tests/Fixtures/tree/manual'],
+            false,
+            array_key_exists('checker', $options) ? $options['checker'] : NoInstallChapterAccess::class,
+            $options['policy'] ?? null,
+        );
     }
 
     public function testTheDefaultIsAllowAllAndTheAccessPortIsAliased(): void
@@ -66,6 +72,38 @@ final class ChapterAccessCheckerTest extends WebTestCase
         $client->request('GET', '/en/manual/install.md');
         self::assertResponseStatusCodeSame(404);
         $client->request('GET', '/en/manual/faq/flat-child');
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testImagesOfRefusedChaptersAreA404ForEveryone(): void
+    {
+        // shot.png is only shown in install and docker, both refused by the host rule.
+        $this->signedIn('alice')->request('GET', '/en/manual/images/shot.png');
+        self::assertResponseStatusCodeSame(404);
+        $this->signedIn('admin')->request('GET', '/en/manual/images/shot.png');
+        self::assertResponseStatusCodeSame(404, 'admins too once the host rule refuses a chapter');
+    }
+
+    public function testWithTheDefaultRuleImagesAreServedAsBefore(): void
+    {
+        $this->signedIn('alice', ['checker' => null])->request('GET', '/en/manual/images/shot.png');
+        self::assertResponseIsSuccessful();
+        $this->signedIn('admin', ['checker' => null])->request('GET', '/en/manual/images/shot.png');
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testAReplacedAccessPolicyCannotOpenAdminOnlyChapters(): void
+    {
+        $options = ['checker' => null, 'policy' => PermissiveAccessPolicy::class, 'manual' => []];
+        $client  = $this->signedIn('alice', $options);
+        $client->request('GET', '/en/manual/01-using');
+        self::assertResponseIsSuccessful();
+        $client->request('GET', '/en/manual/02-admin');
+        self::assertResponseStatusCodeSame(404, 'the admin-only rule is enforced by the bundle');
+        $client->request('GET', '/en/manual/02-admin.md');
+        self::assertResponseStatusCodeSame(404);
+
+        $this->signedIn('admin', $options)->request('GET', '/en/manual/02-admin');
         self::assertResponseIsSuccessful();
     }
 
@@ -99,11 +137,14 @@ final class ChapterAccessCheckerTest extends WebTestCase
         return $crawler->filter('[data-testid="manual-nav"] [data-testid^="manual-nav-"]')->each(static fn (Crawler $a): string => substr((string) $a->attr('data-testid'), 11));
     }
 
-    private function signedIn(string $user): KernelBrowser
+    /**
+     * @param array<string, mixed> $options
+     */
+    private function signedIn(string $user, array $options = []): KernelBrowser
     {
         self::ensureKernelShutdown();
 
-        return self::createClient([], ['PHP_AUTH_USER' => $user, 'PHP_AUTH_PW' => 'x']);
+        return self::createClient($options, ['PHP_AUTH_USER' => $user, 'PHP_AUTH_PW' => 'x']);
     }
 
     private function provider(): ManualSearchProvider

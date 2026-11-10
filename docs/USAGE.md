@@ -270,7 +270,7 @@ php bin/console nowo:manual:translate es --chapter=02-dashboard --force
 
 1.9: to use your own translation service (an internal gateway, another provider), implement
 `Nowo\ManualKitBundle\Translation\MachineTranslatorInterface` and set `provider: service` with
-`service: <your service id>`.
+`service: <your service id>` (the container compile fails when that service does not implement the interface).
 
 - **Only prose is sent**, one text per paragraph, heading, list item or table cell. Fenced code, `<a id>` anchors,
   HTML comments (audiences, tags), inline code, link and image targets, attributes, inline HTML and URLs stay as they
@@ -376,10 +376,14 @@ entity types in its API, so your domain never has to know about it.
   attribute. Map them to your own voter (e.g. `role: MANUAL_READ`) to put your access policy behind your ACL.
 - Per-chapter rules from your domain (plan, tenant, feature flag) go behind
   `Security\ManualChapterAccessCheckerInterface` (1.9): alias it to your adapter. It is asked after the built-in
-  `audience: admin` rule, for every chapter in the navigation, previous / next, sub-pages, search and the page itself
-  (a refused chapter is a 404 and hides its sub-pages). The default allows every chapter the roles allow.
+  `audience: admin` rule, for every chapter in the navigation, previous / next, sub-pages, search, images and the page
+  itself (a refused chapter is a 404 and hides its sub-pages; once a chapter is refused, an image is only served when
+  it appears in a chapter the viewer may open, for administrators too). The default allows every chapter the roles
+  allow. The checker is a shared service: read the current user / plan / tenant on every call (no state kept between
+  requests in a worker) and keep it cheap, it runs once per chapter per page and per search.
 - To replace the whole policy, alias `Security\ManualAccessInterface` (`canRead()`, `isAdmin()`,
-  `canReadChapter()`); the default is `ManualAccess`.
+  `canReadChapter()`); the default is `ManualAccess`. The bundle still enforces `audience: admin` itself
+  (`isAdmin()` decides), so your `canReadChapter()` can only narrow access.
 - If application code needs manual data (a "help" link, a list of chapters), wrap `ManualCatalog` /
   `ManualRenderer` behind a port of your own; their results are value objects (`ManualChapter`,
   `RenderedManualChapter`, `TranslationState`), never entities.
@@ -446,7 +450,7 @@ final readonly class ManualKitHelpLinks implements HelpLinks
 **Known limitations**
 
 - Links to a chapter refused by your per-chapter rule, inside the text of another chapter, stay links (rendered
-  chapters are cached per audience, not per user) and lead to a 404; images are filtered by audience only.
+  chapters are cached per audience, not per user) and lead to a 404.
 - The bundle dispatches no events (chapter viewed, translation written).
 - Chapters are read from the filesystem only; `ManualChapter::$path` is an absolute file path.
 - `ManualCatalog` and `ManualRenderer` are final classes without interfaces; wrap them behind your own port.

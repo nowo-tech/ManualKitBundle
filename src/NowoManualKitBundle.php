@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle;
 
+use Nowo\ManualKitBundle\DependencyInjection\Compiler\MachineTranslatorPass;
 use Nowo\ManualKitBundle\DependencyInjection\Compiler\TwigPathsPass;
 use Nowo\ManualKitBundle\DependencyInjection\NowoManualKitExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
@@ -20,12 +21,13 @@ use Symfony\Component\HttpKernel\Bundle\Bundle;
 final class NowoManualKitBundle extends Bundle
 {
     /**
-     * Registers the Twig template paths compiler pass.
+     * Registers the Twig template paths compiler pass and (1.9) the machine translator service check.
      */
     public function build(ContainerBuilder $container): void
     {
         parent::build($container);
         $container->addCompilerPass(new TwigPathsPass());
+        $container->addCompilerPass(new MachineTranslatorPass());
     }
 
     /**

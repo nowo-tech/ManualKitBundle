@@ -24,6 +24,7 @@ use function array_map;
 use function array_search;
 use function array_values;
 use function basename;
+use function count;
 use function is_file;
 use function is_int;
 
@@ -96,14 +97,15 @@ final readonly class ManualController
     }
 
     /**
-     * Serves a manual image; members only get images shown in a chapter they can read.
+     * Serves a manual image; members only get images shown in a chapter they can read. 1.9: when the host's
+     * per-chapter rule refuses a chapter, admins and members alike only get images shown in a chapter they can open.
      */
     #[Route('/images/{file}', name: 'nowo_manual_image', requirements: ['file' => '[A-Za-z0-9][A-Za-z0-9._-]*\.(?:webp|png|jpe?g|gif|svg)'], methods: ['GET'], priority: 10)]
     public function image(Request $request, string $file): BinaryFileResponse
     {
         $this->requireReader();
         $path = $this->catalog->directory() . '/images/' . basename($file);
-        if (!is_file($path) || (!$this->access->isAdmin() && !$this->shownToMembers(basename($file), $request->getLocale()))) {
+        if (!is_file($path) || !$this->imageReadable(basename($file), $request->getLocale())) {
             throw new NotFoundHttpException();
         }
 
@@ -242,7 +244,9 @@ final readonly class ManualController
      */
     private function readable(?ManualChapter $chapter): ManualChapter
     {
-        if (!$chapter instanceof ManualChapter || !$this->access->canReadChapter($chapter)) {
+        // The admin-only rule is always enforced here, whatever ManualAccessInterface implementation is aliased
+        // (audit KN-M-L2); canReadChapter() adds the host's rule.
+        if (!$chapter instanceof ManualChapter || ($chapter->adminOnly && !$this->access->isAdmin()) || !$this->access->canReadChapter($chapter)) {
             throw new NotFoundHttpException();
         }
         foreach ($this->catalog->ancestors($chapter) as $ancestor) {
@@ -258,11 +262,20 @@ final readonly class ManualController
      * Whether a member's chapters show this image: screenshots of the administrators' chapters and blocks stay with
      * them. The member renderings are cached, so this costs a lookup per chapter.
      */
-    private function shownToMembers(string $file, string $locale): bool
+    private function imageReadable(string $file, string $locale): bool
     {
+        $admin    = $this->access->isAdmin();
+        $visible  = $this->catalog->visible($admin, $locale);
+        $readable = ReadableChapters::filter($visible, $visible, $this->access);
+        if ($admin && count($readable) === count($visible)) {
+            // Nothing refused by the host rule: administrators get every image (as before 1.9).
+            return true;
+        }
+
+        // Audit KN-M-L1: only images shown in a chapter the viewer may open, rendered for their audience.
         $src = '"' . $this->urls->generate('nowo_manual_image', ['file' => $file]) . '"';
-        foreach ($this->catalog->visible(false, $locale) as $chapter) {
-            if (str_contains($this->renderer->render($chapter, false)->html, $src)) {
+        foreach ($readable as $chapter) {
+            if (str_contains($this->renderer->render($chapter, $admin)->html, $src)) {
                 return true;
             }
         }
