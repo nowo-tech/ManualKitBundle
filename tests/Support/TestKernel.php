@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Nowo\ManualKitBundle\Tests\Support;
 
 use Nowo\ManualKitBundle\NowoManualKitBundle;
+use Nowo\ManualKitBundle\Security\ManualAccessInterface;
+use Nowo\ManualKitBundle\Security\ManualChapterAccessCheckerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Bundle\FrameworkBundle\FrameworkBundle;
 use Symfony\Bundle\FrameworkBundle\Kernel\MicroKernelTrait;
@@ -35,8 +37,10 @@ final class TestKernel extends Kernel
      * @param array<string, mixed> $manualConfig merged over the test configuration
      * @param bool $hostControllersOnly route only the host's default `routing.controllers` import (Symfony >= 7.3
      *                                  skeleton routes.yaml), without importing the bundle routes.php
+     * @param class-string|null $chapterAccessChecker 1.9: host ManualChapterAccessCheckerInterface implementation
+     * @param class-string|null $accessPolicy 1.9: host ManualAccessInterface implementation
      */
-    public function __construct(private readonly array $manualConfig = [], private readonly bool $hostControllersOnly = false)
+    public function __construct(private readonly array $manualConfig = [], private readonly bool $hostControllersOnly = false, private readonly ?string $chapterAccessChecker = null, private readonly ?string $accessPolicy = null)
     {
         parent::__construct('test', false);
     }
@@ -58,7 +62,7 @@ final class TestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/nowo-manual-kit-bundle/' . md5(serialize([$this->manualConfig, $this->hostControllersOnly])) . '/cache';
+        return sys_get_temp_dir() . '/nowo-manual-kit-bundle/' . md5(serialize([$this->manualConfig, $this->hostControllersOnly, $this->chapterAccessChecker, $this->accessPolicy])) . '/cache';
     }
 
     public function getLogDir(): string
@@ -89,6 +93,18 @@ final class TestKernel extends Kernel
             'password_hashers' => ['Symfony\Component\Security\Core\User\InMemoryUser' => 'plaintext'],
             'firewalls'        => ['main' => ['lazy' => true, 'provider' => 'test_users', 'http_basic' => null]],
         ]);
+        if ($this->chapterAccessChecker !== null) {
+            // 1.9: a host per-chapter rule replacing the allow-all default.
+            $container->services()->set('test.chapter_access', $this->chapterAccessChecker);
+            $container->services()->alias(ManualChapterAccessCheckerInterface::class, 'test.chapter_access');
+        }
+        if ($this->accessPolicy !== null) {
+            // 1.9: a host replacing the whole ManualAccessInterface.
+            $container->services()->set('test.access_policy', $this->accessPolicy)->autowire();
+            $container->services()->alias(ManualAccessInterface::class, 'test.access_policy');
+        }
+        // 1.9: a host machine translator for `provider: service`.
+        $container->services()->set('test.machine_translator', UppercaseMachineTranslator::class)->public();
         if (isset($this->manualConfig['machine_translation'])) {
             $container->services()->set('test.translation_responses', EchoTranslationResponses::class);
             $container->extension('framework', ['http_client' => ['mock_response_factory' => 'test.translation_responses']]);

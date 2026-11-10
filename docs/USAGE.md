@@ -268,6 +268,10 @@ php bin/console nowo:manual:translate es                    # missing + outdated
 php bin/console nowo:manual:translate es --chapter=02-dashboard --force
 ```
 
+1.9: to use your own translation service (an internal gateway, another provider), implement
+`Nowo\ManualKitBundle\Translation\MachineTranslatorInterface` and set `provider: service` with
+`service: <your service id>` (the container compile fails when that service does not implement the interface).
+
 - **Only prose is sent**, one text per paragraph, heading, list item or table cell. Fenced code, `<a id>` anchors,
   HTML comments (audiences, tags), inline code, link and image targets, attributes, inline HTML and URLs stay as they
   are; relative links get the `../` of the translation folder.
@@ -370,9 +374,37 @@ entity types in its API, so your domain never has to know about it.
   `manual_href()` / `manual_chapter_path()` in Twig).
 - Access is decided by Symfony security, not by a user class: `role` and `admin_role` are any `isGranted()`
   attribute. Map them to your own voter (e.g. `role: MANUAL_READ`) to put your access policy behind your ACL.
+- Per-chapter rules from your domain (plan, tenant, feature flag) go behind
+  `Security\ManualChapterAccessCheckerInterface` (1.9): alias it to your adapter. It is asked after the built-in
+  `audience: admin` rule, for every chapter in the navigation, previous / next, sub-pages, search, images and the page
+  itself (a refused chapter is a 404 and hides its sub-pages; once a chapter is refused, an image is only served when
+  it appears in a chapter the viewer may open, for administrators too). The default allows every chapter the roles
+  allow. The checker is a shared service: read the current user / plan / tenant on every call (no state kept between
+  requests in a worker) and keep it cheap, it runs once per chapter per page and per search.
+- To replace the whole policy, alias `Security\ManualAccessInterface` (`canRead()`, `isAdmin()`,
+  `canReadChapter()`); the default is `ManualAccess`. The bundle still enforces `audience: admin` itself
+  (`isAdmin()` decides), so your `canReadChapter()` can only narrow access.
 - If application code needs manual data (a "help" link, a list of chapters), wrap `ManualCatalog` /
   `ManualRenderer` behind a port of your own; their results are value objects (`ManualChapter`,
   `RenderedManualChapter`, `TranslationState`), never entities.
+
+```php
+// A per-chapter rule (infrastructure layer) over your application port
+final readonly class PlanChapterAccess implements \Nowo\ManualKitBundle\Security\ManualChapterAccessCheckerInterface
+{
+    public function __construct(private CurrentPlan $plan) {} // your port
+
+    public function canReadChapter(\Nowo\ManualKitBundle\Model\ManualChapter $chapter): bool
+    {
+        return $chapter->group !== 'billing' || $this->plan->includesBilling();
+    }
+}
+```
+
+```yaml
+services:
+    Nowo\ManualKitBundle\Security\ManualChapterAccessCheckerInterface: '@App\Help\PlanChapterAccess'
+```
 
 ```php
 // Your port (application layer)
@@ -386,7 +418,7 @@ final readonly class ManualKitHelpLinks implements HelpLinks
 {
     public function __construct(
         private \Nowo\ManualKitBundle\Catalog\ManualCatalog $catalog,
-        private \Nowo\ManualKitBundle\Security\ManualAccess $access,
+        private \Nowo\ManualKitBundle\Security\ManualAccessInterface $access,
         private \Symfony\Component\Routing\Generator\UrlGeneratorInterface $urls,
     ) {
     }
@@ -394,7 +426,7 @@ final readonly class ManualKitHelpLinks implements HelpLinks
     public function chapterUrl(string $slug, ?string $locale = null): ?string
     {
         $chapter = $this->catalog->find($slug, $locale);
-        if ($chapter === null || ($chapter->adminOnly && !$this->access->isAdmin())) {
+        if ($chapter === null || !$this->access->canReadChapter($chapter)) {
             return null;
         }
 
@@ -407,7 +439,9 @@ final readonly class ManualKitHelpLinks implements HelpLinks
 
 | Point | Kind | Use |
 | --- | --- | --- |
-| `Translation\MachineTranslatorInterface::translate(list<string>, source, target): list<string>` | SPI | Machine translation for `nowo:manual:translate` (DeepL and LibreTranslate built in) |
+| `Translation\MachineTranslatorInterface::translate(list<string>, source, target): list<string>` | SPI | Machine translation for `nowo:manual:translate`: DeepL and LibreTranslate built in, or yours with `machine_translation.provider: service` + `service: <id>` (1.9) |
+| `Security\ManualChapterAccessCheckerInterface::canReadChapter(ManualChapter)` | SPI (alias) | Per-chapter rule of the host (1.9); default allow-all |
+| `Security\ManualAccessInterface` | port (alias) | The whole access policy (1.9); default `ManualAccess` (roles + chapter rule) |
 | `role`, `admin_role` | security attributes | Hook your voter / ACL |
 | `Search\ManualSearchProvider` | SearchKit `SearchProviderInterface` | "Manual" group in the global search, only when SearchKit is installed |
 | `template`, `layout`, `templates/bundles/NowoManualKitBundle/` | config / Twig | Your own page and layout |
@@ -415,10 +449,8 @@ final readonly class ManualKitHelpLinks implements HelpLinks
 
 **Known limitations**
 
-- A custom `MachineTranslatorInterface` cannot be selected from configuration (`provider` is `none`, `deepl` or
-  `libretranslate`); to use your own, redefine the `Nowo\ManualKitBundle\Translation\MarkdownTranslator` service with
-  your implementation as `$translator`.
-- `ManualAccess` is a final class and checks the two attributes without a subject: per-chapter rules beyond
-  `audience: admin` (plan, tenant, feature flag) are not supported.
+- Links to a chapter refused by your per-chapter rule, inside the text of another chapter, stay links (rendered
+  chapters are cached per audience, not per user) and lead to a 404.
 - The bundle dispatches no events (chapter viewed, translation written).
 - Chapters are read from the filesystem only; `ManualChapter::$path` is an absolute file path.
+- `ManualCatalog` and `ManualRenderer` are final classes without interfaces; wrap them behind your own port.

@@ -10,7 +10,10 @@ use Nowo\ManualKitBundle\Command\TranslateManualCommand;
 use Nowo\ManualKitBundle\Controller\ManualController;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Search\ManualSearchProvider;
+use Nowo\ManualKitBundle\Security\AllowAllManualChapterAccessChecker;
 use Nowo\ManualKitBundle\Security\ManualAccess;
+use Nowo\ManualKitBundle\Security\ManualAccessInterface;
+use Nowo\ManualKitBundle\Security\ManualChapterAccessCheckerInterface;
 use Nowo\ManualKitBundle\Translation\MarkdownTranslator;
 use Nowo\ManualKitBundle\Translation\UiGlossary;
 use Nowo\ManualKitBundle\Twig\ManualLinkExtension;
@@ -38,9 +41,16 @@ return static function (ContainerConfigurator $container): void {
     $services->set(ManualRenderer::class)
         ->arg('$docsUrl', param('nowo_manual_kit.docs_url'));
 
+    // 1.9: per-chapter rule of the host (alias the interface to your own service); allow-all by default.
+    $services->set(AllowAllManualChapterAccessChecker::class);
+    $services->alias(ManualChapterAccessCheckerInterface::class, AllowAllManualChapterAccessChecker::class);
+
     $services->set(ManualAccess::class)
         ->arg('$role', param('nowo_manual_kit.role'))
-        ->arg('$adminRole', param('nowo_manual_kit.admin_role'));
+        ->arg('$adminRole', param('nowo_manual_kit.admin_role'))
+        ->arg('$chapters', service(ManualChapterAccessCheckerInterface::class));
+    // 1.9: the access policy as a port; alias it to your own service to replace it entirely.
+    $services->alias(ManualAccessInterface::class, ManualAccess::class);
 
     // Not autoconfigured (REQ-SF-004 rule 7): on Symfony >= 7.3 a #[Route] class is autoconfigured with the
     // routing.controller tag, and the host's `routing.controllers` resource would then register the manual routes

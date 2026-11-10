@@ -18,7 +18,8 @@ nowo_manual_kit:
     standalone_lightbox: false
     cache: cache.app
     machine_translation:
-        provider: none          # none | deepl | libretranslate
+        provider: none          # none | deepl | libretranslate | service (1.9)
+        service: ''             # 1.9: with provider service, your MachineTranslatorInterface service id
         api_key: ''
         url: ''
         timeout: 30             # seconds, idle timeout of each provider request
@@ -30,7 +31,7 @@ nowo_manual_kit:
 
 The tree is strict (REQ-SF-006): unknown keys, empty `directory` / `template` / `layout` / `cache` / `admin_role`,
 malformed locales, a `docs_url` or `machine_translation.url` that is not an absolute `http(s)` URL, a `deepl` provider
-without `api_key`, a `libretranslate` provider without `url` and timeouts below one second stop the container compile
+without `api_key`, a `libretranslate` provider without `url`, a `service` provider without `service` and timeouts below one second stop the container compile
 with the offending path and the allowed values, for example:
 
 ```text
@@ -146,7 +147,8 @@ state, audience, file mtime and size, manifest mtime and router base URL, and ex
 
 | Key | Default | Meaning |
 | --- | --- | --- |
-| `provider` | `none` | `none` (the command is off), `deepl` or `libretranslate`. Both need `symfony/http-client`. |
+| `provider` | `none` | `none` (the command is off), `deepl` or `libretranslate` (both need `symfony/http-client`), or (1.9) `service`: your own `MachineTranslatorInterface`. |
+| `service` | `''` | 1.9: with `provider: service`, the id of a service implementing `Nowo\ManualKitBundle\Translation\MachineTranslatorInterface` (required then). `api_key`, `url`, `timeout`, `max_duration`, `formality` and `languages` are not used; the glossary still applies. |
 | `api_key` | `''` | DeepL key (a key ending in `:fx` goes to api-free.deepl.com); optional LibreTranslate key. Use `%env()%`. |
 | `url` | `''` | LibreTranslate base URL (required for it, e.g. `http://libretranslate:5000`); DeepL endpoint override. Absolute `http(s)` only. |
 | `timeout` | `30` | Idle timeout of each provider request, in seconds (Symfony HttpClient `timeout`; minimum 1). |

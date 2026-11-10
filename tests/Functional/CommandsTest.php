@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\ManualKitBundle\Tests\Functional;
 
 use Nowo\ManualKitBundle\Tests\Support\TestKernel;
+use Nowo\ManualKitBundle\Tests\Support\UppercaseMachineTranslator;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Command\Command;
@@ -134,6 +135,21 @@ final class CommandsTest extends KernelTestCase
         self::assertSame(Command::SUCCESS, $translate->execute(['locale' => 'es', '--force' => true, '--chapter' => ['01-using', '02-admin']]));
         self::assertStringContainsString('2 chapter(s) machine-translated into es', $translate->getDisplay());
         self::assertStringContainsString('<!-- machine-translated -->', (string) file_get_contents($this->directory . '/es/01-using.md'));
+    }
+
+    public function testTranslateUsesTheHostServiceProvider(): void
+    {
+        $translate = $this->tester('nowo:manual:translate', ['machine_translation' => ['provider' => 'service', 'service' => 'test.machine_translator']]);
+
+        self::assertSame(Command::SUCCESS, $translate->execute(['locale' => 'es', '--chapter' => ['02-admin']]));
+        self::assertStringContainsString('1 chapter(s) machine-translated into es', $translate->getDisplay());
+
+        $container  = self::getContainer();
+        $translator = $container->get('test.machine_translator');
+        self::assertInstanceOf(UppercaseMachineTranslator::class, $translator);
+        self::assertNotSame([], $translator->calls);
+        self::assertSame(['en', 'es'], [$translator->calls[0][0], $translator->calls[0][1]]);
+        self::assertMatchesRegularExpression('/<!-- machine-translated -->\n# [A-Z ]+/', (string) file_get_contents($this->directory . '/es/02-admin.md'));
     }
 
     public function testTranslateCreatesTheLocaleFolder(): void

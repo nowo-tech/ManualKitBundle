@@ -35,7 +35,7 @@ final class BundleBootTest extends TestCase
             'groups'              => [],
             'standalone_lightbox' => false,
             'cache'               => 'cache.app',
-            'machine_translation' => ['provider' => 'none', 'api_key' => '', 'url' => '', 'timeout' => 30.0, 'max_duration' => 120.0, 'formality' => 'default', 'languages' => [], 'glossary_domains' => ['messages']],
+            'machine_translation' => ['provider' => 'none', 'service' => '', 'api_key' => '', 'url' => '', 'timeout' => 30.0, 'max_duration' => 120.0, 'formality' => 'default', 'languages' => [], 'glossary_domains' => ['messages']],
         ], new Processor()->processConfiguration(new Configuration(), []));
     }
 
