@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Tests
+
+- Tests: kept-alive worker test `WorkerKeptAliveKernelTest` (one kernel or container, never reset, 1,200 alternating iterations, memory bound) and `docs/FRANKENPHP-WORKER-AUDIT.md` refreshed for v1.9.0; no runtime change.
+
 ## [1.9.0] - 2026-11-10
 
 Target 1.9.0: ports for DDD / hexagonal hosts (audit 2026-11-09, P2). See [UPGRADING](UPGRADING.md#to-190).
