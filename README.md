@@ -169,7 +169,7 @@ Playwright end-to-end tests: `make -C demo/symfony8 test-e2e` (see [docs/CONTRIB
 - TS/JS: 100%
 - Python: N/A
 
-PHP line coverage: **100%** of includable `src/` (gate **≥ 99%**). TypeScript: Vitest thresholds 100% statements /
+PHP line coverage: **100%** of includable `src/` (gate **100%**). TypeScript: Vitest thresholds 100% statements /
 branches / functions / lines on `src/Resources/assets` (make gate **≥ 90%**).
 
 ```bash
