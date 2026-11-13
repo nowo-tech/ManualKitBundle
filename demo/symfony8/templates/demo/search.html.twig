@@ -2,23 +2,26 @@
 
 {% block title %}{{ 'demo.search.title'|trans }}{% endblock %}
 
+{% block nowo_ui_page_header %}
+    {{ include(nowo_ui_partial('page_header'), {title: 'demo.search.title'|trans}) }}
+{% endblock %}
+
 {% block body %}
-<div class="container py-4">
-    <h1 class="h3 mb-3">{{ 'demo.search.title'|trans }}</h1>
-    <div style="max-width: 32rem" role="search" class="mb-3">{{ include('demo/_form.html.twig', { form: search_form }) }}</div>
+    <section class="nowo-ui-card" role="search">
+        <div class="nowo-ui-card__body">{{ include('demo/_form.html.twig', { form: search_form }) }}</div>
+    </section>
     {% if q is not empty %}
         {% if items is empty %}
             <p data-testid="manual-search-empty">{{ 'demo.search.empty'|trans }}</p>
         {% else %}
-            <ul class="list-group" style="max-width: 40rem" data-testid="manual-search-results">
+            <ul class="nowo-ui-list" data-testid="manual-search-results">
                 {% for item in items %}
-                    <li class="list-group-item">
-                        <a href="{{ item.url }}" data-testid="manual-search-result">{{ item.title }}</a>
-                        <div class="small text-body-secondary">{{ item.subtitle }}</div>
+                    <li class="nowo-ui-list-item">
+                        <a class="nowo-ui-link" href="{{ item.url }}" data-testid="manual-search-result">{{ item.title }}</a>
+                        <div class="nowo-ui-muted">{{ item.subtitle }}</div>
                     </li>
                 {% endfor %}
             </ul>
         {% endif %}
     {% endif %}
-</div>
 {% endblock %}

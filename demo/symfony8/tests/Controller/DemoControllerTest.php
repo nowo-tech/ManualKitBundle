@@ -44,7 +44,7 @@ final class DemoControllerTest extends WebTestCase
         self::assertResponseRedirects('/en/manual');
         $client->followRedirect();
         self::assertSelectorTextContains('h1', 'Demo manual');
-        self::assertSelectorTextContains('nav.navbar', 'demo');
+        self::assertSelectorTextContains('header.nowo-ui-header', 'demo');
         self::assertSelectorExists('link[href="/bundles/nowomanualkit/css/manual.css"]');
     }
 
