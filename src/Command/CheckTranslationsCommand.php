@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Command;
 
-use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Catalog\TranslationAudit;
 use Nowo\ManualKitBundle\Model\TranslationState;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -32,7 +32,7 @@ final readonly class CheckTranslationsCommand
      */
     public function __construct(
         private TranslationAudit $audit,
-        private ManualCatalog $catalog,
+        private ManualCatalogInterface $catalog,
     ) {
     }
 

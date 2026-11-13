@@ -50,7 +50,7 @@ use const JSON_UNESCAPED_SLASHES;
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
  */
-final readonly class ManualCatalog
+final readonly class ManualCatalog implements ManualCatalogInterface
 {
     public const string MANIFEST = 'manifest.yaml';
 

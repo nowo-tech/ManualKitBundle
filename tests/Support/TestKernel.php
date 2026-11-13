@@ -4,7 +4,10 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Tests\Support;
 
+use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\NowoManualKitBundle;
+use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
 use Nowo\ManualKitBundle\Security\ManualChapterAccessCheckerInterface;
 use Psr\Log\NullLogger;
@@ -20,6 +23,7 @@ use Symfony\Component\Routing\Loader\Configurator\RoutingConfigurator;
 use Twig\Extra\TwigExtraBundle\TwigExtraBundle;
 
 use function dirname;
+use function Symfony\Component\DependencyInjection\Loader\Configurator\service;
 
 /**
  * Kernel for integration and functional tests: the fixture manual (en + es), in-memory users (alice, admin) on HTTP
@@ -39,8 +43,10 @@ final class TestKernel extends Kernel
      *                                  skeleton routes.yaml), without importing the bundle routes.php
      * @param class-string|null $chapterAccessChecker 1.9: host ManualChapterAccessCheckerInterface implementation
      * @param class-string|null $accessPolicy 1.9: host ManualAccessInterface implementation
+     * @param class-string|null $catalog 1.10: host ManualCatalogInterface implementation (it decorates the bundle catalog)
+     * @param class-string|null $renderer 1.10: host ManualRendererInterface implementation
      */
-    public function __construct(private readonly array $manualConfig = [], private readonly bool $hostControllersOnly = false, private readonly ?string $chapterAccessChecker = null, private readonly ?string $accessPolicy = null)
+    public function __construct(private readonly array $manualConfig = [], private readonly bool $hostControllersOnly = false, private readonly ?string $chapterAccessChecker = null, private readonly ?string $accessPolicy = null, private readonly ?string $catalog = null, private readonly ?string $renderer = null)
     {
         parent::__construct('test', false);
     }
@@ -62,7 +68,7 @@ final class TestKernel extends Kernel
 
     public function getCacheDir(): string
     {
-        return sys_get_temp_dir() . '/nowo-manual-kit-bundle/' . md5(serialize([$this->manualConfig, $this->hostControllersOnly, $this->chapterAccessChecker, $this->accessPolicy])) . '/cache';
+        return sys_get_temp_dir() . '/nowo-manual-kit-bundle/' . md5(serialize([$this->manualConfig, $this->hostControllersOnly, $this->chapterAccessChecker, $this->accessPolicy, $this->catalog, $this->renderer])) . '/cache';
     }
 
     public function getLogDir(): string
@@ -102,6 +108,16 @@ final class TestKernel extends Kernel
             // 1.9: a host replacing the whole ManualAccessInterface.
             $container->services()->set('test.access_policy', $this->accessPolicy)->autowire();
             $container->services()->alias(ManualAccessInterface::class, 'test.access_policy');
+        }
+        if ($this->catalog !== null) {
+            // 1.10: a host catalog replacing the ManualCatalogInterface port (it wraps the bundle catalog).
+            $container->services()->set('test.host_catalog', $this->catalog)->autowire()->arg('$inner', service(ManualCatalog::class));
+            $container->services()->alias(ManualCatalogInterface::class, 'test.host_catalog');
+        }
+        if ($this->renderer !== null) {
+            // 1.10: a host renderer replacing the ManualRendererInterface port.
+            $container->services()->set('test.host_renderer', $this->renderer);
+            $container->services()->alias(ManualRendererInterface::class, 'test.host_renderer');
         }
         // 1.9: a host machine translator for `provider: service`.
         $container->services()->set('test.machine_translator', UppercaseMachineTranslator::class)->public();

@@ -27,7 +27,7 @@ final readonly class TranslationAudit
      * Receives the catalog whose translations are audited.
      */
     public function __construct(
-        private ManualCatalog $catalog,
+        private ManualCatalogInterface $catalog,
     ) {
     }
 

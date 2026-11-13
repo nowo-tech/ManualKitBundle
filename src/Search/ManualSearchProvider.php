@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Search;
 
-use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Model\ManualChapter;
-use Nowo\ManualKitBundle\Render\ManualRenderer;
+use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
 use Nowo\ManualKitBundle\Security\ReadableChapters;
@@ -36,8 +36,8 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
      * Receives the services used to search the manual chapters the current user can read.
      */
     public function __construct(
-        private ManualCatalog $catalog,
-        private ManualRenderer $renderer,
+        private ManualCatalogInterface $catalog,
+        private ManualRendererInterface $renderer,
         private ManualAccessInterface $access,
         private UrlGeneratorInterface $urls,
         private TranslatorInterface $translator,

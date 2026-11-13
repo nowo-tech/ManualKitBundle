@@ -17,6 +17,7 @@ use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
 use League\CommonMark\MarkdownConverter;
 use LogicException;
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Model\RenderedManualChapter;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
@@ -56,7 +57,7 @@ use const PREG_SET_ORDER;
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
  */
-final readonly class ManualRenderer
+final readonly class ManualRenderer implements ManualRendererInterface
 {
     /** `<!-- audience: admin -->…<!-- /audience -->` (administrators only) or `audience: github` (repository readers only). */
     private const string AUDIENCE_BLOCK = '/<!--\s*audience:\s*([a-z]+)\s*-->(.*?)<!--\s*\/audience\s*-->/si';
@@ -73,7 +74,7 @@ final readonly class ManualRenderer
      * Receives the catalog, router and cache used to render chapters, plus the external docs URL.
      */
     public function __construct(
-        private ManualCatalog $catalog,
+        private ManualCatalogInterface $catalog,
         private UrlGeneratorInterface $urls,
         private CacheInterface $cache,
         private string $docsUrl = '',
