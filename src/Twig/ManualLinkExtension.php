@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Nowo\ManualKitBundle\Twig;
 
 use LogicException;
-use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\DependencyInjection\Configuration;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
@@ -40,7 +40,7 @@ final class ManualLinkExtension extends AbstractExtension
      * Receives the catalog, router and link settings used by the manual Twig functions.
      */
     public function __construct(
-        private readonly ManualCatalog $catalog,
+        private readonly ManualCatalogInterface $catalog,
         private readonly UrlGeneratorInterface $urls,
         private readonly string $docsUrl = '',
         private readonly bool $inApp = true,

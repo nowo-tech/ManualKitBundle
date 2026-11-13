@@ -6,6 +6,8 @@
 - [Request flow](#request-flow)
 - [Rendering pipeline](#rendering-pipeline)
 - [Design rules](#design-rules)
+- [Public ports and extension points](#public-ports-and-extension-points)
+- [Standard Symfony and DDD hosts](#standard-symfony-and-ddd-hosts)
 
 ## Layers
 
@@ -59,3 +61,35 @@ mtime and the router base URL.
 - Stateless services only (FrankenPHP worker mode); rendered chapters live in the cache pool, not in properties.
 - The manual stays a valid GitHub manual: every construct the bundle reads (stable anchors, audience and tags comments,
   `../` links from translation folders) is plain Markdown / HTML that GitHub renders or hides.
+
+## Public ports and extension points
+
+| Port | Default implementation | Purpose |
+| --- | --- | --- |
+| `Catalog\ManualCatalogInterface` | `Catalog\ManualCatalog` | Chapters, navigation, locales and the files behind them (reads `manifest.yaml`). |
+| `Render\ManualRendererInterface` | `Render\ManualRenderer` | Renders a chapter to sanitised HTML plus its table of contents. |
+| `Security\ManualAccessInterface` | `Security\ManualAccess` | Who may read and who is admin. |
+| `Security\ManualChapterAccessCheckerInterface` | `Security\AllowAllManualChapterAccessChecker` | Per-chapter rule of the host. |
+| `Translation\MachineTranslatorInterface` | none (`machine_translation.provider`) | Machine translation provider. |
+
+All ports take and return scalars and bundle value objects (`ManualChapter`, `RenderedManualChapter`); no Doctrine or
+HTTP type appears in them. Each interface is aliased to its default service, and every bundle consumer type-hints the
+interface, so aliasing it to your own service replaces the default everywhere:
+
+```yaml
+services:
+  App\Manual\DatabaseManualCatalog: ~
+  Nowo\ManualKitBundle\Catalog\ManualCatalogInterface:
+    alias: App\Manual\DatabaseManualCatalog
+```
+
+`ManualCatalog::MANIFEST`, `::SLUG`, `::TRANSLATION_MARKER`, `::sourceHash()` and `ManualRenderer::audienceFiltered()`
+stay on the default classes. Replacements must stay stateless (worker mode, kernel not reset).
+
+## Standard Symfony and DDD hosts
+
+- **Standard Symfony host:** set `nowo_manual_kit.directory`, import the routes and keep the default services.
+- **DDD / hexagonal host:** the bundle has no entities, mapping or events; the manual is files. Plug your own access
+  rules through `ManualAccessInterface` / `ManualChapterAccessCheckerInterface` (an adapter over your authorization
+  port), and, if chapters live elsewhere, implement `ManualCatalogInterface` (and `ManualRendererInterface` when you
+  render yourself) in your infrastructure layer and alias the ports.

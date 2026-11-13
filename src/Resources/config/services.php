@@ -3,12 +3,14 @@
 declare(strict_types=1);
 
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Catalog\TranslationAudit;
 use Nowo\ManualKitBundle\Command\CheckTranslationsCommand;
 use Nowo\ManualKitBundle\Command\StampTranslationCommand;
 use Nowo\ManualKitBundle\Command\TranslateManualCommand;
 use Nowo\ManualKitBundle\Controller\ManualController;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
+use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Search\ManualSearchProvider;
 use Nowo\ManualKitBundle\Security\AllowAllManualChapterAccessChecker;
 use Nowo\ManualKitBundle\Security\ManualAccess;
@@ -36,10 +38,14 @@ return static function (ContainerConfigurator $container): void {
 
     $services->set(ManualCatalog::class)
         ->args([param('nowo_manual_kit.directory'), param('nowo_manual_kit.source_locale'), param('nowo_manual_kit.locales')]);
+    // 1.10: the catalog as a port (REQ-ARCH-001 rule 1); alias it to your own service to serve chapters from elsewhere.
+    $services->alias(ManualCatalogInterface::class, ManualCatalog::class);
 
     // `$cache` is the configured pool, set by NowoManualKitExtension.
     $services->set(ManualRenderer::class)
         ->arg('$docsUrl', param('nowo_manual_kit.docs_url'));
+    // 1.10: the renderer as a port; alias it to your own service to replace it.
+    $services->alias(ManualRendererInterface::class, ManualRenderer::class);
 
     // 1.9: per-chapter rule of the host (alias the interface to your own service); allow-all by default.
     $services->set(AllowAllManualChapterAccessChecker::class);

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Command;
 
-use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Catalog\TranslationAudit;
 use Nowo\ManualKitBundle\Model\TranslationState;
 use Nowo\ManualKitBundle\Translation\MarkdownTranslator;
@@ -40,7 +40,7 @@ final readonly class TranslateManualCommand
      * Receives the catalog, translation audit, Markdown translator and UI glossary used to translate chapters.
      */
     public function __construct(
-        private ManualCatalog $catalog,
+        private ManualCatalogInterface $catalog,
         private TranslationAudit $audit,
         private MarkdownTranslator $markdown,
         private UiGlossary $glossary,

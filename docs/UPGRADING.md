@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.10.0](#to-1100)
 - [To 1.9.0](#to-190)
 - [To 1.9.0](#to-190-1)
 - [To 1.8.0](#to-180)
@@ -21,6 +22,16 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## To 1.10.0
+
+From **1.9.0**: additive, no action needed.
+
+```bash
+composer update nowo-tech/manual-kit-bundle
+```
+
+`ManualCatalog` and `ManualRenderer` now implement `ManualCatalogInterface` and `ManualRendererInterface`, aliased to the bundle services; the bundle's own services type-hint the interfaces. Type-hint the interfaces in new code (the class ids keep working). To replace one, alias the interface to your own service; a replacement renderer must keep the audience rule (members never receive admin content) and sanitise its HTML.
 
 ## To 1.9.0
 

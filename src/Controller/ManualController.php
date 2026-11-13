@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Controller;
 
-use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Model\ManualChapter;
-use Nowo\ManualKitBundle\Render\ManualRenderer;
+use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
 use Nowo\ManualKitBundle\Security\ReadableChapters;
@@ -48,8 +48,8 @@ final readonly class ManualController
      *                                                                                         labels of the navigation)
      */
     public function __construct(
-        private ManualCatalog $catalog,
-        private ManualRenderer $renderer,
+        private ManualCatalogInterface $catalog,
+        private ManualRendererInterface $renderer,
         private ManualAccessInterface $access,
         private Environment $twig,
         private UrlGeneratorInterface $urls,
