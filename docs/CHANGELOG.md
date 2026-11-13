@@ -43,6 +43,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- docs: demo screenshots regenerated on the UiKit base style
+
 ## [1.10.0] - 2026-11-13
 
 ### Added
