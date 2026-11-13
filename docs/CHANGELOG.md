@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Demo uses the UiKit base style and FormKit forms (REQ-DEMO-014/015).
+
 ### Tests
 
 - Tests: kept-alive worker test `WorkerKeptAliveKernelTest` (one kernel or container, never reset, 1,200 alternating iterations, memory bound) and `docs/FRANKENPHP-WORKER-AUDIT.md` refreshed for v1.9.0; no runtime change.
