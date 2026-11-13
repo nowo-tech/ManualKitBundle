@@ -86,7 +86,9 @@ final readonly class ManualRenderer implements ManualRendererInterface
      */
     public function render(ManualChapter $chapter, bool $admin): RenderedManualChapter
     {
-        $key = 'nowo_manual.' . hash('xxh128', implode('|', [
+        // A host catalog (ManualCatalogInterface) may serve chapters without a manifest.yaml in its directory.
+        $manifest = $this->catalog->directory() . '/' . ManualCatalog::MANIFEST;
+        $key      = 'nowo_manual.' . hash('xxh128', implode('|', [
             self::VERSION,
             $chapter->slug,
             $chapter->locale,
@@ -94,7 +96,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
             $admin ? 'admin' : 'member',
             (string) filemtime($chapter->path),
             (string) filesize($chapter->path),
-            (string) filemtime($this->catalog->directory() . '/' . ManualCatalog::MANIFEST),
+            is_file($manifest) ? (string) filemtime($manifest) : 'no-manifest',
             $this->urls->getContext()->getBaseUrl(),
         ]));
 

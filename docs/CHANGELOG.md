@@ -39,6 +39,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- `ManualRenderer` no longer calls `filemtime()` on a missing `manifest.yaml`: a host `ManualCatalogInterface` serving chapters from a directory without a manifest renders normally (the cache key skips the manifest part).
+
 ### Added
 
 - Ports (REQ-ARCH-001 rule 1): `ManualCatalogInterface` and `ManualRendererInterface`, implemented by `ManualCatalog` and `ManualRenderer` and aliased in the container. Every bundle consumer (controller, search provider, Twig extension, commands, translation audit) type-hints the interfaces, so a host can serve chapters from another source or replace the renderer by aliasing the interface. Additive: the class ids still resolve and the constants and static helpers stay on the classes.
