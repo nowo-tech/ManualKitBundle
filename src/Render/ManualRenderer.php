@@ -456,6 +456,8 @@ final readonly class ManualRenderer implements ManualRendererInterface
             ->allowMediaSchemes(['http', 'https'])
             ->allowAttribute('id', ['h2', 'h3', 'h4', 'a'])
             ->allowAttribute('aria-hidden', ['a'])
+            // Symfony 8.2 html-sanitizer no longer allows tabindex by default; the heading permalink needs tabindex="-1".
+            ->allowAttribute('tabindex', ['a'])
             ->allowAttribute('target', ['a'])
             ->allowAttribute('rel', ['a'])
             ->allowAttribute('class', ['a', 'img'])
