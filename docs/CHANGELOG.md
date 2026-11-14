@@ -47,6 +47,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 - CI and `make coverage-check`: the PHP line-coverage gate is now **100%** (was 99%). The suite is already at 100%; the gate only stops a regression from merging.
 - docs: demo screenshots regenerated on the UiKit base style
+- Sanitizer allows `tabindex` on anchors again: Symfony 8.2 html-sanitizer dropped it from the default allow-list, which stripped the heading permalink `tabindex="-1"` from the rendered chapters.
 
 ## [1.10.0] - 2026-11-13
 
