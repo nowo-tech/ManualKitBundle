@@ -85,6 +85,13 @@ listed in "On this page", and translation commands skip it.
 
 - **FR-HTTP-001** `ManualController` + `routes.php`: index, chapter, `.md` alias redirect, member image allowlist.
 - **FR-SEC-001** `ManualAccess`: `role` / `admin_role` checks; admin content fails closed.
+- **FR-SEC-002** (1.9) `ManualAccessInterface` is the whole access policy as a port (reader, admin, per chapter); alias
+  it to replace `ManualAccess`. `ManualChapterAccessCheckerInterface` adds a host rule per chapter (plan, tenant, flag)
+  after the built-in admin-only rule; the default `AllowAllManualChapterAccessChecker` keeps the pre-1.9 behaviour.
+  `ReadableChapters` (internal) applies the rule to a chapter list and refuses a chapter whose ancestor is refused.
+- **FR-PORT-001** (1.10) `ManualCatalogInterface` (chapters and their files; default `ManualCatalog`) and
+  `ManualRendererInterface` (sanitised HTML + table of contents; default `ManualRenderer`) are ports; the controller,
+  search provider and Twig extension depend on them, so a host aliases either to its own service.
 
 ### Rendering & model
 
@@ -106,6 +113,8 @@ listed in "On this page", and translation commands skip it.
 - **FR-TWIG-002** `TwigPathsPass`: `templates/bundles/NowoManualKitBundle` overrides first.
 - **FR-TWIG-003** Views `layout.html.twig` (bare page) and `chapter.html.twig` (navigation, chapter, lightbox markup,
   `asset(…, 'nowo_manual_kit')` links, optional standalone script).
+- **FR-TWIG-004** (1.8) `_macros.html.twig`: the chapter page macros in their own file, importable by a host template
+  that extends `chapter.html.twig` or replaces `manual_nav`.
 
 ### Machine translation
 
@@ -116,12 +125,16 @@ listed in "On this page", and translation commands skip it.
   `max_duration` deadline (REQ-RUNTIME-001); start / success / failure logged without the key or the texts
   (REQ-OBS-001); transport errors and malformed answers end in a domain `RuntimeException`.
 - **FR-MT-004** `UiGlossary`: UI labels of the configured translation domains replace bold labels in chapters.
+- **FR-MT-005** (1.9) `MachineTranslatorPass`: with `machine_translation.provider: service`, the configured service must
+  implement `MachineTranslatorInterface`, otherwise the container compile fails (no TypeError at `nowo:manual:translate`).
 
 ### Assets
 
 - **FR-ASSET-001** `public/css/manual.css`: manual layout, CSS custom properties `--nowo-manual-*`.
 - **FR-ASSET-002** `stimulus-peers/manual_lightbox_controller.ts`: Stimulus lightbox the host registers as
   `nowo-manual-lightbox` (captions via `textContent`).
+- **FR-ASSET-004** `stimulus-peers/motion.ts`: closing with an effect (`data-manual-closing` fade read from
+  `--nowo-ui-motion-*`, real close on `transitionend` with a timer fallback, immediate with no transition).
 - **FR-ASSET-003** `assets/src/register-lightbox.ts` + `assets/src/manual-lightbox.ts`: standalone entry that starts
   Stimulus and registers the peer.
 - **FR-BUILD-001** `public/js/manual-lightbox.js`: Vite IIFE output of FR-ASSET-003 (`pnpm run build`; CI checks it is
@@ -155,7 +168,7 @@ listed in "On this page", and translation commands skip it.
 ## Success criteria
 
 - **SC-001** 100% PHP line coverage gate (`make release-check`), TypeScript coverage gate ≥ 90% (100% today).
-- **SC-002** Every production unit under `src/` (42: `find src -type f -not -name '*.test.ts' | wc -l`) is mapped in
+- **SC-002** Every production unit under `src/` (51: `find src -type f -not -name '*.test.ts' | wc -l`) is mapped in
   [`code-inventory.md`](code-inventory.md); no `FR-SRC-*` placeholder.
 - **SC-003** Invalid configuration fails the container compile with a message naming the path (`BundleBootTest`,
   `ConfigurationTest`).

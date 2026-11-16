@@ -53,6 +53,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - docs: demo screenshots regenerated on the UiKit base style
 - Sanitizer allows `tabindex` on anchors again: Symfony 8.2 html-sanitizer dropped it from the default allow-list, which stripped the heading permalink `tabindex="-1"` from the rendered chapters.
 
+### Documentation
+
+- Spec Kit baseline (REQ-SPECKIT-003): `specs/001-baseline` maps the 1.9 access ports, the 1.10 catalog / renderer ports, `MachineTranslatorPass`, `_macros.html.twig` and `motion.ts` (51/51 units).
+
 ## [1.10.0] - 2026-11-13
 
 ### Added
