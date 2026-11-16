@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/manual-kit-bundle`  
-**Last audited**: 2026-11-02 (1.6 sub-pages: [`../002-sub-pages/spec.md`](../002-sub-pages/spec.md))
+**Last audited**: 2026-11-16 (1.10.0 ports; 1.6 sub-pages: [`../002-sub-pages/spec.md`](../002-sub-pages/spec.md))
 
 Every production unit under `src/` and the requirement that covers it. Vitest files (`*.test.ts`) are test code and
 out of scope; the built `public/js/manual-lightbox.js` is listed as the output of its named sources.
@@ -15,6 +15,7 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | `DependencyInjection/Configuration.php` | Strict config tree | FR-CFG-001 |
 | `DependencyInjection/NowoManualKitExtension.php` | DI extension, asset package prepend | FR-CFG-002, FR-CFG-003 |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | Template override path | FR-TWIG-002 |
+| `DependencyInjection/Compiler/MachineTranslatorPass.php` | Provider service type check at compile | FR-MT-005 |
 | `Resources/config/services.php` | Service wiring | FR-CFG-002 |
 
 ## Catalog
@@ -22,6 +23,7 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Catalog/ManualCatalog.php` | Manifest, locales, translation states, chapter tree | FR-CAT-001, FR-TREE-001 |
+| `Catalog/ManualCatalogInterface.php` | Catalog port (1.10) | FR-PORT-001 |
 | `Catalog/TranslationAudit.php` | Translation audit and stamping | FR-CAT-002, FR-TREE-006 |
 
 ## CLI
@@ -40,12 +42,17 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | `Resources/config/routes.php` | Attribute route import | FR-HTTP-001 |
 | `Routing/ManualRoutes.php` | Route of a chapter by its place in the tree | FR-TREE-002 |
 | `Security/ManualAccess.php` | Reader / admin roles | FR-SEC-001 |
+| `Security/ManualAccessInterface.php` | Access policy port (1.9) | FR-SEC-002 |
+| `Security/ManualChapterAccessCheckerInterface.php` | Host per-chapter rule (1.9) | FR-SEC-002 |
+| `Security/AllowAllManualChapterAccessChecker.php` | Default per-chapter rule (1.9) | FR-SEC-002 |
+| `Security/ReadableChapters.php` | Chapter list filter, ancestors refused (internal) | FR-SEC-002 |
 
 ## Rendering & model
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
 | `Render/ManualRenderer.php` | Markdown rendering, sanitising, cache, tree links | FR-RENDER-001, FR-TREE-005 |
+| `Render/ManualRendererInterface.php` | Renderer port (1.10) | FR-PORT-001 |
 | `Render/LinkContext.php` | Link rewriting context (internal) | FR-TREE-005 |
 | `Model/ManualChapter.php` | Chapter value object, place in the tree | FR-MODEL-001, FR-TREE-001 |
 | `Model/RenderedManualChapter.php` | Rendered chapter value object | FR-MODEL-001 |
@@ -66,6 +73,7 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | `Resources/views/chapter.html.twig` | Chapter page, tree navigation | FR-TWIG-003, FR-TREE-003 |
 | `Resources/views/_breadcrumbs.html.twig` | Breadcrumb without UiKit | FR-TREE-003 |
 | `Resources/views/layout.html.twig` | Bare layout | FR-TWIG-003 |
+| `Resources/views/_macros.html.twig` | Chapter page macros (importable) | FR-TWIG-004 |
 
 ## Machine translation
 
@@ -83,6 +91,7 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | --- | --- | --- |
 | `Resources/public/css/manual.css` | Stylesheet | FR-ASSET-001 |
 | `Resources/assets/stimulus-peers/manual_lightbox_controller.ts` | Stimulus lightbox peer | FR-ASSET-002 |
+| `Resources/assets/stimulus-peers/motion.ts` | Closing animation helper | FR-ASSET-004 |
 | `Resources/assets/src/register-lightbox.ts` | Standalone registration | FR-ASSET-003 |
 | `Resources/assets/src/manual-lightbox.ts` | Standalone Vite entry | FR-ASSET-003 |
 
@@ -108,17 +117,17 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 
 | Category | Units |
 | --- | --- |
-| Bundle & DI | 5 |
-| Catalog | 2 |
+| Bundle & DI | 6 |
+| Catalog | 3 |
 | CLI | 3 |
-| HTTP & security | 4 |
-| Rendering & model | 5 |
+| HTTP & security | 8 |
+| Rendering & model | 6 |
 | Search | 2 |
-| Twig | 4 |
+| Twig | 5 |
 | Machine translation | 5 |
-| Frontend assets | 4 |
+| Frontend assets | 5 |
 | Build outputs | 1 |
 | Translations | 7 |
-| **Total** | **42** |
+| **Total** | **51** |
 
 Audit: `find src -type f -not -name '*.test.ts' | wc -l` → **42** (excluded: 2 `*.test.ts`).
