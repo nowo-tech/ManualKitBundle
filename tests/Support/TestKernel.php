@@ -119,6 +119,14 @@ final class TestKernel extends Kernel
             $container->services()->set('test.host_renderer', $this->renderer);
             $container->services()->alias(ManualRendererInterface::class, 'test.host_renderer');
         }
+        // 1.11: a host link map (UiKit route_links shape) for nowo:manual:redirects --route-links.
+        $container->parameters()->set('test.route_links', ['base_url' => '', 'routes' => [
+            'app_setup'   => ['path' => 'manual/01-install.md', 'testid' => null],
+            'app_split'   => ['path' => 'manual/04-split.md#docker', 'testid' => null],
+            'app_faq'     => ['path' => 'manual/faq.md#old-question', 'testid' => null],
+            'app_current' => ['path' => 'manual/setup.md#overview', 'testid' => null],
+            'app_nested'  => ['path' => 'manual/setup/deploy.md', 'testid' => null],
+        ]]);
         // 1.9: a host machine translator for `provider: service`.
         $container->services()->set('test.machine_translator', UppercaseMachineTranslator::class)->public();
         if (isset($this->manualConfig['machine_translation'])) {

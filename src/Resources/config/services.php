@@ -6,9 +6,12 @@ use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Catalog\TranslationAudit;
 use Nowo\ManualKitBundle\Command\CheckTranslationsCommand;
+use Nowo\ManualKitBundle\Command\RedirectsCommand;
 use Nowo\ManualKitBundle\Command\StampTranslationCommand;
 use Nowo\ManualKitBundle\Command\TranslateManualCommand;
 use Nowo\ManualKitBundle\Controller\ManualController;
+use Nowo\ManualKitBundle\Redirect\ChapterRedirectMap;
+use Nowo\ManualKitBundle\Redirect\ChapterRedirectsInterface;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Search\ManualSearchProvider;
@@ -51,6 +54,10 @@ return static function (ContainerConfigurator $container): void {
     $services->set(AllowAllManualChapterAccessChecker::class);
     $services->alias(ManualChapterAccessCheckerInterface::class, AllowAllManualChapterAccessChecker::class);
 
+    // 1.11: the redirect map, compiled by NowoManualKitExtension (its arguments); alias the port to replace it.
+    $services->set(ChapterRedirectMap::class);
+    $services->alias(ChapterRedirectsInterface::class, ChapterRedirectMap::class);
+
     $services->set(ManualAccess::class)
         ->arg('$role', param('nowo_manual_kit.role'))
         ->arg('$adminRole', param('nowo_manual_kit.admin_role'))
@@ -78,6 +85,8 @@ return static function (ContainerConfigurator $container): void {
     $services->set(TranslationAudit::class);
     $services->set(CheckTranslationsCommand::class);
     $services->set(StampTranslationCommand::class);
+    $services->set(RedirectsCommand::class)
+        ->arg('$parameters', service('parameter_bag'));
 
     // `$translator` (the provider) and the glossary arguments are set by NowoManualKitExtension.
     $services->set(MarkdownTranslator::class)->arg('$translator', null);
