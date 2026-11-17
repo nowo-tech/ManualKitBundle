@@ -25,6 +25,8 @@ This guide lists the changes integrators must apply when upgrading between versi
 
 ## Unreleased
 
+To 1.12.1: a file in `images/` that is a symbolic link pointing outside the folder now returns 404 for every reader, administrators included (symlinking `images/` itself still works).
+
 ## To 1.12.0
 
 From **1.11.0**:

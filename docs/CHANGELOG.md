@@ -52,6 +52,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+
+- A render of the chapter within a second of a change to `images/` is cached for 2 seconds only (the folder's mtime has
+  whole-second precision) (SV-D1).
+- Desktop / phone views (audit SV): device markers inside inline code spans and raw HTML `<pre>` stay literal, as in
+  fenced code, and no token text can reach the page (a safety net strips any left over after wrapping) (SV-L1).
+- A device marker is a block marker only alone on its line at column 0: one in a table cell, a blockquote, a list item
+  or after other text is dropped and its content stays shared, in place, instead of breaking the surrounding element;
+  documented that device blocks wrap whole top-level blocks (SV-L2).
+- The render cache key includes the modification time of `images/` when device views are enabled, so adding or removing
+  a phone companion shows at once instead of after the cache expires (SV-L3).
+- The code-fence placeholders carry the per-rendering token, so a NUL sequence in the chapter text cannot duplicate a
+  fence (SV-I1).
+- `CommentBlocks` documentation: audience markers are read anywhere, fences included (fail closed); device markers in
+  code stay literal (SV-I2).
+- `ManualController::image()` confines `images/` files to the directory by real path, so a symbolic link pointing out
+  of it returns 404 (SV-I3).
+
 ## [1.12.0] - 2026-11-17
 
 ### Added

@@ -6,12 +6,15 @@ namespace Nowo\ManualKitBundle\Render;
 
 use Dom\Element;
 use Dom\Node;
+use Dom\XPath;
 use LogicException;
 
 use function count;
 use function implode;
 use function in_array;
 use function iterator_to_array;
+use function preg_quote;
+use function preg_replace;
 use function preg_replace_callback;
 use function str_starts_with;
 use function strlen;
@@ -28,7 +31,9 @@ use function trim;
  * Rules: only {@see DeviceViews::DEVICES} names are device blocks — any other name (`tablet`) keeps its content
  * shared and never reaches the markup; markers without their pair are dropped (the content is shared). A block holds
  * whole blocks of the chapter's top level: one whose markers end up in different elements (inside a list item) is
- * shared too. Markers inside fenced code (a sample of the syntax) stay as written.
+ * shared too. Markers inside code (fenced, a raw `<pre>`, an inline span: a sample of the syntax) stay as written.
+ * A marker counts only alone on its line at column 0, so a block wraps whole top-level blocks: a marker in a quote,
+ * a list item or a table cell (or after other text) is dropped and its content stays shared, in place.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -46,18 +51,44 @@ final class DeviceBlocks
     /** A fenced code block: up to its closing fence (same character, at least as long) or the end of the file. */
     private const string FENCE = '/^ {0,3}(`{3,}|~{3,})[^\n]*\n.*?(?:^ {0,3}\1[`~]*[ \t]*$|\z)/ms';
 
+    /** A raw HTML `<pre>` element: its content is a sample, like fenced code. */
+    private const string PRE = '#<pre\b.*?</pre\s*>#is';
+
+    /** A well-formed marker alone on its line, at column 0. */
+    private const string OWN_LINE_MARKER = '/(?<![^\n])(<!--[ \t]*(?:device:[ \t]*[a-z]+|\/device)[ \t]*-->)(?=[ \t]*(?:\r?\n|\z))/i';
+
+    /** An inline code span: a backtick run, text without a blank line, the same run again. */
+    private const string CODE_SPAN = '/(?<!`)(`+)(?!`)(?:(?!\n[ \t]*\n).)+?(?<!`)\1(?!`)/s';
+
     /**
      * The Markdown with each device block between token paragraphs (`{token}phone` … `{token}end`).
+     *
+     * Only a marker alone on its line, at column 0 (so outside quotes, list items and tables), starts or ends a block;
+     * any other marker is dropped and its content stays shared, in place.
      */
     public static function mark(string $markdown, string $token): string
     {
-        // Fenced code (a sample of the syntax) is kept as written: set aside while the markers are read.
-        $fences    = [];
-        $protected = (string) preg_replace_callback(self::FENCE, static function (array $fence) use (&$fences): string {
-            $fences[] = $fence[0];
+        // Code (fences, raw `<pre>`, inline spans: samples of the syntax) is kept as written: set aside while the
+        // markers are read. The placeholders carry the per-rendering token, so chapter text cannot collide with one.
+        $held      = [];
+        $protected = $markdown;
+        foreach ([self::FENCE, self::PRE, self::CODE_SPAN] as $pattern) {
+            $protected = (string) preg_replace_callback($pattern, static function (array $code) use (&$held, $token): string {
+                $held[] = $code[0];
 
-            return "\x00" . (count($fences) - 1) . "\x00";
-        }, $markdown);
+                return "\x00" . $token . (count($held) - 1) . "\x00";
+            }, $protected);
+        }
+
+        // A marker counts only alone on its line at column 0: the others are dropped (their content stays shared).
+        $qualified = [];
+        $protected = (string) preg_replace_callback(self::OWN_LINE_MARKER, static function (array $marker) use (&$qualified, $token): string {
+            $qualified[] = $marker[1];
+
+            return "\x00" . $token . 'Q' . (count($qualified) - 1) . "\x00";
+        }, $protected);
+        $protected = implode('', CommentBlocks::splitAtMarkers($protected, DeviceViews::KIND));
+        $protected = (string) preg_replace_callback('/\x00' . preg_quote($token, '/') . 'Q(\d+)\x00/', static fn (array $marker): string => $qualified[(int) $marker[1]], $protected);
 
         $marked = CommentBlocks::replace($protected, DeviceViews::KIND, static function (string $device, string $content) use ($token): string {
             // An opening marker inside a block (blocks of one kind do not nest) is a stray one: dropped.
@@ -70,7 +101,7 @@ final class DeviceBlocks
 
         $marked = implode('', CommentBlocks::splitAtMarkers($marked, DeviceViews::KIND));
 
-        return (string) preg_replace_callback('/\x00(\d+)\x00/', static fn (array $fence): string => $fences[(int) $fence[1]] ?? $fence[0], $marked);
+        return (string) preg_replace_callback('/\x00' . preg_quote($token, '/') . '(\d+)\x00/', static fn (array $code): string => $held[(int) $code[1]] ?? $code[0], $marked);
     }
 
     /**
@@ -105,6 +136,7 @@ final class DeviceBlocks
         foreach ($markers as [$paragraph]) {
             $paragraph->remove();
         }
+        self::stripToken($body, $token);
 
         return $headings;
     }
@@ -115,6 +147,18 @@ final class DeviceBlocks
     public static function markElement(Element $element, string $device): void
     {
         $element->setAttribute(self::ATTRIBUTE, $device);
+    }
+
+    /**
+     * Safety net: token text left in a text node (a marker the Markdown placed somewhere unforeseen) never reaches
+     * the page.
+     */
+    private static function stripToken(Element $body, string $token): void
+    {
+        $pattern = '/' . preg_quote($token, '/') . '(?:' . implode('|', [...DeviceViews::DEVICES, self::END]) . ')/';
+        foreach (iterator_to_array(new XPath($body->ownerDocument ?? throw new LogicException('A parsed element always has a document.'))->query('.//text()[contains(., ' . "'" . $token . "'" . ')]', $body)) as $text) {
+            $text->nodeValue = (string) preg_replace($pattern, '', (string) $text->nodeValue);
+        }
     }
 
     private static function wrapper(Element $open, Element $close, string $device): Element

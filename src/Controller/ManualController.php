@@ -39,7 +39,9 @@ use function is_int;
 use function is_string;
 use function preg_match;
 use function rawurlencode;
+use function realpath;
 use function str_contains;
+use function str_starts_with;
 
 use const ENT_HTML5;
 use const ENT_QUOTES;
@@ -139,8 +141,8 @@ final readonly class ManualController
     public function image(Request $request, string $file): BinaryFileResponse
     {
         $this->requireReader();
-        $path = $this->catalog->directory() . '/images/' . basename($file);
-        if (!is_file($path) || !$this->imageReadable(basename($file), $request->getLocale())) {
+        $path = $this->confinedImage(basename($file));
+        if ($path === null || !$this->imageReadable(basename($file), $request->getLocale())) {
             throw new NotFoundHttpException();
         }
 
@@ -436,6 +438,18 @@ final readonly class ManualController
         }
 
         return true;
+    }
+
+    /**
+     * The real path of an image file inside the manual's images directory, else null: a symbolic link pointing out of
+     * it is refused.
+     */
+    private function confinedImage(string $file): ?string
+    {
+        $directory = realpath($this->catalog->directory() . '/images');
+        $path      = $directory === false ? false : realpath($directory . '/' . $file);
+
+        return $path !== false && is_file($path) && str_starts_with($path, $directory . '/') ? $path : null;
     }
 
     /**

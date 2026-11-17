@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Tests\Unit\Render;
 
+use Dom\HTMLDocument;
 use InvalidArgumentException;
 use Nowo\ManualKitBundle\Render\CommentBlocks;
 use Nowo\ManualKitBundle\Render\DeviceBlocks;
@@ -11,6 +12,8 @@ use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+
+use const LIBXML_NOERROR;
 
 final class DeviceViewsTest extends TestCase
 {
@@ -96,8 +99,25 @@ final class DeviceViewsTest extends TestCase
 
     public function testMarkingWrapsOnlyKnownDevicesAndDropsStrayMarkers(): void
     {
-        $marked = DeviceBlocks::mark("<!-- device: phone -->P<!-- device: desktop -->N<!-- /device -->S<!-- /device -->\n<!-- device: tablet -->T<!-- /device -->", 'TK');
+        $marked = DeviceBlocks::mark("<!-- device: phone -->\nP\n<!-- device: desktop -->\nN\n<!-- /device -->\nS\n<!-- /device -->\n<!-- device: tablet -->\nT\n<!-- /device -->", 'TK');
 
-        self::assertSame("\n\nTKphone\n\nPN\n\nTKend\n\nS\nT", $marked);
+        self::assertSame("\n\nTKphone\n\n\nP\n\nN\n\n\nTKend\n\n\nS\n\n\nT\n", $marked);
+    }
+
+    public function testMarkersNotAloneOnTheirLineAreDroppedAndCodeIsKept(): void
+    {
+        self::assertSame('a b', DeviceBlocks::mark('a <!-- device: phone -->b<!-- /device -->', 'TK'));
+        self::assertSame("> q\n  indented\n  \n", DeviceBlocks::mark("> q<!-- device: phone -->\n  <!-- device: phone -->indented\n  <!-- /device -->\n", 'TK'));
+        self::assertSame("`<!-- device: phone -->` <pre><!-- /device --></pre>\n\n```\n<!-- device: desktop -->\n```\n", DeviceBlocks::mark("`<!-- device: phone -->` <pre><!-- /device --></pre>\n\n```\n<!-- device: desktop -->\n```\n", 'TK'));
+        self::assertSame("\x000\x00 \x00TK\x00\n\n```\nF\n```\n", DeviceBlocks::mark("\x000\x00 \x00TK\x00\n\n```\nF\n```\n", 'TK'), 'a NUL placeholder written in the chapter is not read back');
+    }
+
+    public function testWrapStripsTokenTextLeftInTheBody(): void
+    {
+        $document = HTMLDocument::createFromString('<!DOCTYPE html><html><body><p>keep tokenxphone and tokenxend here</p><p>other</p></body></html>', LIBXML_NOERROR);
+        $body     = $document->body ?? self::fail('body');
+
+        self::assertSame([], DeviceBlocks::wrap($body, 'tokenx'));
+        self::assertSame('<p>keep  and  here</p><p>other</p>', $body->innerHTML);
     }
 }

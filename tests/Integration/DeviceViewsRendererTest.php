@@ -15,6 +15,7 @@ use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * 1.12: device blocks, phone companions and the TOC devices, rendered with `device_views.enabled: true`.
@@ -212,8 +213,7 @@ final class DeviceViewsRendererTest extends KernelTestCase
         self::assertStringContainsString('After the nest.', $rendered->html, 'shared');
         self::assertStringContainsString('In a list.', $rendered->html);
         self::assertStringContainsString('Typo opening.', $rendered->html);
-        self::assertStringContainsString('In a list.', $phone->eq(1)->text(), 'markers start a top-level block (the list ends there)');
-        self::assertStringContainsString('Upper case name.', $phone->eq(2)->text(), 'names are case-insensitive, like audience values');
+        self::assertStringContainsString('Upper case name.', $phone->eq(1)->text(), 'names are case-insensitive, like audience values');
         self::assertStringContainsString('Split by HTML.', $rendered->html);
         self::assertCount(0, $page->filter('div.manual-device:contains("Split by HTML.")'), 'markers in different elements share their content');
         self::assertSame("<!-- device: phone -->\nSample.\n<!-- /device -->\n", $page->filter('pre code')->text(null, false), 'a marker inside code is shown as written');
@@ -223,6 +223,129 @@ final class DeviceViewsRendererTest extends KernelTestCase
         self::assertStringContainsString('Closing text without opener.', $rendered->html);
         self::assertStringNotContainsString('nowomanualdevice', $rendered->html);
         self::assertStringNotContainsString('<!--', $rendered->html);
+    }
+
+    public function testMarkersInCodeStayLiteralAndNoTokenReachesThePage(): void
+    {
+        file_put_contents($this->directory . '/02-plain.md', <<<'MD'
+            # Plain
+
+            Write `<!-- device: phone -->` and close with `<!-- /device -->`.
+
+            <pre>
+            <!-- device: phone -->
+            raw sample
+            <!-- /device -->
+            </pre>
+
+            ``double `tick` <!-- device: desktop -->`` still text.
+            MD);
+
+        $rendered = $this->render('02-plain', false);
+        $page     = $this->page($rendered);
+
+        self::assertFalse($rendered->deviceViews);
+        self::assertSame(['<!-- device: phone -->', '<!-- /device -->', 'double `tick` <!-- device: desktop -->'], $page->filter('p code')->each(static fn (Crawler $code): string => $code->text()));
+        self::assertStringContainsString('and close with', $page->filter('p')->first()->text());
+        self::assertStringContainsString('raw sample', $rendered->html);
+        self::assertStringNotContainsString('nowomanualdevice', $rendered->html);
+        self::assertStringContainsString('still text', $rendered->html);
+        self::assertCount(0, $page->filter('div.manual-device'));
+    }
+
+    public function testMarkersInsideTablesQuotesAndListsAreDroppedAndTheContentStaysInPlace(): void
+    {
+        file_put_contents($this->directory . '/02-plain.md', <<<'MD'
+            # Plain
+
+            | a | b |
+            | - | - |
+            | <!-- device: phone -->x | y<!-- /device --> |
+
+            > <!-- device: phone -->
+            > quoted
+            > <!-- /device -->
+
+            - item
+              <!-- device: phone -->
+              in a list
+              <!-- /device -->
+
+            <!-- device: phone --> inline start
+            text after the opening
+            <!-- /device -->
+
+            <!-- device: phone -->
+            Whole block.
+            <!-- /device -->
+            MD);
+
+        $rendered = $this->render('02-plain', false);
+        $page     = $this->page($rendered);
+
+        self::assertSame(['x', 'y'], $page->filter('table td')->each(static fn (Crawler $cell): string => trim($cell->text())));
+        self::assertSame('quoted', trim($page->filter('blockquote')->text()));
+        self::assertCount(1, $page->filter('blockquote'));
+        self::assertSame('item in a list', preg_replace('/\s+/', ' ', trim($page->filter('ul li')->text())));
+        self::assertCount(1, $page->filter('ul'));
+        self::assertStringContainsString('inline start', $rendered->html);
+        self::assertStringContainsString('text after the opening', $rendered->html);
+        self::assertCount(1, $page->filter('div.manual-device'), 'only the whole top-level block is a device block');
+        self::assertSame('Whole block.', trim($page->filter('div.manual-device--phone')->text()));
+        self::assertStringNotContainsString('nowomanualdevice', $rendered->html);
+        self::assertStringNotContainsString('<!--', $rendered->html);
+    }
+
+    public function testPlaceholdersCannotBeForgedByTheChapterText(): void
+    {
+        file_put_contents($this->directory . '/02-plain.md', "# Plain\n\n```\nFENCED\n```\n\nForged: \x000\x00 and \x00\x00.\n");
+
+        $rendered = $this->render('02-plain', false);
+
+        self::assertSame(1, substr_count($rendered->html, 'FENCED'), 'a NUL placeholder written in the chapter does not copy the fence');
+    }
+
+    public function testACompanionAddedLaterChangesTheCacheKey(): void
+    {
+        $catalog  = new ManualCatalog($this->directory);
+        $renderer = new ManualRenderer($catalog, $this->urls(), new ArrayAdapter(), '', new DeviceViews(true));
+        $chapter  = $catalog->find('01-tasks') ?? self::fail('fixture');
+        $images   = $this->directory . '/images';
+        unlink($images . '/board.phone.png');
+        touch($images, time() - 1000);
+        clearstatcache();
+
+        $before = $renderer->render($chapter, false)->html;
+        self::assertStringNotContainsString('board.phone.png', $before);
+
+        copy(self::FIXTURES . '/images/board.phone.png', $images . '/board.phone.png');
+        touch($images, time() - 500);
+        clearstatcache();
+        self::assertStringContainsString('board.phone.png', $renderer->render($chapter, false)->html, 'the same renderer and cache see the new companion');
+
+        unlink($images . '/board.phone.png');
+        touch($images, time() - 100);
+        clearstatcache();
+        self::assertStringNotContainsString('board.phone.png', $renderer->render($chapter, false)->html);
+    }
+
+    public function testARecentImagesChangeGivesTheCachedChapterAShortLife(): void
+    {
+        $catalog = new ManualCatalog($this->directory);
+        $chapter = $catalog->find('01-tasks') ?? self::fail('fixture');
+        $expiry  = function (bool $enabled, int $mtime) use ($catalog, $chapter): int {
+            touch($this->directory . '/images', $mtime);
+            clearstatcache();
+            $cache = new ArrayAdapter();
+            new ManualRenderer($catalog, $this->urls(), $cache, '', new DeviceViews($enabled))->render($chapter, false);
+            $item = $cache->getItem((string) array_key_first($cache->getValues()));
+
+            return (int) $item->getMetadata()[ItemInterface::METADATA_EXPIRY] - time();
+        };
+
+        self::assertLessThanOrEqual(2, $expiry(true, time()));
+        self::assertGreaterThan(80000, $expiry(true, time() - 100));
+        self::assertGreaterThan(80000, $expiry(false, time()), 'unchanged when device views are off');
     }
 
     public function testPlainChaptersHaveNoDeviceContentAndRenderingIsRepeatable(): void
