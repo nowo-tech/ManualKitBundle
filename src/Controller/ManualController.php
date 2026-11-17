@@ -277,10 +277,15 @@ final readonly class ManualController
             if (!$chapter instanceof ManualChapter || !$this->canOpen($chapter)) {
                 continue;
             }
-            $rendered = $chapter === $current->chapter ? $current : $this->renderer->render($chapter, $admin);
+            $here     = $chapter === $current->chapter;
+            $rendered = $here ? $current : $this->renderer->render($chapter, $admin);
             $url      = ManualRoutes::generate($this->urls, $chapter);
             if ($target->anchor !== null && str_contains($rendered->html, ' id="' . htmlspecialchars($target->anchor, ENT_QUOTES | ENT_HTML5) . '"')) {
                 $url .= '#' . rawurlencode($target->anchor);
+            } elseif ($here) {
+                // The anchor is not on this page for this reader (an admin block, a translation without the stable
+                // anchor): staying where they are beats reloading the same page.
+                continue;
             }
             $urls[(string) $anchor] = $url;
         }

@@ -132,7 +132,7 @@ final class ChapterRedirectsTest extends WebTestCase
     {
         $member  = $this->signedIn('alice');
         $crawler = $member->request('GET', '/en/manual/faq');
-        self::assertSame(['moved' => [], 'own' => ['old-internal' => '/en/manual/faq', 'old-question' => '/en/manual/faq#questions']], $this->anchors($crawler), 'the admin section id is not revealed');
+        self::assertSame(['moved' => [], 'own' => ['old-question' => '/en/manual/faq#questions']], $this->anchors($crawler), 'the admin section id is not revealed, the reader stays put');
         $crawler = $member->request('GET', '/en/manual/setup');
         self::assertNull($crawler->filter('article')->attr('data-nowo-manual-anchors'), 'the admin chapter target is left out');
 
