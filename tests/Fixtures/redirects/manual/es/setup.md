@@ -4,3 +4,5 @@
 ## Overview
 
 Texto.
+
+Ver [preguntas](../faq.md#questions).
