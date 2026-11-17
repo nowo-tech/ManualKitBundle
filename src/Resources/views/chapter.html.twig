@@ -24,6 +24,9 @@
 {% block stylesheets %}
     {{ parent() }}
     <link rel="stylesheet" href="{{ asset('css/manual.css', 'nowo_manual_kit') }}">
+{% if app.request is not null and app.request.query.has('moved_from') %}
+    <link rel="canonical" href="{{ absolute_url(manual_chapter_path(chapter)) }}">
+{% endif %}
 {% endblock %}
 
 {% block body %}

@@ -11,3 +11,5 @@ redirects:
   'faq#old-question': 'faq#questions'
   'faq#old-internal': 'faq#internal'
   'setup#gone': 'ops#secret'
+  08-adminsec: 'faq#internal'
+  'faq#old-top': faq

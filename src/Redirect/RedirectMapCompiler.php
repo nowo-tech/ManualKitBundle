@@ -139,13 +139,15 @@ final class RedirectMapCompiler
 
     /**
      * Where a position (`slug` or `slug#anchor`) ends up under a valid map, or null when no rule applies to it (or on
-     * a cycle, which a compiled map never has).
+     * a cycle, which a compiled map never has). With `$exists`, the walk stops at the first hop that lands on a
+     * chapter that still exists: an existing chapter always wins over a rule written for its slug.
      *
      * @param array<string, string> $rules
+     * @param (callable(string): bool)|null $exists whether a chapter slug still exists
      */
-    public static function resolvePosition(string $position, array $rules): ?string
+    public static function resolvePosition(string $position, array $rules, ?callable $exists = null): ?string
     {
-        [$final, $cycle] = self::resolve($position, $rules);
+        [$final, $cycle] = self::resolve($position, $rules, $exists);
 
         return $cycle !== null || $final === $position ? null : $final;
     }
@@ -154,10 +156,11 @@ final class RedirectMapCompiler
      * The final position of `$position` and, on a cycle, the positions that form it.
      *
      * @param array<string, string> $rules
+     * @param (callable(string): bool)|null $exists stop at a hop that lands on an existing chapter
      *
      * @return array{0: string, 1: list<string>|null}
      */
-    private static function resolve(string $position, array $rules): array
+    private static function resolve(string $position, array $rules, ?callable $exists = null): array
     {
         $seen    = [$position => true];
         $path    = [$position];
@@ -169,6 +172,9 @@ final class RedirectMapCompiler
             }
             $seen[$next] = true;
             $current     = $next;
+            if ($exists !== null && $exists(self::split($next)[0])) {
+                break;
+            }
         }
 
         return [$current, null];

@@ -71,6 +71,7 @@ final class RedirectMapCompilerTest extends TestCase
         self::assertNull(RedirectMapCompiler::resolvePosition('d', $compiled->rules));
         self::assertNull(RedirectMapCompiler::resolvePosition('d#top', $compiled->rules));
         self::assertNull(RedirectMapCompiler::resolvePosition('a', ['a' => 'b', 'b' => 'a']), 'a cycle resolves nowhere');
+        self::assertSame('b#x', RedirectMapCompiler::resolvePosition('a#x', ['a' => 'b', 'b' => 'c'], static fn (string $slug): bool => $slug === 'b'), 'the walk stops at an existing chapter');
     }
 
     public function testAnchorLookupsPerLandingChapter(): void

@@ -38,11 +38,56 @@ final class ChapterRedirectsTest extends WebTestCase
     ];
 
     /**
-     * @param array<string, mixed> $options
+     * @param array{manual?: mixed} $options
      */
     protected static function createKernel(array $options = []): KernelInterface
     {
-        return new TestKernel(self::CONFIG);
+        $manual = $options['manual'] ?? self::CONFIG;
+        self::assertIsArray($manual);
+
+        /* @var array<string, mixed> $manual */
+        return new TestKernel($manual);
+    }
+
+    public function testAnAnchorOfABlockTheReaderCannotSeeNeverReachesTheLocation(): void
+    {
+        $this->assertMoved($this->signedIn('alice'), '/en/manual/08-adminsec', '/en/manual/faq', 'the admin section id stays with administrators');
+        $this->assertMoved($this->signedIn('admin'), '/en/manual/08-adminsec', '/en/manual/faq#internal');
+    }
+
+    public function testEveryRedirectIsPrivateAndNeverCachedEvenWithoutASession(): void
+    {
+        self::ensureKernelShutdown();
+        // A public manual: no sign-in, no session, so nothing else would mark the 301 private.
+        $client = self::createClient(['manual' => [...self::CONFIG, 'role' => '']]);
+        $paths  = ['/en/manual/01-install', '/en/manual/01-install.md', '/en/manual/deploy', '/en/manual/setup/deploy.md', '/en/manual/01-install/x/deploy.md', '/en/manual/01-install/deploy', '/en/manual/x/01-install/deploy'];
+        foreach ($paths as $path) {
+            $this->assertPrivate301($client, $path);
+        }
+        self::ensureKernelShutdown();
+        $client = self::createClient(['manual' => ['directory' => '%kernel.project_dir%/tests/Fixtures/tree/manual', 'role' => '']]);
+        $this->assertPrivate301($client, '/en/manual/guide/install/docker.md');
+    }
+
+    public function testAChainStopsAtAChapterThatStillExists(): void
+    {
+        // `faq: setup` is written for a chapter that exists: faq still wins, so 09-via-faq lands on faq, not on setup.
+        $client = $this->signedIn('alice', [...self::CONFIG, 'redirects' => ['09-via-faq' => 'faq', 'faq' => 'setup']]);
+
+        $this->assertMoved($client, '/en/manual/09-via-faq', '/en/manual/faq');
+        $this->assertMoved($client, '/en/manual/06-merged', '/en/manual/faq#legacy');
+        $client->request('GET', '/en/manual/faq');
+        self::assertResponseIsSuccessful();
+    }
+
+    public function testTheCanonicalLinkDropsTheRedirectMarker(): void
+    {
+        $client  = $this->signedIn('alice');
+        $crawler = $client->request('GET', '/es/manual/setup?moved_from=04-split');
+        self::assertSame('http://localhost/es/manual/setup', $crawler->filter('link[rel="canonical"]')->attr('href'));
+
+        $client->request('GET', '/es/manual/setup');
+        self::assertSelectorNotExists('link[rel="canonical"]', 'plain pages are unchanged');
     }
 
     public function testAMovedChapterAnswers301ToItsNewPlaceInTheRequestLocale(): void
@@ -170,6 +215,16 @@ final class ChapterRedirectsTest extends WebTestCase
         self::assertSame(['/en/manual/setup/deploy#docker'], array_map(static fn (SearchItem $item): string => $item->url, $group->items));
     }
 
+    private function assertPrivate301(KernelBrowser $client, string $path): void
+    {
+        $client->request('GET', $path);
+        self::assertResponseStatusCodeSame(301, $path);
+        $cacheControl = (string) $client->getResponse()->headers->get('Cache-Control');
+        self::assertStringContainsString('private', $cacheControl, $path);
+        self::assertStringContainsString('no-cache', $cacheControl, $path);
+        self::assertSame([], $client->getResponse()->headers->getCookies(), $path . ': no session');
+    }
+
     private function assertMoved(KernelBrowser $client, string $from, string $to, string $message = ''): void
     {
         $client->request('GET', $from);
@@ -189,10 +244,13 @@ final class ChapterRedirectsTest extends WebTestCase
         return $map;
     }
 
-    private function signedIn(string $user): KernelBrowser
+    /**
+     * @param array<string, mixed> $manual
+     */
+    private function signedIn(string $user, array $manual = self::CONFIG): KernelBrowser
     {
         self::ensureKernelShutdown();
 
-        return self::createClient([], ['PHP_AUTH_USER' => $user, 'PHP_AUTH_PW' => 'x']);
+        return self::createClient(['manual' => $manual], ['PHP_AUTH_USER' => $user, 'PHP_AUTH_PW' => 'x']);
     }
 }

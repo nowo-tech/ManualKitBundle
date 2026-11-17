@@ -10,6 +10,7 @@ use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Model\RenderedManualChapter;
 use Nowo\ManualKitBundle\Redirect\ChapterRedirectMap;
 use Nowo\ManualKitBundle\Redirect\ChapterRedirectsInterface;
+use Nowo\ManualKitBundle\Redirect\RedirectMapCompiler;
 use Nowo\ManualKitBundle\Redirect\RedirectTarget;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
@@ -104,7 +105,7 @@ final readonly class ManualController
             return $this->moved($chapter, null);
         }
 
-        return new RedirectResponse(ManualRoutes::generate($this->urls, $this->readable($found)), Response::HTTP_MOVED_PERMANENTLY);
+        return $this->permanent(ManualRoutes::generate($this->urls, $this->readable($found)));
     }
 
     /** 1.6: `guide/install.md` (a link written for GitHub inside a sub-folder) redirects to the child chapter. */
@@ -114,7 +115,7 @@ final readonly class ManualController
         $this->requireReader();
         $found = $this->nested($chapter, [$parent], null);
 
-        return $found instanceof ManualChapter ? new RedirectResponse(ManualRoutes::generate($this->urls, $found), Response::HTTP_MOVED_PERMANENTLY) : $found;
+        return $found instanceof ManualChapter ? $this->permanent(ManualRoutes::generate($this->urls, $found)) : $found;
     }
 
     /** 1.6: `guide/install/docker.md` redirects to the grandchild chapter. */
@@ -124,7 +125,7 @@ final readonly class ManualController
         $this->requireReader();
         $found = $this->nested($chapter, [$grandparent, $parent], null);
 
-        return $found instanceof ManualChapter ? new RedirectResponse(ManualRoutes::generate($this->urls, $found), Response::HTTP_MOVED_PERMANENTLY) : $found;
+        return $found instanceof ManualChapter ? $this->permanent(ManualRoutes::generate($this->urls, $found)) : $found;
     }
 
     /**
@@ -167,7 +168,7 @@ final readonly class ManualController
         }
         if ($found->ancestors !== []) {
             // 1.6: a nested chapter lives under its parents; a link built from the slug alone still reaches it.
-            return new RedirectResponse(ManualRoutes::generate($this->urls, $found), Response::HTTP_MOVED_PERMANENTLY);
+            return $this->permanent(ManualRoutes::generate($this->urls, $found));
         }
 
         return $this->page($request, $found);
@@ -214,7 +215,7 @@ final readonly class ManualController
         if ($found->ancestors !== $ancestors) {
             foreach ($ancestors as $ancestor) {
                 if ($this->redirects->chapterTarget($ancestor) instanceof RedirectTarget && !$this->catalog->find($ancestor) instanceof ManualChapter) {
-                    return new RedirectResponse(ManualRoutes::generate($this->urls, $found), Response::HTTP_MOVED_PERMANENTLY);
+                    return $this->permanent(ManualRoutes::generate($this->urls, $found));
                 }
             }
 
@@ -235,22 +236,48 @@ final readonly class ManualController
         if (!$target instanceof RedirectTarget) {
             throw new NotFoundHttpException();
         }
-        $url = ManualRoutes::generate($this->urls, $this->readable($this->catalog->find($target->slug, $locale)));
-        if ($this->redirects->hasMovedAnchors($slug)) {
+        // A chain stops at the first chapter that still exists (an existing chapter wins over a rule for its slug).
+        $walked  = RedirectMapCompiler::resolvePosition($slug, $this->redirects->rules(), fn (string $candidate): bool => $this->catalog->find($candidate) instanceof ManualChapter);
+        $stopped = $walked !== null && $walked !== $target->toString();
+        if ($stopped) {
+            $target = RedirectTarget::fromString($walked);
+        }
+        $chapter = $this->readable($this->catalog->find($target->slug, $locale));
+        $url     = ManualRoutes::generate($this->urls, $chapter);
+        if (!$stopped && $this->redirects->hasMovedAnchors($slug)) {
             // The browser keeps the reader's #fragment (no fragment in Location); js/manual-anchors.js maps it.
             $url .= '?' . http_build_query([self::MOVED_FROM => $slug]);
-        } elseif ($target->anchor !== null) {
+        } elseif ($target->anchor !== null && $this->hasAnchor($this->renderer->render($chapter, $this->access->isAdmin()), $target->anchor)) {
+            // Only an anchor the reader's rendering has: the id of an admin block never reaches a member.
             $url .= '#' . rawurlencode($target->anchor);
         }
 
-        return new RedirectResponse($url, Response::HTTP_MOVED_PERMANENTLY);
+        return $this->permanent($url);
+    }
+
+    /**
+     * A 301 of the manual. Every one depends on who asks (the access check runs first), so no shared cache may keep
+     * it, with or without a session.
+     */
+    private function permanent(string $url): RedirectResponse
+    {
+        $response = new RedirectResponse($url, Response::HTTP_MOVED_PERMANENTLY);
+        $response->setPrivate();
+        $response->headers->addCacheControlDirective('no-cache');
+
+        return $response;
+    }
+
+    private function hasAnchor(RenderedManualChapter $rendered, string $anchor): bool
+    {
+        return str_contains($rendered->html, ' id="' . htmlspecialchars($anchor, ENT_QUOTES | ENT_HTML5) . '"');
     }
 
     /**
      * 1.11: the anchor map of a page for js/manual-anchors.js — `moved`: the anchors of the old chapter named by
      * `?moved_from` (only when it really redirects here), `own`: the sections of this chapter that moved. Targets the
-     * viewer may not open are left out, and an anchor the viewer's rendering of the target lacks (an admin block) is
-     * dropped from its URL: the map reveals nothing a reader could not reach.
+     * viewer may not open are left out, and so is an entry whose target anchor the viewer's rendering lacks (an admin
+     * block, a translation without the stable anchor): the map reveals nothing a reader could not reach.
      *
      * @return array{moved?: array<string, string>, own?: array<string, string>}
      */
@@ -277,14 +304,14 @@ final readonly class ManualController
             if (!$chapter instanceof ManualChapter || !$this->canOpen($chapter)) {
                 continue;
             }
-            $here     = $chapter === $current->chapter;
-            $rendered = $here ? $current : $this->renderer->render($chapter, $admin);
-            $url      = ManualRoutes::generate($this->urls, $chapter);
-            if ($target->anchor !== null && str_contains($rendered->html, ' id="' . htmlspecialchars($target->anchor, ENT_QUOTES | ENT_HTML5) . '"')) {
+            $url = ManualRoutes::generate($this->urls, $chapter);
+            if ($target->anchor !== null) {
+                if (!$this->hasAnchor($chapter === $current->chapter ? $current : $this->renderer->render($chapter, $admin), $target->anchor)) {
+                    continue;
+                }
                 $url .= '#' . rawurlencode($target->anchor);
-            } elseif ($here) {
-                // The anchor is not on this page for this reader (an admin block, a translation without the stable
-                // anchor): staying where they are beats reloading the same page.
+            } elseif ($chapter === $current->chapter) {
+                // Already here: reloading the same page would only lose the reader's place.
                 continue;
             }
             $urls[(string) $anchor] = $url;
