@@ -54,6 +54,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- A render of the chapter within a second of a change to `images/` is cached for 2 seconds only (the folder's mtime has
+  whole-second precision) (SV-D1).
 - Desktop / phone views (audit SV): device markers inside inline code spans and raw HTML `<pre>` stay literal, as in
   fenced code, and no token text can reach the page (a safety net strips any left over after wrapping) (SV-L1).
 - A device marker is a block marker only alone on its line at column 0: one in a table cell, a blockquote, a list item

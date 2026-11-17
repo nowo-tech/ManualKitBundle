@@ -282,7 +282,7 @@ Tap **Filters**: a bottom sheet slides up. Long-press a card for its menu.
   markers are read anywhere, fences included, and fail closed: a sample of an `admin` block in a fence renders empty for
   members.) Only `desktop` and `phone` are device blocks: any other name
   (`<!-- device: tablet -->`) is rejected — its content is shared and the name never reaches the page. A marker without
-  its pair is dropped and the content is shared. A block must wrap whole top-level blocks: a marker counts only alone on
+  its pair is dropped and the content is shared. A block must wrap whole top-level blocks: a marker needs a blank line before it (and must sit outside any backtick span, or it is shown as written); it counts only alone on
   its line at column 0, so a marker inside a list item, a blockquote or a table cell (or after other text on its line)
   is dropped as a literal comment and its content stays shared, in place; markers left in two different HTML elements
   share their content too.

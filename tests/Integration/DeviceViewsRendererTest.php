@@ -15,6 +15,7 @@ use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpKernel\KernelInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Symfony\Contracts\Cache\ItemInterface;
 
 /**
  * 1.12: device blocks, phone companions and the TOC devices, rendered with `device_views.enabled: true`.
@@ -326,6 +327,25 @@ final class DeviceViewsRendererTest extends KernelTestCase
         touch($images, time() - 100);
         clearstatcache();
         self::assertStringNotContainsString('board.phone.png', $renderer->render($chapter, false)->html);
+    }
+
+    public function testARecentImagesChangeGivesTheCachedChapterAShortLife(): void
+    {
+        $catalog = new ManualCatalog($this->directory);
+        $chapter = $catalog->find('01-tasks') ?? self::fail('fixture');
+        $expiry  = function (bool $enabled, int $mtime) use ($catalog, $chapter): int {
+            touch($this->directory . '/images', $mtime);
+            clearstatcache();
+            $cache = new ArrayAdapter();
+            new ManualRenderer($catalog, $this->urls(), $cache, '', new DeviceViews($enabled))->render($chapter, false);
+            $item = $cache->getItem((string) array_key_first($cache->getValues()));
+
+            return (int) $item->getMetadata()[ItemInterface::METADATA_EXPIRY] - time();
+        };
+
+        self::assertLessThanOrEqual(2, $expiry(true, time()));
+        self::assertGreaterThan(80000, $expiry(true, time() - 100));
+        self::assertGreaterThan(80000, $expiry(false, time()), 'unchanged when device views are off');
     }
 
     public function testPlainChaptersHaveNoDeviceContentAndRenderingIsRepeatable(): void

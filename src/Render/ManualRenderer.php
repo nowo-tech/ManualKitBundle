@@ -105,7 +105,9 @@ final readonly class ManualRenderer implements ManualRendererInterface
         // A host catalog (ManualCatalogInterface) may serve chapters without a manifest.yaml in its directory.
         $manifest = $this->catalog->directory() . '/' . ManualCatalog::MANIFEST;
         $images   = $this->catalog->directory() . '/images';
-        $key      = 'nowo_manual.' . hash('xxh128', implode('|', [
+        // filemtime() has whole-second precision: a change in the same second as the last render would not move the key.
+        $recent = $this->devices->enabled && is_dir($images) && filemtime($images) >= time() - 1;
+        $key    = 'nowo_manual.' . hash('xxh128', implode('|', [
             self::VERSION,
             $chapter->slug,
             $chapter->locale,
@@ -119,8 +121,8 @@ final readonly class ManualRenderer implements ManualRendererInterface
         ]));
 
         // @igor-ignore - the cache calls the closure synchronously; nothing outlives this call
-        return $this->cache->get($key, function (ItemInterface $item) use ($chapter, $admin): RenderedManualChapter {
-            $item->expiresAfter(86400);
+        return $this->cache->get($key, function (ItemInterface $item) use ($chapter, $admin, $recent): RenderedManualChapter {
+            $item->expiresAfter($recent ? 2 : 86400);
 
             return $this->build($chapter, $admin);
         });

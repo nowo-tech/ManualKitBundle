@@ -441,12 +441,8 @@ final readonly class ManualController
     }
 
     /**
-     * Whether a member's chapters show this image: screenshots of the administrators' chapters and blocks stay with
-     * them. The member renderings are cached, so this costs a lookup per chapter.
-     */
-    /**
-     * The real path of an image when it is a file inside the manual's images directory (never through a symbolic link
-     * out of it), else null.
+     * The real path of an image file inside the manual's images directory, else null: a symbolic link pointing out of
+     * it is refused.
      */
     private function confinedImage(string $file): ?string
     {
@@ -456,6 +452,10 @@ final readonly class ManualController
         return $path !== false && is_file($path) && str_starts_with($path, $directory . '/') ? $path : null;
     }
 
+    /**
+     * Whether a member's chapters show this image: screenshots of the administrators' chapters and blocks stay with
+     * them. The member renderings are cached, so this costs a lookup per chapter.
+     */
     private function imageReadable(string $file, string $locale): bool
     {
         $admin    = $this->access->isAdmin();
