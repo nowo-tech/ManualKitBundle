@@ -1,0 +1,8 @@
+# 1.11: chapters that moved — the map lives in redirects.yaml (plus one inline rule in the test configuration).
+redirects: redirects.yaml
+chapters:
+  - { slug: README }
+  - { slug: setup, group: using, tags: [install] }
+  - { slug: deploy, parent: setup }
+  - { slug: faq, group: using }
+  - { slug: ops, group: administration, audience: admin }

@@ -1,0 +1,15 @@
+redirects:
+  01-install: setup
+  02-deploy-old: deploy
+  03-old-admin: ops
+  04-split: setup
+  '04-split#docker': 'deploy#docker'
+  '04-split#basics': 'setup#basics'
+  '04-split#intro': 'setup#overview'
+  05-chain: 01-install
+  06-merged: 'faq#legacy'
+  'faq#old-question': 'faq#questions'
+  'faq#old-internal': 'faq#internal'
+  'setup#gone': 'ops#secret'
+  08-adminsec: 'faq#internal'
+  'faq#old-top': faq

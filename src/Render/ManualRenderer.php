@@ -65,7 +65,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
     private const string STRAY_AUDIENCE_MARKER = '/<!--\s*\/?\s*audience.*?-->/si';
 
     /** Bumped when the rendered markup changes, so cached chapters are rebuilt. */
-    private const string VERSION = '1';
+    private const string VERSION = '2';
 
     /** Taller than wide: a phone screenshot. */
     public const string PORTRAIT = 'manual-img--portrait';

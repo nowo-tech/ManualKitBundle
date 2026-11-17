@@ -4,13 +4,19 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\DependencyInjection;
 
+use Nowo\ManualKitBundle\Catalog\ManualCatalog;
+use Nowo\ManualKitBundle\Redirect\ChapterRedirectMap;
+use Nowo\ManualKitBundle\Redirect\RedirectMapCompiler;
+use Nowo\ManualKitBundle\Redirect\RedirectMapLoader;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Translation\DeepLTranslator;
 use Nowo\ManualKitBundle\Translation\LibreTranslateTranslator;
 use Nowo\ManualKitBundle\Translation\MachineTranslatorInterface;
 use Nowo\ManualKitBundle\Translation\MarkdownTranslator;
 use Nowo\ManualKitBundle\Translation\UiGlossary;
+use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\Config\Resource\FileResource;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Definition;
@@ -18,6 +24,9 @@ use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Extension\PrependExtensionInterface;
 use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
+
+use function implode;
+use function is_string;
 
 /**
  * Loads `nowo_manual_kit` into `nowo_manual_kit.*` container parameters and `Resources/config/services.php`, and
@@ -54,7 +63,7 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
      */
     public function load(array $configs, ContainerBuilder $container): void
     {
-        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string, docs_url: string, in_app: bool, template: string, layout: string, groups: list<array{key: string, label: string|null, translation_domain: string}>, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, service: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
+        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string, docs_url: string, in_app: bool, template: string, layout: string, groups: list<array{key: string, label: string|null, translation_domain: string}>, redirects: array<string, string>, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, service: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
         $config = $this->processConfiguration(new Configuration(), $configs);
 
         foreach ($config as $key => $value) {
@@ -66,6 +75,7 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
 
         new PhpFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'))->load('services.php');
         $container->getDefinition(ManualRenderer::class)->setArgument('$cache', new Reference($config['cache']));
+        $this->loadRedirects($config['directory'], $config['redirects'], $container);
 
         $machine = $config['machine_translation'];
         $container->getDefinition(UiGlossary::class)
@@ -87,6 +97,37 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
             $container->setAlias(MachineTranslatorInterface::class, 'nowo_manual_kit.machine_translator');
             $container->getDefinition(MarkdownTranslator::class)->setArgument('$translator', new Reference('nowo_manual_kit.machine_translator'));
         }
+    }
+
+    /**
+     * 1.11: compiles the redirect map (config + the manifest's `redirects:` file) once, here: an invalid entry, an
+     * absolute URL or a cycle stops the container build; chains are collapsed. The files read are tracked so a debug
+     * container is rebuilt when they change. A `directory` built from an env var cannot be read at build time: only
+     * the inline map is used then.
+     *
+     * @param array<string, string> $inline
+     */
+    private function loadRedirects(string $directory, array $inline, ContainerBuilder $container): void
+    {
+        $resolved = $container->getParameterBag()->resolveValue($directory);
+        $usedEnvs = [];
+        $container->resolveEnvPlaceholders($resolved, true, $usedEnvs);
+        $loaded = ['rules' => $inline, 'files' => [], 'errors' => []];
+        if (is_string($resolved) && $usedEnvs === []) {
+            $container->fileExists($resolved . '/' . ManualCatalog::MANIFEST);
+            $loaded = RedirectMapLoader::load($inline, $resolved);
+            foreach ($loaded['files'] as $file) {
+                $container->addResource(new FileResource($file));
+            }
+        }
+        $compiled = RedirectMapCompiler::compile($loaded['rules']);
+        $errors   = [...$loaded['errors'], ...$compiled->errors];
+        if ($errors !== []) {
+            throw new InvalidConfigurationException('Invalid manual redirect map (nowo_manual_kit.redirects and the manifest redirects): ' . implode(' ', $errors));
+        }
+
+        $container->setParameter(Configuration::ALIAS . '.redirects', $compiled->rules);
+        $container->getDefinition(ChapterRedirectMap::class)->setArguments([$compiled->rules, $compiled->chapters, $compiled->arrivals, $compiled->own]);
     }
 
     /**

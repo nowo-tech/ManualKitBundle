@@ -71,6 +71,7 @@ mtime and the router base URL.
 | `Security\ManualAccessInterface` | `Security\ManualAccess` | Who may read and who is admin. |
 | `Security\ManualChapterAccessCheckerInterface` | `Security\AllowAllManualChapterAccessChecker` | Per-chapter rule of the host. |
 | `Translation\MachineTranslatorInterface` | none (`machine_translation.provider`) | Machine translation provider. |
+| `Redirect\ChapterRedirectsInterface` | `Redirect\ChapterRedirectMap` | 1.11: chapters and anchors that moved; compiled at container build from `redirects` + the manifest's `redirects:` file. |
 
 All ports take and return scalars and bundle value objects (`ManualChapter`, `RenderedManualChapter`); no Doctrine or
 HTTP type appears in them. Each interface is aliased to its default service, and every bundle consumer type-hints the

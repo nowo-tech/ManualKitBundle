@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Controller;
 
+use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Model\ManualChapter;
+use Nowo\ManualKitBundle\Model\RenderedManualChapter;
+use Nowo\ManualKitBundle\Redirect\ChapterRedirectMap;
+use Nowo\ManualKitBundle\Redirect\ChapterRedirectsInterface;
+use Nowo\ManualKitBundle\Redirect\RedirectMapCompiler;
+use Nowo\ManualKitBundle\Redirect\RedirectTarget;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
@@ -25,8 +31,17 @@ use function array_search;
 use function array_values;
 use function basename;
 use function count;
+use function htmlspecialchars;
+use function http_build_query;
 use function is_file;
 use function is_int;
+use function is_string;
+use function preg_match;
+use function rawurlencode;
+use function str_contains;
+
+use const ENT_HTML5;
+use const ENT_QUOTES;
 
 /**
  * The manual inside the application: `{directory}/*.md` rendered for readers (`role`), in the request locale when a
@@ -36,16 +51,25 @@ use function is_int;
  * 1.6: nested chapters are served under their parents (`/{parent}/{chapter}`, `/{grandparent}/{parent}/{chapter}`),
  * with the same access rules — a child is never more visible than its parent.
  *
+ * 1.11: a chapter that moved (`nowo_manual_kit.redirects`) answers 301 to its new place, in the request locale, from
+ * every route that serves a chapter (`/{chapter}`, the child routes and the `.md` aliases). The access check runs on the
+ * target BEFORE the 301: a reader who may not open the target gets the same 404 as for the target itself or an unknown
+ * slug, so the map adds no existence oracle and never reveals where a hidden chapter went.
+ *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
  */
 final readonly class ManualController
 {
+    /** 1.11: query parameter of a 301 whose old chapter has anchors mapped elsewhere (read by js/manual-anchors.js). */
+    public const string MOVED_FROM = 'moved_from';
+
     /**
      * Receives the catalog, renderer, access rules, Twig and router used to serve the manual pages.
      *
      * @param list<array{key: string, label: string|null, translation_domain: string}> $groups 1.8: `groups` (order and
      *                                                                                         labels of the navigation)
+     * @param ChapterRedirectsInterface $redirects 1.11: the chapters and anchors that moved
      */
     public function __construct(
         private ManualCatalogInterface $catalog,
@@ -55,6 +79,7 @@ final readonly class ManualController
         private UrlGeneratorInterface $urls,
         private string $template = '@NowoManualKitBundle/chapter.html.twig',
         private array $groups = [],
+        private ChapterRedirectsInterface $redirects = new ChapterRedirectMap(),
     ) {
     }
 
@@ -74,8 +99,13 @@ final readonly class ManualController
     public function markdownAlias(string $chapter): RedirectResponse
     {
         $this->requireReader();
+        $found = $this->catalog->find($chapter);
+        if (!$found instanceof ManualChapter) {
+            // 1.11: `old-slug.md` of a chapter that moved goes straight to its new place (one hop).
+            return $this->moved($chapter, null);
+        }
 
-        return new RedirectResponse(ManualRoutes::generate($this->urls, $this->readable($this->catalog->find($chapter))), Response::HTTP_MOVED_PERMANENTLY);
+        return $this->permanent(ManualRoutes::generate($this->urls, $this->readable($found)));
     }
 
     /** 1.6: `guide/install.md` (a link written for GitHub inside a sub-folder) redirects to the child chapter. */
@@ -83,8 +113,9 @@ final readonly class ManualController
     public function childMarkdownAlias(string $parent, string $chapter): RedirectResponse
     {
         $this->requireReader();
+        $found = $this->nested($chapter, [$parent], null);
 
-        return new RedirectResponse(ManualRoutes::generate($this->urls, $this->nested($chapter, [$parent], null)), Response::HTTP_MOVED_PERMANENTLY);
+        return $found instanceof ManualChapter ? $this->permanent(ManualRoutes::generate($this->urls, $found)) : $found;
     }
 
     /** 1.6: `guide/install/docker.md` redirects to the grandchild chapter. */
@@ -92,8 +123,9 @@ final readonly class ManualController
     public function grandchildMarkdownAlias(string $grandparent, string $parent, string $chapter): RedirectResponse
     {
         $this->requireReader();
+        $found = $this->nested($chapter, [$grandparent, $parent], null);
 
-        return new RedirectResponse(ManualRoutes::generate($this->urls, $this->nested($chapter, [$grandparent, $parent], null)), Response::HTTP_MOVED_PERMANENTLY);
+        return $found instanceof ManualChapter ? $this->permanent(ManualRoutes::generate($this->urls, $found)) : $found;
     }
 
     /**
@@ -126,13 +158,17 @@ final readonly class ManualController
     public function chapter(Request $request, string $chapter): Response
     {
         $this->requireReader();
-        $found = $this->readable($this->catalog->find($chapter, $request->getLocale()));
+        $found = $this->catalog->find($chapter, $request->getLocale());
+        if (!$found instanceof ManualChapter) {
+            return $this->moved($chapter, $request->getLocale());
+        }
+        $found = $this->readable($found);
         if ($found->isHome()) {
             throw new NotFoundHttpException();
         }
         if ($found->ancestors !== []) {
             // 1.6: a nested chapter lives under its parents; a link built from the slug alone still reaches it.
-            return new RedirectResponse(ManualRoutes::generate($this->urls, $found), Response::HTTP_MOVED_PERMANENTLY);
+            return $this->permanent(ManualRoutes::generate($this->urls, $found));
         }
 
         return $this->page($request, $found);
@@ -145,8 +181,9 @@ final readonly class ManualController
     public function child(Request $request, string $parent, string $chapter): Response
     {
         $this->requireReader();
+        $found = $this->nested($chapter, [$parent], $request->getLocale());
 
-        return $this->page($request, $this->nested($chapter, [$parent], $request->getLocale()));
+        return $found instanceof ManualChapter ? $this->page($request, $found) : $found;
     }
 
     /**
@@ -156,24 +193,131 @@ final readonly class ManualController
     public function grandchild(Request $request, string $grandparent, string $parent, string $chapter): Response
     {
         $this->requireReader();
+        $found = $this->nested($chapter, [$grandparent, $parent], $request->getLocale());
 
-        return $this->page($request, $this->nested($chapter, [$grandparent, $parent], $request->getLocale()));
+        return $found instanceof ManualChapter ? $this->page($request, $found) : $found;
     }
 
     /**
      * A nested chapter the viewer may read, reached through its own parents only (404 otherwise: no other path to
-     * it, no existence oracle).
+     * it, no existence oracle). 1.11: a chapter that moved, or one reached through a parent that moved, answers 301
+     * to its place.
      *
      * @param list<string> $ancestors
      */
-    private function nested(string $slug, array $ancestors, ?string $locale): ManualChapter
+    private function nested(string $slug, array $ancestors, ?string $locale): ManualChapter|RedirectResponse
     {
-        $found = $this->readable($this->catalog->find($slug, $locale));
+        $chapter = $this->catalog->find($slug, $locale);
+        if (!$chapter instanceof ManualChapter) {
+            return $this->moved($slug, $locale);
+        }
+        $found = $this->readable($chapter);
         if ($found->ancestors !== $ancestors) {
+            foreach ($ancestors as $ancestor) {
+                if ($this->redirects->chapterTarget($ancestor) instanceof RedirectTarget && !$this->catalog->find($ancestor) instanceof ManualChapter) {
+                    return $this->permanent(ManualRoutes::generate($this->urls, $found));
+                }
+            }
+
             throw new NotFoundHttpException();
         }
 
         return $found;
+    }
+
+    /**
+     * 1.11: the 301 of a chapter that moved, to the final target in one hop and in the request locale (the router
+     * keeps `_locale`). The target goes through the same checks as a request for it, before the redirect: a reader
+     * who may not open it gets its 404. A slug that is neither a chapter nor redirected is a 404 too.
+     */
+    private function moved(string $slug, ?string $locale): RedirectResponse
+    {
+        $target = $this->redirects->chapterTarget($slug);
+        if (!$target instanceof RedirectTarget) {
+            throw new NotFoundHttpException();
+        }
+        // A chain stops at the first chapter that still exists (an existing chapter wins over a rule for its slug).
+        $walked  = RedirectMapCompiler::resolvePosition($slug, $this->redirects->rules(), fn (string $candidate): bool => $this->catalog->find($candidate) instanceof ManualChapter);
+        $stopped = $walked !== null && $walked !== $target->toString();
+        if ($stopped) {
+            $target = RedirectTarget::fromString($walked);
+        }
+        $chapter = $this->readable($this->catalog->find($target->slug, $locale));
+        $url     = ManualRoutes::generate($this->urls, $chapter);
+        if (!$stopped && $this->redirects->hasMovedAnchors($slug)) {
+            // The browser keeps the reader's #fragment (no fragment in Location); js/manual-anchors.js maps it.
+            $url .= '?' . http_build_query([self::MOVED_FROM => $slug]);
+        } elseif ($target->anchor !== null && $this->hasAnchor($this->renderer->render($chapter, $this->access->isAdmin()), $target->anchor)) {
+            // Only an anchor the reader's rendering has: the id of an admin block never reaches a member.
+            $url .= '#' . rawurlencode($target->anchor);
+        }
+
+        return $this->permanent($url);
+    }
+
+    /**
+     * A 301 of the manual. Every one depends on who asks (the access check runs first), so no shared cache may keep
+     * it, with or without a session.
+     */
+    private function permanent(string $url): RedirectResponse
+    {
+        $response = new RedirectResponse($url, Response::HTTP_MOVED_PERMANENTLY);
+        $response->setPrivate();
+        $response->headers->addCacheControlDirective('no-cache');
+
+        return $response;
+    }
+
+    private function hasAnchor(RenderedManualChapter $rendered, string $anchor): bool
+    {
+        return str_contains($rendered->html, ' id="' . htmlspecialchars($anchor, ENT_QUOTES | ENT_HTML5) . '"');
+    }
+
+    /**
+     * 1.11: the anchor map of a page for js/manual-anchors.js — `moved`: the anchors of the old chapter named by
+     * `?moved_from` (only when it really redirects here), `own`: the sections of this chapter that moved. Targets the
+     * viewer may not open are left out, and so is an entry whose target anchor the viewer's rendering lacks (an admin
+     * block, a translation without the stable anchor): the map reveals nothing a reader could not reach.
+     *
+     * @return array{moved?: array<string, string>, own?: array<string, string>}
+     */
+    private function anchorRedirects(Request $request, RenderedManualChapter $rendered, bool $admin): array
+    {
+        $chapter = $rendered->chapter;
+        $from    = $request->query->all()[self::MOVED_FROM] ?? null;
+        $moved   = is_string($from) && preg_match(ManualCatalog::SLUG, $from) === 1 ? $this->anchorUrls($this->redirects->movedAnchors($chapter->slug, $from), $rendered, $admin, $request->getLocale()) : [];
+        $own     = $this->anchorUrls($this->redirects->ownAnchors($chapter->slug), $rendered, $admin, $request->getLocale());
+
+        return $moved === [] && $own === [] ? [] : ['moved' => $moved, 'own' => $own];
+    }
+
+    /**
+     * @param array<string, RedirectTarget> $targets
+     *
+     * @return array<string, string>
+     */
+    private function anchorUrls(array $targets, RenderedManualChapter $current, bool $admin, string $locale): array
+    {
+        $urls = [];
+        foreach ($targets as $anchor => $target) {
+            $chapter = $target->slug === $current->chapter->slug ? $current->chapter : $this->catalog->find($target->slug, $locale);
+            if (!$chapter instanceof ManualChapter || !$this->canOpen($chapter)) {
+                continue;
+            }
+            $url = ManualRoutes::generate($this->urls, $chapter);
+            if ($target->anchor !== null) {
+                if (!$this->hasAnchor($chapter === $current->chapter ? $current : $this->renderer->render($chapter, $admin), $target->anchor)) {
+                    continue;
+                }
+                $url .= '#' . rawurlencode($target->anchor);
+            } elseif ($chapter === $current->chapter) {
+                // Already here: reloading the same page would only lose the reader's place.
+                continue;
+            }
+            $urls[(string) $anchor] = $url;
+        }
+
+        return $urls;
     }
 
     private function page(Request $request, ManualChapter $chapter): Response
@@ -184,9 +328,10 @@ final readonly class ManualController
         // 1.9: the host's per-chapter rule (ManualAccessInterface::canReadChapter) on top of the admin-only rule.
         $chapters          = ReadableChapters::filter($visible, $visible, $this->access);
         [$previous, $next] = $this->neighbours($chapter, $chapters);
+        $rendered          = $this->renderer->render($chapter, $admin);
 
         return new Response($this->twig->render($this->template, [
-            'rendered' => $this->renderer->render($chapter, $admin),
+            'rendered' => $rendered,
             'chapters' => $chapters,
             // 1.8: the navigation groups that have chapters, in the configured order.
             'groups'   => $this->navGroups($chapters),
@@ -195,6 +340,8 @@ final readonly class ManualController
             // 1.6: the chapter's parents (breadcrumb) and the sub-pages the viewer may read.
             'ancestors' => $this->catalog->ancestors($chapter, $locale),
             'children'  => ReadableChapters::filter($this->catalog->children($chapter, $admin, $locale), $visible, $this->access),
+            // 1.11: the anchors that moved, for js/manual-anchors.js (empty: no script, no attribute).
+            'anchor_redirects' => $this->anchorRedirects($request, $rendered, $admin),
         ]));
     }
 
@@ -244,18 +391,30 @@ final readonly class ManualController
      */
     private function readable(?ManualChapter $chapter): ManualChapter
     {
-        // The admin-only rule is always enforced here, whatever ManualAccessInterface implementation is aliased
-        // (audit KN-M-L2); canReadChapter() adds the host's rule.
-        if (!$chapter instanceof ManualChapter || ($chapter->adminOnly && !$this->access->isAdmin()) || !$this->access->canReadChapter($chapter)) {
+        if (!$chapter instanceof ManualChapter || !$this->canOpen($chapter)) {
             throw new NotFoundHttpException();
-        }
-        foreach ($this->catalog->ancestors($chapter) as $ancestor) {
-            if (!$this->access->canReadChapter($ancestor)) {
-                throw new NotFoundHttpException();
-            }
         }
 
         return $chapter;
+    }
+
+    /**
+     * Whether the viewer may open the chapter: the admin-only rule, the host's per-chapter rule, on it and every parent.
+     */
+    private function canOpen(ManualChapter $chapter): bool
+    {
+        // The admin-only rule is always enforced here, whatever ManualAccessInterface implementation is aliased
+        // (audit KN-M-L2); canReadChapter() adds the host's rule.
+        if (($chapter->adminOnly && !$this->access->isAdmin()) || !$this->access->canReadChapter($chapter)) {
+            return false;
+        }
+        foreach ($this->catalog->ancestors($chapter) as $ancestor) {
+            if (!$this->access->canReadChapter($ancestor)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

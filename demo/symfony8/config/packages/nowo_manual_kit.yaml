@@ -8,3 +8,7 @@ nowo_manual_kit:
     admin_role: ROLE_ADMIN
     docs_url: 'https://github.com/nowo-tech/ManualKitBundle/blob/main/demo/symfony8/docs/'
     layout: 'base.html.twig'
+    # 1.11: redirects can also be written here (merged with docs/manual/redirects.yaml). A redirect to the admin
+    # chapter answers like that chapter: 404 for members, 301 for administrators.
+    redirects:
+        old-admin: '02-admin'

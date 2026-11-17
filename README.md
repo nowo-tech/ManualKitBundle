@@ -37,6 +37,9 @@ This bundle is **FrankenPHP worker mode friendly**. See [docs/FRANKENPHP-WORKER-
 - **Sub-pages (1.6)**: `parent: <slug>` nests chapters up to three levels (`/manual/guide/install/docker`, files in
   sub-folders, translations alongside); folded branches in the chapter list, breadcrumb, depth-first pager, inherited
   access that can only narrow, search results as "Parent › Child"
+- **Chapter redirects (1.11)**: `old-slug: new-slug` and `'old-slug#anchor': 'new-slug#anchor'` in config or a
+  `redirects:` file of the manifest; `/manual/<old-slug>` answers 301 in the reader's locale (after the target's access
+  check: no existence oracle), a small CSP-safe script maps the moved anchors, `nowo:manual:redirects` lints the map
 - **Search**: `tags` in the manifest and `<!-- tags: … -->` under a heading feed the SearchKit "Manual" group
   (chapters and sections the viewer may read, in their locale)
 - **Translation checks for CI**: `nowo:manual:check --strict` fails on outdated translations and missing stable

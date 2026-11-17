@@ -5,7 +5,9 @@
  # A chapter page. Variables: rendered (RenderedManualChapter: chapter, html, toc), chapters (the chapters the viewer
  # may read, in the locale, each followed by its sub-pages), previous, next, ancestors (1.6: the chapters above this
  # one, top-level first), children (1.6: its sub-pages the viewer may read) and groups (1.8: the navigation groups,
- # [{key, label, translation_domain}] in the `groups` order; label null = group.<key> of this bundle). Override it in
+ # [{key, label, translation_domain}] in the `groups` order; label null = group.<key> of this bundle) and
+ # anchor_redirects (1.11: the anchors that moved, {moved, own}; empty when none — then print neither the attribute nor
+ # the script). Override it in
  # templates/bundles/NowoManualKitBundle/chapter.html.twig, or set `nowo_manual_kit.template` to one of the
  # application's templates. Link chapters with manual_chapter_path(chapter): it knows their place in the tree.
  #
@@ -22,6 +24,9 @@
 {% block stylesheets %}
     {{ parent() }}
     <link rel="stylesheet" href="{{ asset('css/manual.css', 'nowo_manual_kit') }}">
+{% if app.request is not null and app.request.query.has('moved_from') %}
+    <link rel="canonical" href="{{ absolute_url(manual_chapter_path(chapter)) }}">
+{% endif %}
 {% endblock %}
 
 {% block body %}
@@ -47,7 +52,7 @@
 {% endblock %}
 
     {% block manual_body -%}
-    <article class="nowo-manual__chapter" data-testid="manual-chapter" data-chapter="{{ chapter.slug }}" data-controller="nowo-manual-lightbox" data-nowo-manual-lightbox-zoom-label-value="{{ 'zoom'|trans|e('html_attr') }}" data-action="click->nowo-manual-lightbox#zoom">
+    <article class="nowo-manual__chapter" data-testid="manual-chapter" data-chapter="{{ chapter.slug }}" {%- if anchor_redirects is defined and anchor_redirects is not empty %} data-nowo-manual-anchors="{{ anchor_redirects|json_encode(constant('JSON_FORCE_OBJECT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}"{% endif %} data-controller="nowo-manual-lightbox" data-nowo-manual-lightbox-zoom-label-value="{{ 'zoom'|trans|e('html_attr') }}" data-action="click->nowo-manual-lightbox#zoom">
 {% block manual_body_start %}{% endblock %}
         {% if chapter.translation.value in ['missing', 'outdated'] %}
             <p class="nowo-manual__notice nowo-manual__notice--{{ chapter.translation.value }}" role="note" data-testid="manual-translation-notice">{{ ('notice.' ~ chapter.translation.value)|trans }}</p>
@@ -90,6 +95,9 @@
 {% endblock %}
 {% block manual_aside %}{% endblock %}
 </div>
+{% if anchor_redirects is defined and anchor_redirects is not empty %}
+    <script src="{{ asset('js/manual-anchors.js', 'nowo_manual_kit') }}" defer></script>
+{% endif %}
 {% if nowo_manual_standalone_lightbox() %}
     <script src="{{ asset('js/manual-lightbox.js', 'nowo_manual_kit') }}" defer></script>
 {% endif %}
