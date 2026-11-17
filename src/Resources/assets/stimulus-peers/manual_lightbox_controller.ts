@@ -95,7 +95,13 @@ export default class extends Controller<HTMLElement> {
     this.nextTarget.hidden = index === links.length - 1;
   }
 
+  /** 1.12: the images of the view shown (desktop / phone); the other view's are skipped. */
   private links(): HTMLAnchorElement[] {
-    return Array.from(this.element.querySelectorAll<HTMLAnchorElement>('a.manual-zoom'));
+    return Array.from(this.element.querySelectorAll<HTMLAnchorElement>('a.manual-zoom')).filter((link) => {
+      const view = link.closest('[data-nowo-manual-device]')?.getAttribute('data-nowo-manual-device') ?? null;
+      const active = link.closest('[data-nowo-manual-device-active]')?.getAttribute('data-nowo-manual-device-active') ?? null;
+
+      return view === null || active === null || view === active;
+    });
   }
 }

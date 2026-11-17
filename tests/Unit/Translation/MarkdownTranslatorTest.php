@@ -110,6 +110,20 @@ final class MarkdownTranslatorTest extends TestCase
         self::assertStringContainsString('[es] Line 45 `code45`', $out);
     }
 
+    /** 1.12: device blocks are content like any other: the markers stay, their prose is translated. */
+    public function testDeviceBlocksKeepTheirMarkersAndTranslateTheirContent(): void
+    {
+        $service  = new RecordingTranslator();
+        $markdown = new MarkdownTranslator($service);
+        $source   = "Shared.\n\n<!-- device: phone -->\n**Phone:**\n\n### Bottom sheet\n\nTap it.\n\n![Drawer](images/drawer.png)\n<!-- /device -->\n\n<!-- device: desktop -->\nClick it.\n<!-- /device -->";
+
+        self::assertSame(
+            "[es] Shared.\n\n<!-- device: phone -->\n[es] **Phone:**\n\n### [es] Bottom sheet\n\n[es] Tap it.\n\n[es] ![Drawer](../images/drawer.png)\n<!-- /device -->\n\n<!-- device: desktop -->\n[es] Click it.\n<!-- /device -->",
+            $markdown->translate($source, 'en', 'es'),
+        );
+        self::assertNotContains('<!-- device: phone -->', $service->texts, 'markers never reach the service');
+    }
+
     public function testATildeFenceEndsOnlyWithItsOwnMarker(): void
     {
         $markdown = new MarkdownTranslator(new RecordingTranslator());

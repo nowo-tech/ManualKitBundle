@@ -16,6 +16,10 @@ nowo_manual_kit:
     layout: '@NowoManualKitBundle/layout.html.twig'
     groups: []                  # 1.8: [{key, label, translation_domain}] or [key], navigation order and labels
     redirects: {}               # 1.11: chapters and anchors that moved, old → new (plus the manifest's redirects: file)
+    device_views:               # 1.12: desktop / phone views of a chapter
+        enabled: false
+        breakpoint: 768         # CSS px: below it the phone view is the default
+        image_suffix: '.phone'  # images/x.webp → images/x.phone.webp in the phone view
     standalone_lightbox: false
     cache: cache.app
     machine_translation:
@@ -53,6 +57,7 @@ required when "provider" is "libretranslate" (e.g. http://libretranslate:5000).
 - [layout](#layout)
 - [groups](#groups)
 - [redirects](#redirects)
+- [device_views](#device_views)
 - [standalone_lightbox](#standalone_lightbox)
 - [cache](#cache)
 - [machine_translation](#machine_translation)
@@ -217,6 +222,19 @@ Search, navigation and every link the bundle prints only ever use the current sl
 chapters are not rewritten. `nowo:manual:redirects` reports those that point at an old slug or a moved anchor, a
 missing chapter or a missing anchor, with their file and line ([USAGE](USAGE.md#chapter-redirects)).
 
+## device_views
+
+1.12: desktop / phone views of a chapter ([USAGE](USAGE.md#desktop-and-phone-views)).
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `enabled` | `false` | `<!-- device: phone\|desktop -->` blocks, the Desktop / Phone switch and phone companion images. `false`: chapters render byte for byte as in 1.11 (device blocks show as shared content, as before). |
+| `breakpoint` | `768` | Viewport width in CSS px (240 – 4096) below which the phone view is the default, until the reader chooses. |
+| `image_suffix` | `.phone` | Inserted before the extension to find the phone companion of an image: `images/x.webp` → `images/x.phone.webp`. One of `.` `_` `-` then 1 to 32 letters, digits, `_` or `-`: never a path. |
+
+The switch labels are in the `NowoManualKitBundle` catalogue (`devices.label`, `devices.desktop`, `devices.phone`) in
+the seven locales the bundle ships; override them in your application's catalogue.
+
 ## standalone_lightbox
 
 `false` (default): the application registers the Stimulus peer in its own build ([USAGE](USAGE.md#lightbox)). `true`:
@@ -227,7 +245,9 @@ when the peer is already registered: the figures would get two controllers.
 ## cache
 
 Cache pool service id for rendered chapters (default `cache.app`). Entries are keyed by chapter, locale, translation
-state, audience, file mtime and size, manifest mtime and router base URL, and expire after a day.
+state, audience, file mtime and size, manifest mtime, router base URL and (1.12) the device views settings, and expire
+after a day. Adding or removing a phone companion image does not change the key: clear the pool when you deploy new
+screenshots, as for any image size change.
 
 ## machine_translation
 

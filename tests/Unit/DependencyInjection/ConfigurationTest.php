@@ -27,6 +27,16 @@ final class ConfigurationTest extends TestCase
         (new Processor())->processConfiguration(new Configuration(), [['admin_role' => '']]);
     }
 
+    public function testDeviceViewsAreOffByDefault(): void
+    {
+        $config = (new Processor())->processConfiguration(new Configuration(), [[]]);
+
+        self::assertSame(['enabled' => false, 'breakpoint' => 768, 'image_suffix' => '.phone'], $config['device_views']);
+
+        $custom = (new Processor())->processConfiguration(new Configuration(), [['device_views' => ['enabled' => true, 'breakpoint' => 900, 'image_suffix' => '-mobile']]]);
+        self::assertSame(['enabled' => true, 'breakpoint' => 900, 'image_suffix' => '-mobile'], $custom['device_views']);
+    }
+
     public function testValidValuesAreAccepted(): void
     {
         $config = (new Processor())->processConfiguration(new Configuration(), [[
@@ -62,6 +72,11 @@ final class ConfigurationTest extends TestCase
         yield 'deepl without key' => [['machine_translation' => ['provider' => 'deepl']], '"nowo_manual_kit.machine_translation.api_key" is required when "provider" is "deepl" (e.g. %env(DEEPL_API_KEY)%).'];
         yield 'ftp provider url' => [['machine_translation' => ['url' => 'ftp://libre']], '"nowo_manual_kit.machine_translation.url" must be "" or an absolute http(s) URL'];
         yield 'zero timeout' => [['machine_translation' => ['timeout' => 0]], 'The value 0 is too small for path "nowo_manual_kit.machine_translation.timeout". Should be greater than or equal to 1'];
+        yield 'device suffix with a path' => [['device_views' => ['image_suffix' => '/../x']], '"nowo_manual_kit.device_views.image_suffix" must be one of "." "_" "-" followed by 1 to 32 letters, digits, "_" or "-" (e.g. ".phone"), got "\/..\/x".'];
+        yield 'device suffix not a string' => [['device_views' => ['image_suffix' => ['.phone']]], 'nowo_manual_kit.device_views.image_suffix'];
+        yield 'device breakpoint too small' => [['device_views' => ['breakpoint' => 100]], 'The value 100 is too small for path "nowo_manual_kit.device_views.breakpoint". Should be greater than or equal to 240'];
+        yield 'device breakpoint not an integer' => [['device_views' => ['breakpoint' => '768px']], 'nowo_manual_kit.device_views.breakpoint'];
+        yield 'unknown device key' => [['device_views' => ['devices' => ['tablet']]], 'Unrecognized option "devices" under "nowo_manual_kit.device_views"'];
         yield 'deadline below timeout' => [['machine_translation' => ['timeout' => 60, 'max_duration' => 30]], '"nowo_manual_kit.machine_translation.max_duration" must be greater than or equal to "timeout".'];
     }
 

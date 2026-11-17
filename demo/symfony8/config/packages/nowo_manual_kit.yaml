@@ -12,3 +12,9 @@ nowo_manual_kit:
     # chapter answers like that chapter: 404 for members, 301 for administrators.
     redirects:
         old-admin: '02-admin'
+    # 1.12: desktop / phone views — <!-- device: phone|desktop --> blocks (03-guide/projects.md), the Desktop / Phone
+    # switch on chapters that have them, and images/x.phone.svg used in the phone view next to images/x.svg.
+    device_views:
+        enabled: true
+        breakpoint: 768
+        image_suffix: '.phone'

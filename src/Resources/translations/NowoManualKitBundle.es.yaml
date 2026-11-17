@@ -23,3 +23,7 @@ notice:
   outdated: Esta traducción es anterior al capítulo original; algunas partes pueden estar desactualizadas.
 search:
   group: Manual
+devices:
+  label: "Vista para"
+  desktop: "Escritorio"
+  phone: "Móvil"

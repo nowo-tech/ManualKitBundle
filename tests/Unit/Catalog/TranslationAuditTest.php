@@ -59,8 +59,34 @@ final class TranslationAuditTest extends TestCase
         self::assertSame(TranslationState::Translated, $catalog->find('README', 'es')->translation);
     }
 
+    /** 1.12: a device block is part of the source the stamp records — editing one makes the translation outdated. */
+    public function testDeviceBlocksArePartOfTheStampedSource(): void
+    {
+        $catalog = new ManualCatalog($this->directory, 'en', ['es']);
+        $audit   = new TranslationAudit($catalog);
+        file_put_contents($this->directory . '/README.md', "# Home\n\n<!-- device: phone -->\nTap.\n<!-- /device -->\n");
+        self::assertTrue($audit->stamp('README', 'es'));
+        $states = [self::state($catalog)];
+
+        file_put_contents($this->directory . '/README.md', "# Home\n\n<!-- device: phone -->\nLong-press.\n<!-- /device -->\n");
+        $states[] = self::state($catalog);
+        // The device name counts too.
+        file_put_contents($this->directory . '/README.md', "# Home\n\n<!-- device: desktop -->\nTap.\n<!-- /device -->\n");
+        $states[] = self::state($catalog);
+
+        self::assertSame([TranslationState::Translated, TranslationState::Outdated, TranslationState::Outdated], $states);
+    }
+
     public function testAnchors(): void
     {
         self::assertSame(['a', 'b-2'], TranslationAudit::anchors('<a id="a"></a> x <a  id="b-2" ></a> <a id="c">text</a>'));
+    }
+
+    private static function state(ManualCatalog $catalog): TranslationState
+    {
+        $chapter = $catalog->find('README', 'es');
+        self::assertNotNull($chapter);
+
+        return $chapter->translation;
     }
 }

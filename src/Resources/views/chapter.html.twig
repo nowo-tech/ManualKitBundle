@@ -7,7 +7,8 @@
  # one, top-level first), children (1.6: its sub-pages the viewer may read) and groups (1.8: the navigation groups,
  # [{key, label, translation_domain}] in the `groups` order; label null = group.<key> of this bundle) and
  # anchor_redirects (1.11: the anchors that moved, {moved, own}; empty when none — then print neither the attribute nor
- # the script). Override it in
+ # the script) and device_views (1.12: {breakpoint, initial} for the Desktop / Phone switch; null when device views are
+ # off or the chapter has no device content — then print neither the attributes, the switch nor the script). Override it in
  # templates/bundles/NowoManualKitBundle/chapter.html.twig, or set `nowo_manual_kit.template` to one of the
  # application's templates. Link chapters with manual_chapter_path(chapter): it knows their place in the tree.
  #
@@ -52,7 +53,7 @@
 {% endblock %}
 
     {% block manual_body -%}
-    <article class="nowo-manual__chapter" data-testid="manual-chapter" data-chapter="{{ chapter.slug }}" {%- if anchor_redirects is defined and anchor_redirects is not empty %} data-nowo-manual-anchors="{{ anchor_redirects|json_encode(constant('JSON_FORCE_OBJECT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}"{% endif %} data-controller="nowo-manual-lightbox" data-nowo-manual-lightbox-zoom-label-value="{{ 'zoom'|trans|e('html_attr') }}" data-action="click->nowo-manual-lightbox#zoom">
+    <article class="nowo-manual__chapter" data-testid="manual-chapter" data-chapter="{{ chapter.slug }}" {%- if anchor_redirects is defined and anchor_redirects is not empty %} data-nowo-manual-anchors="{{ anchor_redirects|json_encode(constant('JSON_FORCE_OBJECT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}"{% endif %}{% if device_views is defined and device_views is not null %} data-nowo-manual-devices="{{ device_views.breakpoint }}"{% if device_views.initial is not null %} data-nowo-manual-device-initial="{{ device_views.initial }}"{% endif %}{% endif %} data-controller="nowo-manual-lightbox" data-nowo-manual-lightbox-zoom-label-value="{{ 'zoom'|trans|e('html_attr') }}" data-action="click->nowo-manual-lightbox#zoom">
 {% block manual_body_start %}{% endblock %}
         {% if chapter.translation.value in ['missing', 'outdated'] %}
             <p class="nowo-manual__notice nowo-manual__notice--{{ chapter.translation.value }}" role="note" data-testid="manual-translation-notice">{{ ('notice.' ~ chapter.translation.value)|trans }}</p>
@@ -63,12 +64,19 @@
         <div class="nowo-manual__breadcrumbs" data-testid="manual-breadcrumbs">{{ include(nowo_manual_breadcrumbs_template(), {header: {breadcrumbs: crumbs|merge([{label: chapter.title, href: null}]), breadcrumbsMode: 'own', breadcrumbCollection: null}, bundle: 'NowoManualKitBundle'}) }}</div>
         {%- endif %}
         <h1>{{ chapter.title }}</h1>
+{% if device_views is defined and device_views is not null %}
+        <div class="nowo-manual__devices" role="group" aria-label="{{ 'devices.label'|trans }}" data-nowo-manual-device-switch data-testid="manual-device-switch" hidden>
+            {% for device in ['desktop', 'phone'] %}
+            <button type="button" class="nowo-manual__device" aria-pressed="false" data-nowo-manual-device-option="{{ device }}" data-testid="manual-device-{{ device }}">{{ ('devices.' ~ device)|trans }}</button>
+            {% endfor %}
+        </div>
+{% endif %}
         {% if rendered.toc is not empty %}
             <nav class="nowo-manual__toc" aria-label="{{ 'on_this_page'|trans }}" data-testid="manual-toc">
                 <p class="nowo-manual__group">{{ 'on_this_page'|trans }}</p>
                 <ul>
                     {% for entry in rendered.toc|filter(e => e.level < 4) %}
-                        <li class="nowo-manual__toc-item--{{ entry.level }}"><a href="#{{ entry.id }}">{{ entry.text }}</a></li>
+                        <li class="nowo-manual__toc-item--{{ entry.level }}"{% if entry.device is defined %} data-nowo-manual-device="{{ entry.device }}"{% endif %}><a href="#{{ entry.id }}">{{ entry.text }}</a></li>
                     {% endfor %}
                 </ul>
             </nav>
@@ -97,6 +105,9 @@
 </div>
 {% if anchor_redirects is defined and anchor_redirects is not empty %}
     <script src="{{ asset('js/manual-anchors.js', 'nowo_manual_kit') }}" defer></script>
+{% endif %}
+{% if device_views is defined and device_views is not null %}
+    <script src="{{ asset('js/manual-devices.js', 'nowo_manual_kit') }}" defer></script>
 {% endif %}
 {% if nowo_manual_standalone_lightbox() %}
     <script src="{{ asset('js/manual-lightbox.js', 'nowo_manual_kit') }}" defer></script>

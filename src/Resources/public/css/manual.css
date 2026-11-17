@@ -551,3 +551,76 @@
 }
 
 /* "Search the manual": opens the header search (search_open_controller), where the Manual group lists chapters. */
+
+/*
+ * 1.12: desktop / phone views (device_views). Without JavaScript both views show, each with its label; js/manual-devices.js
+ * sets data-nowo-manual-device-active on the chapter and the other view is hidden. UiKit tokens first, own fallbacks.
+ */
+.nowo-manual__devices {
+    display: inline-flex;
+    gap: 0.25rem;
+    margin: 0 0 1rem;
+    padding: 0.25rem;
+    border: var(--nowo-ui-border-width, 1px) solid var(--nowo-ui-border, var(--nowo-manual-sand));
+    border-radius: var(--nowo-ui-radius, var(--nowo-manual-radius-control));
+    background: var(--nowo-ui-surface-muted, var(--nowo-manual-mist));
+
+    &[hidden] {
+        display: none;
+    }
+}
+
+.nowo-manual__device {
+    min-height: 2rem;
+    padding: 0.25rem 0.875rem;
+    border: 0;
+    border-radius: var(--nowo-ui-radius, var(--nowo-manual-radius-control));
+    background: transparent;
+    color: var(--nowo-ui-text, var(--nowo-manual-ink));
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--nowo-ui-surface, var(--nowo-manual-surface));
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--nowo-ui-focus-ring-color, var(--nowo-manual-accent));
+        outline-offset: 2px;
+    }
+
+    &[aria-pressed="true"] {
+        background: var(--nowo-ui-primary, var(--nowo-manual-accent));
+        color: var(--nowo-ui-primary-contrast, #ffffff);
+        font-weight: 600;
+    }
+}
+
+.manual-prose .manual-device {
+    margin: 1rem 0;
+    padding-inline-start: 0.875rem;
+    border-inline-start: 3px solid var(--nowo-ui-border-strong, var(--nowo-manual-sand));
+}
+
+.manual-device__label {
+    margin-top: 0;
+    color: var(--nowo-ui-muted, color-mix(in srgb, var(--nowo-manual-ink) 68%, transparent));
+    font-size: 0.875rem;
+}
+
+[data-nowo-manual-device-active] {
+    .manual-prose .manual-device {
+        padding-inline-start: 0;
+        border-inline-start: 0;
+    }
+
+    .manual-device__label {
+        display: none;
+    }
+}
+
+[data-nowo-manual-device-active="desktop"] [data-nowo-manual-device="phone"],
+[data-nowo-manual-device-active="phone"] [data-nowo-manual-device="desktop"] {
+    display: none;
+}

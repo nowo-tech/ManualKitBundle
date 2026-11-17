@@ -40,6 +40,9 @@ This bundle is **FrankenPHP worker mode friendly**. See [docs/FRANKENPHP-WORKER-
 - **Chapter redirects (1.11)**: `old-slug: new-slug` and `'old-slug#anchor': 'new-slug#anchor'` in config or a
   `redirects:` file of the manifest; `/manual/<old-slug>` answers 301 in the reader's locale (after the target's access
   check: no existence oracle), a small CSP-safe script maps the moved anchors, `nowo:manual:redirects` lints the map
+- **Desktop / phone views (1.12, opt-in)**: `<!-- device: phone -->` / `<!-- device: desktop -->` blocks (both show
+  on GitHub), an accessible CSP-safe Desktop / Phone switch on chapters that have them (viewport default, choice kept
+  per reader, no reload), automatic phone screenshots (`x.webp` → `x.phone.webp`), search hits that open their view
 - **Search**: `tags` in the manifest and `<!-- tags: … -->` under a heading feed the SearchKit "Manual" group
   (chapters and sections the viewer may read, in their locale)
 - **Translation checks for CI**: `nowo:manual:check --strict` fails on outdated translations and missing stable

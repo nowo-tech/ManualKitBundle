@@ -63,6 +63,28 @@ final class DemoControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
+    /** 1.12: device_views is on in the demo: 03-guide/projects has desktop / phone blocks and a phone companion. */
+    public function testDeviceViewsShowTheSwitchOnChaptersWithDeviceContent(): void
+    {
+        $client = static::createClient();
+        $client->loginUser(new InMemoryUser('demo', 'demo', ['ROLE_USER']));
+
+        $crawler = $client->request('GET', '/en/manual/03-guide/projects?device=phone');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('article[data-nowo-manual-devices="768"][data-nowo-manual-device-initial="phone"]');
+        self::assertSelectorExists('[data-testid="manual-device-switch"] button[data-nowo-manual-device-option="phone"]');
+        self::assertSelectorExists('.manual-prose .manual-device--desktop');
+        self::assertSelectorExists('.manual-prose .manual-device--phone');
+        self::assertSelectorExists('figure[data-nowo-manual-device="phone"] img[src="/en/manual/images/dashboard.phone.svg"]');
+        self::assertCount(1, $crawler->filter('script[src$="js/manual-devices.js"]'));
+
+        $client->request('GET', '/en/manual/images/dashboard.phone.svg');
+        self::assertResponseIsSuccessful();
+
+        $client->request('GET', '/en/manual/03-guide');
+        self::assertSelectorNotExists('[data-testid="manual-device-switch"]');
+    }
+
     public function testAdministratorsReadTheAdminChapter(): void
     {
         $client = static::createClient();

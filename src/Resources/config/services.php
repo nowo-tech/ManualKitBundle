@@ -12,6 +12,7 @@ use Nowo\ManualKitBundle\Command\TranslateManualCommand;
 use Nowo\ManualKitBundle\Controller\ManualController;
 use Nowo\ManualKitBundle\Redirect\ChapterRedirectMap;
 use Nowo\ManualKitBundle\Redirect\ChapterRedirectsInterface;
+use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Search\ManualSearchProvider;
@@ -44,9 +45,13 @@ return static function (ContainerConfigurator $container): void {
     // 1.10: the catalog as a port (REQ-ARCH-001 rule 1); alias it to your own service to serve chapters from elsewhere.
     $services->alias(ManualCatalogInterface::class, ManualCatalog::class);
 
+    // 1.12: `device_views` (arguments set by NowoManualKitExtension).
+    $services->set(DeviceViews::class);
+
     // `$cache` is the configured pool, set by NowoManualKitExtension.
     $services->set(ManualRenderer::class)
-        ->arg('$docsUrl', param('nowo_manual_kit.docs_url'));
+        ->arg('$docsUrl', param('nowo_manual_kit.docs_url'))
+        ->arg('$devices', service(DeviceViews::class));
     // 1.10: the renderer as a port; alias it to your own service to replace it.
     $services->alias(ManualRendererInterface::class, ManualRenderer::class);
 
@@ -73,7 +78,8 @@ return static function (ContainerConfigurator $container): void {
         ->tag('controller.service_arguments')
         ->public()
         ->arg('$template', param('nowo_manual_kit.template'))
-        ->arg('$groups', param('nowo_manual_kit.groups'));
+        ->arg('$groups', param('nowo_manual_kit.groups'))
+        ->arg('$devices', service(DeviceViews::class));
 
     $services->set(ManualLinkExtension::class)
         ->arg('$docsUrl', param('nowo_manual_kit.docs_url'))

@@ -23,3 +23,7 @@ notice:
   outdated: This translation is older than the original chapter; some parts may be out of date.
 search:
   group: Manual
+devices:
+  label: "View for"
+  desktop: "Desktop"
+  phone: "Phone"

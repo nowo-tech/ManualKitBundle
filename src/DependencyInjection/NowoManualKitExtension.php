@@ -8,6 +8,7 @@ use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Redirect\ChapterRedirectMap;
 use Nowo\ManualKitBundle\Redirect\RedirectMapCompiler;
 use Nowo\ManualKitBundle\Redirect\RedirectMapLoader;
+use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Translation\DeepLTranslator;
 use Nowo\ManualKitBundle\Translation\LibreTranslateTranslator;
@@ -63,7 +64,7 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
      */
     public function load(array $configs, ContainerBuilder $container): void
     {
-        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string, docs_url: string, in_app: bool, template: string, layout: string, groups: list<array{key: string, label: string|null, translation_domain: string}>, redirects: array<string, string>, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, service: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
+        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string, docs_url: string, in_app: bool, template: string, layout: string, groups: list<array{key: string, label: string|null, translation_domain: string}>, redirects: array<string, string>, device_views: array{enabled: bool, breakpoint: int, image_suffix: string}, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, service: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
         $config = $this->processConfiguration(new Configuration(), $configs);
 
         foreach ($config as $key => $value) {
@@ -75,6 +76,8 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
 
         new PhpFileLoader($container, new FileLocator(__DIR__ . '/../Resources/config'))->load('services.php');
         $container->getDefinition(ManualRenderer::class)->setArgument('$cache', new Reference($config['cache']));
+        // 1.12: one immutable DeviceViews for the renderer and the controller.
+        $container->getDefinition(DeviceViews::class)->setArguments([$config['device_views']['enabled'], $config['device_views']['breakpoint'], $config['device_views']['image_suffix']]);
         $this->loadRedirects($config['directory'], $config['redirects'], $container);
 
         $machine = $config['machine_translation'];

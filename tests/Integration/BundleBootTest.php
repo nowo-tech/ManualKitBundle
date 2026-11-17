@@ -34,6 +34,7 @@ final class BundleBootTest extends TestCase
             'layout'              => '@NowoManualKitBundle/layout.html.twig',
             'groups'              => [],
             'redirects'           => [],
+            'device_views'        => ['enabled' => false, 'breakpoint' => 768, 'image_suffix' => '.phone'],
             'standalone_lightbox' => false,
             'cache'               => 'cache.app',
             'machine_translation' => ['provider' => 'none', 'service' => '', 'api_key' => '', 'url' => '', 'timeout' => 30.0, 'max_duration' => 120.0, 'formality' => 'default', 'languages' => [], 'glossary_domains' => ['messages']],

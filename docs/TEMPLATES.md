@@ -32,13 +32,14 @@ a custom `template`.
 | Chapter list | `nav.nowo-manual__nav`, groups `.nowo-manual__group`, `.nowo-manual__list` (`aria-current="page"`) | `manual-nav`, `manual-nav-<slug>` |
 | Chapter | `article.nowo-manual__chapter` (Stimulus `nowo-manual-lightbox`) | `manual-chapter`, `data-chapter` |
 | Translation notice | `.nowo-manual__notice--missing` / `--outdated` (`role="note"`) | `manual-translation-notice` |
-| On this page | `nav.nowo-manual__toc` (`h2`, `h3`) | `manual-toc` |
-| Body | `.manual-prose` (the rendered HTML: `.manual-figure`, `.manual-gallery`, `.manual-zoom`, `.manual-anchor`) | — |
+| Desktop / Phone switch (1.12) | `.nowo-manual__devices` (`role="group"`, `hidden` until the script runs), buttons `.nowo-manual__device` (`aria-pressed`, `data-nowo-manual-device-option`) | `manual-device-switch`, `manual-device-desktop`, `manual-device-phone` |
+| On this page | `nav.nowo-manual__toc` (`h2`, `h3`; 1.12: entries of a device block carry `data-nowo-manual-device`) | `manual-toc` |
+| Body | `.manual-prose` (the rendered HTML: `.manual-figure`, `.manual-gallery`, `.manual-zoom`, `.manual-anchor`; 1.12: `.manual-device--desktop` / `--phone`, `.manual-device__label`, `[data-nowo-manual-device]` on companion figures) | — |
 | Lightbox | `dialog.manual-lightbox` and its targets | `manual-lightbox`, `manual-lightbox-close` |
 | Pager | `nav.nowo-manual__pager` (`rel="prev"` / `rel="next"`) | `manual-previous`, `manual-next` |
 
 All strings come from the `NowoManualKitBundle` domain (`title`, `home`, `chapters`, `on_this_page`, `pager`, `zoom`,
-`lightbox.*`, `group.*`, `notice.*`).
+`lightbox.*`, `group.*`, `notice.*`, 1.12 `devices.*`).
 
 ## Variables
 
@@ -50,6 +51,7 @@ All strings come from the `NowoManualKitBundle` domain (`title`, `home`, `chapte
 | `ancestors`, `children` | `list<ManualChapter>` | 1.6: the chapters above this one (top level first) and its readable sub-pages |
 | `groups` | `list<{key, label, translation_domain}>` | 1.8: the navigation groups with chapters, in the [`groups`](CONFIGURATION.md#groups) order; `label` null = `group.<key>` of the bundle domain |
 | `anchor_redirects` | `array{moved, own}` | 1.11: the anchors that moved, for `js/manual-anchors.js` ([`redirects`](CONFIGURATION.md#redirects)); `[]` when none |
+| `device_views` | `array{breakpoint, initial}\|null` | 1.12: the Desktop / Phone switch ([`device_views`](CONFIGURATION.md#device_views)); `initial` is the allow-listed `?device=` of a search hit or null; null when device views are off or the chapter has no device content |
 
 A host template that does not extend the bundle's chapter page keeps the anchor redirects with the snippet below.
 The bundle's page also prints `<link rel="canonical" href="{{ absolute_url(manual_chapter_path(chapter)) }}">` in the
@@ -62,6 +64,25 @@ The bundle's page also prints `<link rel="canonical" href="{{ absolute_url(manua
 </article>
 {% if anchor_redirects is defined and anchor_redirects is not empty %}
     <script src="{{ asset('js/manual-anchors.js', 'nowo_manual_kit') }}" defer></script>
+{% endif %}
+```
+
+1.12: the Desktop / Phone switch in a host template that does not extend the bundle's chapter page (the attributes go
+on the element that holds `.manual-prose` and "On this page"; the stylesheet hides the other view under it):
+
+```twig
+<article {%- if device_views is defined and device_views is not null %} data-nowo-manual-devices="{{ device_views.breakpoint }}"{% if device_views.initial is not null %} data-nowo-manual-device-initial="{{ device_views.initial }}"{% endif %}{% endif %}>
+{% if device_views is defined and device_views is not null %}
+    <div class="nowo-manual__devices" role="group" aria-label="{{ 'devices.label'|trans({}, 'NowoManualKitBundle') }}" data-nowo-manual-device-switch hidden>
+        {% for device in ['desktop', 'phone'] %}
+        <button type="button" class="nowo-manual__device" aria-pressed="false" data-nowo-manual-device-option="{{ device }}">{{ ('devices.' ~ device)|trans({}, 'NowoManualKitBundle') }}</button>
+        {% endfor %}
+    </div>
+{% endif %}
+…
+</article>
+{% if device_views is defined and device_views is not null %}
+    <script src="{{ asset('js/manual-devices.js', 'nowo_manual_kit') }}" defer></script>
 {% endif %}
 ```
 

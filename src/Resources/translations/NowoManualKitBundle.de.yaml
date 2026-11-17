@@ -23,3 +23,7 @@ notice:
   outdated: Diese Übersetzung ist älter als das Originalkapitel; einige Teile sind möglicherweise veraltet.
 search:
   group: Handbuch
+devices:
+  label: "Ansicht für"
+  desktop: "Desktop"
+  phone: "Smartphone"

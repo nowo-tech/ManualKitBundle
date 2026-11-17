@@ -46,12 +46,14 @@ final class ManualRoutes
     }
 
     /**
-     * Generates the URL of a chapter.
+     * Generates the URL of a chapter (1.12: plus query parameters, such as `device`).
+     *
+     * @param array<string, string> $query
      */
-    public static function generate(UrlGeneratorInterface $urls, ManualChapter $chapter): string
+    public static function generate(UrlGeneratorInterface $urls, ManualChapter $chapter, array $query = []): string
     {
         [$name, $parameters] = self::route($chapter);
 
-        return $urls->generate($name, $parameters);
+        return $urls->generate($name, [...$parameters, ...$query]);
     }
 }

@@ -12,6 +12,7 @@ use Nowo\ManualKitBundle\Redirect\ChapterRedirectMap;
 use Nowo\ManualKitBundle\Redirect\ChapterRedirectsInterface;
 use Nowo\ManualKitBundle\Redirect\RedirectMapCompiler;
 use Nowo\ManualKitBundle\Redirect\RedirectTarget;
+use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
@@ -70,6 +71,7 @@ final readonly class ManualController
      * @param list<array{key: string, label: string|null, translation_domain: string}> $groups 1.8: `groups` (order and
      *                                                                                         labels of the navigation)
      * @param ChapterRedirectsInterface $redirects 1.11: the chapters and anchors that moved
+     * @param DeviceViews $devices 1.12: desktop / phone views
      */
     public function __construct(
         private ManualCatalogInterface $catalog,
@@ -80,6 +82,7 @@ final readonly class ManualController
         private string $template = '@NowoManualKitBundle/chapter.html.twig',
         private array $groups = [],
         private ChapterRedirectsInterface $redirects = new ChapterRedirectMap(),
+        private DeviceViews $devices = new DeviceViews(),
     ) {
     }
 
@@ -342,7 +345,25 @@ final readonly class ManualController
             'children'  => ReadableChapters::filter($this->catalog->children($chapter, $admin, $locale), $visible, $this->access),
             // 1.11: the anchors that moved, for js/manual-anchors.js (empty: no script, no attribute).
             'anchor_redirects' => $this->anchorRedirects($request, $rendered, $admin),
+            // 1.12: the Desktop / Phone switch (null: none — device views off or no device content).
+            'device_views' => $this->deviceViews($request, $rendered),
         ]));
+    }
+
+    /**
+     * 1.12: what the page needs for the Desktop / Phone switch, or null when device views are off or the chapter has
+     * no device content. `initial` is the view a search hit asks for (`?device=`), only from the allow-list.
+     *
+     * @return array{breakpoint: int, initial: string|null}|null
+     */
+    private function deviceViews(Request $request, RenderedManualChapter $rendered): ?array
+    {
+        if (!$this->devices->enabled || !$rendered->deviceViews) {
+            return null;
+        }
+        $initial = $request->query->all()[DeviceViews::QUERY] ?? null;
+
+        return ['breakpoint' => $this->devices->breakpoint, 'initial' => DeviceViews::isDevice($initial) ? $initial : null];
     }
 
     /**

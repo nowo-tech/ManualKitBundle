@@ -23,3 +23,7 @@ notice:
   outdated: Cette traduction est antérieure au chapitre original ; certaines parties peuvent être obsolètes.
 search:
   group: Manuel
+devices:
+  label: "Affichage pour"
+  desktop: "Ordinateur"
+  phone: "Mobile"
