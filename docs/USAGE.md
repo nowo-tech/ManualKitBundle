@@ -278,10 +278,14 @@ Tap **Filters**: a bottom sheet slides up. Long-press a card for its menu.
 
 - **Parsing** follows the audience blocks: the device name is a word (any case), a block ends at the first
   `<!-- /device -->` (device blocks do not nest; a device block may hold an audience block and the other way round),
-  and markers inside fenced code stay as written. Only `desktop` and `phone` are device blocks: any other name
+  and markers inside code (a fenced block, a raw `<pre>`, an inline `code` span) stay as written. (The audience
+  markers are read anywhere, fences included, and fail closed: a sample of an `admin` block in a fence renders empty for
+  members.) Only `desktop` and `phone` are device blocks: any other name
   (`<!-- device: tablet -->`) is rejected — its content is shared and the name never reaches the page. A marker without
-  its pair is dropped and the content is shared. A block holds whole blocks at the chapter's top level: markers inside
-  a list item end the list, and markers left in two different HTML elements share their content.
+  its pair is dropped and the content is shared. A block must wrap whole top-level blocks: a marker counts only alone on
+  its line at column 0, so a marker inside a list item, a blockquote or a table cell (or after other text on its line)
+  is dropped as a literal comment and its content stays shared, in place; markers left in two different HTML elements
+  share their content too.
 - **On GitHub** the comments are invisible, so both views show. Start a block with a bold label alone on its line
   (`**Phone:**`) so GitHub readers see which is which; in the app that label gets `.manual-device__label` and is hidden
   once the switch is active.

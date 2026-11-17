@@ -124,6 +124,33 @@ final class ManualControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
     }
 
+    public function testAnImageSymlinkedOutOfTheImagesDirectoryIsNotServed(): void
+    {
+        $directory = sys_get_temp_dir() . '/manual-image-link-' . bin2hex(random_bytes(4));
+        $outside   = sys_get_temp_dir() . '/manual-image-outside-' . bin2hex(random_bytes(4)) . '.png';
+        mkdir($directory . '/images', 0o777, true);
+        file_put_contents($directory . '/README.md', "# Home\n");
+        file_put_contents($directory . '/images/inside.png', 'inside');
+        file_put_contents($outside, 'outside');
+        symlink($outside, $directory . '/images/out.png');
+        symlink($directory . '/images/inside.png', $directory . '/images/alias.png');
+        try {
+            $client = self::createClient(['manual' => ['directory' => $directory]], ['PHP_AUTH_USER' => 'admin', 'PHP_AUTH_PW' => 'x']);
+            $client->request('GET', '/en/manual/images/out.png');
+            self::assertResponseStatusCodeSame(404, 'a symbolic link out of the images directory');
+            $client->request('GET', '/en/manual/images/alias.png');
+            self::assertResponseIsSuccessful('a link to a file inside the directory');
+        } finally {
+            @unlink($outside);
+            @unlink($directory . '/images/out.png');
+            @unlink($directory . '/images/alias.png');
+            @unlink($directory . '/images/inside.png');
+            @unlink($directory . '/README.md');
+            @rmdir($directory . '/images');
+            @rmdir($directory);
+        }
+    }
+
     public function testAnAdminOnlyHomeIsHiddenFromMembers(): void
     {
         $directory = sys_get_temp_dir() . '/manual-admin-home-' . bin2hex(random_bytes(4));

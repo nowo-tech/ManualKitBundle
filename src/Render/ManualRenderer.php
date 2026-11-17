@@ -35,6 +35,7 @@ use function count;
 use function implode;
 use function in_array;
 use function is_array;
+use function is_dir;
 use function is_file;
 use function random_bytes;
 use function realpath;
@@ -103,6 +104,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
     {
         // A host catalog (ManualCatalogInterface) may serve chapters without a manifest.yaml in its directory.
         $manifest = $this->catalog->directory() . '/' . ManualCatalog::MANIFEST;
+        $images   = $this->catalog->directory() . '/images';
         $key      = 'nowo_manual.' . hash('xxh128', implode('|', [
             self::VERSION,
             $chapter->slug,
@@ -113,7 +115,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
             (string) filesize($chapter->path),
             is_file($manifest) ? (string) filemtime($manifest) : 'no-manifest',
             $this->urls->getContext()->getBaseUrl(),
-            $this->devices->enabled ? 'devices' . $this->devices->imageSuffix : 'no-devices',
+            $this->devices->enabled ? 'devices' . $this->devices->imageSuffix . '|' . (is_dir($images) ? (string) filemtime($images) : 'no-images') : 'no-devices',
         ]));
 
         // @igor-ignore - the cache calls the closure synchronously; nothing outlives this call
