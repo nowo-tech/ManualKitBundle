@@ -15,6 +15,7 @@ nowo_manual_kit:
     template: '@NowoManualKitBundle/chapter.html.twig'
     layout: '@NowoManualKitBundle/layout.html.twig'
     groups: []                  # 1.8: [{key, label, translation_domain}] or [key], navigation order and labels
+    redirects: {}               # 1.11: chapters and anchors that moved, old → new (plus the manifest's redirects: file)
     standalone_lightbox: false
     cache: cache.app
     machine_translation:
@@ -51,6 +52,7 @@ required when "provider" is "libretranslate" (e.g. http://libretranslate:5000).
 - [template](#template)
 - [layout](#layout)
 - [groups](#groups)
+- [redirects](#redirects)
 - [standalone_lightbox](#standalone_lightbox)
 - [cache](#cache)
 - [machine_translation](#machine_translation)
@@ -129,6 +131,83 @@ Listed groups come first, in this order; groups of the manifest that are not lis
 chapter disappears. Groups without a chapter the viewer may read are left out. A key may appear once. `[]` (default)
 keeps the manifest order and the bundle's `group.<key>` labels. The chapter template receives the result as `groups`.
 
+## redirects
+
+1.11. Chapters and anchors that moved, `old → new`, so the links people bookmarked or pasted keep working:
+
+```yaml
+nowo_manual_kit:
+    redirects:
+        04-projects-and-issues: projects                    # a chapter renamed
+        05-admin-and-ops: admin-hub                         # a chapter split: the rest of the page goes here…
+        '05-admin-and-ops#users': 'organization#users'      # …and these sections went to other chapters
+        '05-admin-and-ops#backups': 'backups'               # a section that became a chapter of its own
+        09-ui-kit-chrome: 'appearance#ui-kit'               # a chapter merged into a section of another
+        'organization#members': 'organization#users'        # a heading renamed inside an existing chapter
+```
+
+The same map can live next to the chapters, which suits a generated one: name a YAML file of the manual directory
+from `manifest.yaml`, or write the mapping inline there.
+
+```yaml
+# docs/manual/manifest.yaml
+redirects: redirects.yaml
+chapters:
+    - …
+```
+
+```yaml
+# docs/manual/redirects.yaml (the map at the top level, or under a `redirects:` key)
+redirects:
+    04-projects-and-issues: projects
+    '05-admin-and-ops#users': 'organization#users'
+```
+
+Both sources are merged; one old path mapped to two different targets is an error. Quote the keys and targets that
+hold a `#`. YAML keys keep their dashes (they are not normalised to underscores).
+
+**Validation, at container build.** The map is read and compiled once, when the container is built (the files are
+tracked, so a debug container rebuilds when they change). The build stops, naming every offending entry, when:
+
+- a key or target is not `slug` or `slug#anchor` — targets are internal chapter slugs only: an absolute URL, a
+  scheme, `//`, a path or an empty anchor is refused, so the map can never become an open redirect;
+- the map has a cycle (`a → b → a`, `a → a#x`, or one through a moved anchor);
+- the manifest names a redirects file that is missing, is not a `.yaml` / `.yml` file inside the manual directory, or
+  cannot be parsed.
+
+Chains (`a → b`, `b → c`) are accepted and **collapsed**: `/manual/a` answers one 301 straight to `c`.
+`nowo:manual:redirects` reports them so you can write the final target ([USAGE](USAGE.md#chapter-redirects)).
+The map is immutable for the life of the container (one deploy): nothing is read per request. A `directory` built
+from an env var cannot be read at build time; only the inline map is used then.
+
+**How a path resolves.** An exact rule wins (`old#install` → `setup#docker`). Otherwise `old#anchor` follows the
+chapter rule of `old`: to `new#anchor` when the target has no anchor (the fragment travels, as a browser keeps it
+through a 301) or to the target's own anchor when it has one. A chapter rule applies only when the old slug is no
+longer a chapter of the manifest (an existing chapter always wins; the lint command flags such a rule).
+
+**Server side.** `GET /manual/<old-slug>` (and `/manual/<old-slug>.md`, the child routes and a path through a parent
+that moved) answers **301** to the new chapter in the request locale (`/es/manual/<old>` → `/es/manual/<new>`). The
+target goes through the same checks as a request for it, **before** the redirect: a reader who may not open it gets
+exactly the 404 the target itself would give (an anonymous visitor is asked to sign in first, as for any chapter).
+The map therefore adds no existence oracle and never reveals where a hidden chapter went.
+
+**Anchors, client side.** A 301 cannot see the `#fragment`, so the chapter page carries the anchors that moved in
+`data-nowo-manual-anchors` and the default template loads `js/manual-anchors.js` (an external, deferred file: no
+inline script, CSP `script-src 'self'` is enough) only on pages that have some:
+
+- when the old chapter has anchors mapped elsewhere, its 301 goes to `/manual/<new>?moved_from=<old>` (no fragment,
+  so the browser keeps the reader's) and the script sends the reader to the mapped anchor (`''`: the target's anchor
+  for a reader who came without one), then removes `moved_from` from the address bar;
+- `own` anchors of an existing chapter (`'organization#members': 'organization#users'`) apply when the fragment is not
+  on the page.
+
+Targets the reader may not open are left out of the map, and an anchor their rendering lacks (an admin block) is
+dropped from the URL. Without JavaScript the reader still lands on the new chapter (at its top, or at the anchor of a
+plain chapter-to-anchor rule, which the 301 carries). A custom chapter template keeps the feature by printing the
+`anchor_redirects` variable the same way ([TEMPLATES](TEMPLATES.md)).
+
+Search, navigation and every link the bundle prints only ever use the current slugs.
+
 ## standalone_lightbox
 
 `false` (default): the application registers the Stimulus peer in its own build ([USAGE](USAGE.md#lightbox)). `true`:
@@ -187,4 +266,5 @@ copy the package into `framework.assets.packages` unless you override it (CDN, `
 
 ## Container parameters
 
-Every key is exposed as `nowo_manual_kit.<key>` (e.g. `%nowo_manual_kit.directory%`).
+Every key is exposed as `nowo_manual_kit.<key>` (e.g. `%nowo_manual_kit.directory%`). 1.11:
+`%nowo_manual_kit.redirects%` holds the merged map (config + manifest file) as written, before chains are collapsed.

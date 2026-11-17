@@ -49,6 +49,19 @@ All strings come from the `NowoManualKitBundle` domain (`title`, `home`, `chapte
 | `previous`, `next` | `ManualChapter\|null` | Neighbours among those chapters |
 | `ancestors`, `children` | `list<ManualChapter>` | 1.6: the chapters above this one (top level first) and its readable sub-pages |
 | `groups` | `list<{key, label, translation_domain}>` | 1.8: the navigation groups with chapters, in the [`groups`](CONFIGURATION.md#groups) order; `label` null = `group.<key>` of the bundle domain |
+| `anchor_redirects` | `array{moved, own}` | 1.11: the anchors that moved, for `js/manual-anchors.js` ([`redirects`](CONFIGURATION.md#redirects)); `[]` when none |
+
+A host template that does not extend the bundle's chapter page keeps the anchor redirects with:
+
+```twig
+<article data-chapter="{{ rendered.chapter.slug }}"
+    {%- if anchor_redirects is defined and anchor_redirects is not empty %} data-nowo-manual-anchors="{{ anchor_redirects|json_encode(constant('JSON_FORCE_OBJECT') b-or constant('JSON_UNESCAPED_SLASHES') b-or constant('JSON_UNESCAPED_UNICODE')) }}"{% endif %}>
+…
+</article>
+{% if anchor_redirects is defined and anchor_redirects is not empty %}
+    <script src="{{ asset('js/manual-anchors.js', 'nowo_manual_kit') }}" defer></script>
+{% endif %}
+```
 
 `ManualChapter`: `slug`, `group`, `adminOnly`, `icon`, `title`, `path`, `tags`, `locale`, `translation`
 (`TranslationState`: `.value` is `source`, `translated`, `outdated` or `missing`), `isHome()`.

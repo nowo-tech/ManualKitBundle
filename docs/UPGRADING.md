@@ -23,6 +23,21 @@ This guide lists the changes integrators must apply when upgrading between versi
 
 ## Unreleased
 
+Target **1.11.0**. Additive, no action needed.
+
+- New optional key `nowo_manual_kit.redirects` and manifest entry `redirects:` (a YAML file of the manual directory or
+  an inline mapping): chapters and anchors that moved ([CONFIGURATION](CONFIGURATION.md#redirects)). The map is
+  validated when the container is built: an absolute URL, `//`, a scheme or a cycle stops the build. An existing
+  manifest gains nothing unless it adds `redirects:`.
+- Run `assets:install` (or your deploy's equivalent) so `public/bundles/nowomanualkit/js/manual-anchors.js` exists. The
+  default chapter template loads it only on pages whose anchor map is not empty.
+- A custom chapter template (`nowo_manual_kit.template` or an override of `chapter.html.twig`) that does not extend the
+  bundle's page receives a new `anchor_redirects` variable; print it as shown in [TEMPLATES](TEMPLATES.md#variables)
+  to keep the client-side anchor redirects. Server redirects work without it.
+- `ManualController` takes a new last constructor argument (`ChapterRedirectsInterface $redirects`, default an empty
+  map); only code that instantiates the controller itself is concerned.
+- CI: add `php bin/console nowo:manual:redirects --strict` next to `nowo:manual:check --strict`.
+
 ## To 1.10.0
 
 From **1.9.0**: additive, no action needed.

@@ -43,6 +43,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Added
+
+- Chapter redirects (Beacon spec 231 T002): `nowo_manual_kit.redirects` and the manifest's `redirects:` entry (a YAML file of the manual directory or an inline mapping) map old paths to new ones, `old-slug: new-slug` and `'old-slug#anchor': 'new-slug#anchor'`. The map is compiled once when the container is built: targets are internal slugs only (an absolute URL, a scheme, `//`, a path or an empty anchor stops the build: no open redirect), cycles stop the build, chains are collapsed to one hop. See [CONFIGURATION](CONFIGURATION.md#redirects).
+- `GET /manual/<old-slug>`, `/manual/<old-slug>.md`, the child routes and paths through a parent that moved answer **301** to the new chapter in the request locale. The target's access rules run before the redirect, so a reader who may not open it gets exactly the target's 404 (no existence oracle, the new slug of a hidden chapter is never revealed).
+- `js/manual-anchors.js` (external, deferred, CSP-safe; Vite IIFE built from `src/Resources/assets/src/manual-anchors.ts`) and the `data-nowo-manual-anchors` attribute: the anchors of an old chapter (`?moved_from=<old-slug>`, added by the 301) and the moved sections of an existing chapter send the reader to the mapped anchor. Targets the reader may not open and anchors of blocks they cannot see are left out. New `anchor_redirects` chapter template variable.
+- `nowo:manual:redirects` (`--strict`, `--file`, `--route-links`): missing target chapters and anchors, cycles and invalid targets (with `--file`), chains, rules that never apply, and old slugs still used in link maps such as UiKit `nowo_ui_kit.route_links`.
+- Port `Redirect\ChapterRedirectsInterface` (default `ChapterRedirectMap`, `fromRules()` for hosts that keep the map elsewhere) and VO `RedirectTarget` (REQ-ARCH-001).
+- Demo: renamed chapters and a moved section in `demo/symfony8/docs/manual/redirects.yaml`.
+
+### Tests
+
+- Functional tests of the 301 (locale kept, `.md` and child routes, chains, access rules byte for byte), of the anchor map and of the lint command; unit tests of the compiler, loader and container wiring; Vitest for the anchor script; kept-alive worker test `WorkerRedirectsTest` (1,000 iterations, two users, two locales, memory bound).
+
 ### Fixed
 
 - `ManualRenderer` no longer calls `filemtime()` on a missing `manifest.yaml`: a host `ManualCatalogInterface` serving chapters from a directory without a manifest renders normally (the cache key skips the manifest part).

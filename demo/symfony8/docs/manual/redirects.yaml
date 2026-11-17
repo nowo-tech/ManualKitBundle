@@ -1,0 +1,13 @@
+# 1.11: chapters and anchors that moved, old → new (internal slugs only). GET /en/manual/01-start answers 301 to
+# /en/manual/01-getting-started; the anchors are mapped in the browser by js/manual-anchors.js. Lint it with
+# `bin/console nowo:manual:redirects --strict`.
+redirects:
+  # A chapter renamed: its anchors travel with it (#first-steps stays #first-steps).
+  01-start: 01-getting-started
+  # A chapter split: the page goes to the guide, one of its sections to the getting-started chapter.
+  00-introduction: 03-guide
+  '00-introduction#navigation': '01-getting-started#moving-around'
+  # A heading renamed inside an existing chapter.
+  '01-getting-started#navigation': '01-getting-started#moving-around'
+  # A chapter merged into a section of another one.
+  04-new-project: 'projects#create'

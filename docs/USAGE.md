@@ -8,6 +8,7 @@
 - [Links](#links)
 - [Stable anchors](#stable-anchors)
 - [Sub-pages](#sub-pages)
+- [Chapter redirects](#chapter-redirects)
 - [External chapters](#external-chapters)
 - [Audiences](#audiences)
 - [Figures](#figures)
@@ -153,6 +154,42 @@ docs/manual/
   ignored (and reported).
 
 A manifest without `parent` renders exactly as in 1.5.
+
+## Chapter redirects
+
+1.11. When chapters are renamed, split or merged, map the old paths to the new ones
+([`redirects`](CONFIGURATION.md#redirects): inline config and / or a `redirects:` file named by `manifest.yaml`):
+
+```yaml
+# docs/manual/redirects.yaml — `redirects: redirects.yaml` in manifest.yaml
+redirects:
+    04-projects-and-issues: projects
+    '04-projects-and-issues#filters': 'issues#filters'
+    'organization#members': 'organization#users'
+```
+
+- `GET /manual/04-projects-and-issues` (and `.md`, the child routes) → **301** `/manual/projects`, in the request
+  locale, after the same access check as the target (an unauthorised reader gets the target's 404).
+- `/manual/04-projects-and-issues#filters` → 301 `/manual/projects?moved_from=04-projects-and-issues`, then
+  `js/manual-anchors.js` (loaded by the default chapter template, external file, CSP-safe) moves the reader to
+  `/manual/issues#filters` and drops `moved_from` from the address bar.
+- `/manual/organization#members` (the heading was renamed) → the script moves the reader to `#users` because
+  `#members` is no longer on the page.
+
+Lint the map in CI:
+
+```bash
+php bin/console nowo:manual:redirects            # errors: missing target chapter / anchor, a rule from a chapter that still exists
+php bin/console nowo:manual:redirects --strict   # also fail on warnings: chains, rules that never apply, old slugs still linked
+php bin/console nowo:manual:redirects --file=docs/manual/redirects.next.yaml   # lint a map before deploying it (cycles, URLs)
+php bin/console nowo:manual:redirects --route-links=nowo_ui_kit.route_links --route-links=app.help_links
+```
+
+`--route-links` (repeatable, default `nowo_ui_kit.route_links`) names container parameters holding link maps; every
+`manual/<slug>.md#anchor` string found in them that still points at an old slug or a moved anchor is reported with the
+target to write instead (the host links should never need a redirect hop). A missing parameter is skipped. Target
+anchors are checked in the administrators' rendering of the source-language chapter; `nowo:manual:check` keeps
+checking that translations carry the stable anchors.
 
 ## External chapters
 
@@ -358,6 +395,7 @@ The group label is the translation `search.group`; the subtitle of a chapter is 
 | `ManualRenderer` | `render(ManualChapter, admin)` → `RenderedManualChapter` (`html`, `toc` with ids and tags); `audienceFiltered()` |
 | `ManualAccess` | `canRead()`, `isAdmin()` with the configured roles |
 | `TranslationAudit` | `run()` (what `nowo:manual:check` prints), `stamp(slug, locale)`, `anchors(markdown)` |
+| `Redirect\ChapterRedirectsInterface` | 1.11: `chapterTarget(slug)`, `movedAnchors(page, from)`, `ownAnchors(page)`, `rules()` — the compiled redirect map |
 
 A useful application test renders every chapter for both audiences and asserts that every in-app link, anchor and image
 resolves, and that each `manual/x.md#anchor` your templates reference exists.
@@ -384,6 +422,10 @@ entity types in its API, so your domain never has to know about it.
 - To replace the whole policy, alias `Security\ManualAccessInterface` (`canRead()`, `isAdmin()`,
   `canReadChapter()`); the default is `ManualAccess`. The bundle still enforces `audience: admin` itself
   (`isAdmin()` decides), so your `canReadChapter()` can only narrow access.
+- The redirect map (1.11) is a port too: `Redirect\ChapterRedirectsInterface`, default `ChapterRedirectMap`
+  compiled from config at container build. To keep the map in your own store, alias the interface to an adapter;
+  build it with `ChapterRedirectMap::fromRules($rules)` (same validation: internal slugs only, no cycle, chains
+  collapsed) and keep it immutable for the life of the process. Its values are plain VOs (`RedirectTarget`).
 - If application code needs manual data (a "help" link, a list of chapters), wrap `ManualCatalog` /
   `ManualRenderer` behind a port of your own; their results are value objects (`ManualChapter`,
   `RenderedManualChapter`, `TranslationState`), never entities.

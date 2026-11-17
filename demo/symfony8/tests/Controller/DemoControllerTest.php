@@ -89,4 +89,24 @@ final class DemoControllerTest extends WebTestCase
         self::assertSelectorTextContains('h1', 'Administration');
         self::assertSelectorExists('.nowo-manual__notice--missing');
     }
+
+    public function testOldChapterLinksRedirectToTheirNewPlace(): void
+    {
+        $client = static::createClient();
+        $client->loginUser(new InMemoryUser('demo', 'demo', ['ROLE_USER']));
+
+        $client->request('GET', '/es/manual/01-start');
+        self::assertResponseRedirects('/es/manual/01-getting-started', 301);
+        $client->request('GET', '/en/manual/04-new-project');
+        self::assertResponseRedirects('/en/manual/03-guide/projects#create', 301);
+        $client->request('GET', '/en/manual/00-introduction');
+        self::assertResponseRedirects('/en/manual/03-guide?moved_from=00-introduction', 301);
+
+        $client->request('GET', '/en/manual/03-guide?moved_from=00-introduction');
+        self::assertSelectorExists('article[data-nowo-manual-anchors]');
+        self::assertSelectorExists('script[src="/bundles/nowomanualkit/js/manual-anchors.js"]');
+
+        $client->request('GET', '/en/manual/old-admin');
+        self::assertResponseStatusCodeSame(404);
+    }
 }

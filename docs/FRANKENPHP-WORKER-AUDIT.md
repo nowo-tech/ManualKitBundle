@@ -45,6 +45,8 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 |---------|-------|-----------------|
 | `ManualCatalog`, `ManualRenderer`, `ManualAccess`, `TranslationAudit`, `ManualSearchProvider` | `final readonly`; injected collaborators and configuration only; the manifest is re-read per call | none needed |
 | `ManualController` | `final readonly`; the request, locale and user are read per call | none needed |
+| `ChapterRedirectMap` (1.11) | `final readonly`; the redirect map compiled at container build (arrays passed as arguments), never written after construction; nothing read per request | none needed |
+| `RedirectsCommand` (1.11) | CLI, `final readonly` | none needed |
 | `ManualLinkExtension` | readonly injected collaborators and configuration | none needed |
 | `CheckTranslationsCommand`, `StampTranslationCommand`, `TranslateManualCommand` | CLI, `final readonly` | none needed |
 | Rendered chapters | configured cache pool (`cache.app` by default), key includes chapter, locale, translation state, audience, mtime / size | pool TTL / key change on file change |
@@ -52,6 +54,12 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 ## Kept-alive test (REQ-RUNTIME-002)
 
 Test: `Nowo\ManualKitBundle\Tests\Integration\Worker\WorkerKeptAliveKernelTest` (`tests/Integration/Worker/WorkerKeptAliveKernelTest.php`). It uses one booted kernel (`TestKernel`: FrameworkBundle, SecurityBundle, TwigBundle and the bundle, in-memory users `alice` and `admin`) and drives `http_kernel` `handle()` + `terminate()` for the manual chapters in two locales. `services_resetter` / `kernel.reset` is **never** called. It runs 1,200 iterations alternating two users, asserts every response contains only its own data (nothing of the other user or of the previous iteration), and that memory growth after a 100-iteration warm-up stays below 4 MiB.
+
+1.11: `WorkerRedirectsTest` (`tests/Integration/Worker/WorkerRedirectsTest.php`) does the same for the chapter
+redirects: one kernel, never reset, 1,000 iterations alternating a member and an administrator and two locales over a
+301 with `?moved_from`, a redirect to an admin chapter (404 for the member, 301 for the administrator) and pages
+carrying the anchor map; every Location and page must match the reader and locale of its own request, memory growth
+after warm-up below 4 MiB.
 
 Result: no state is carried between requests, so the bundle is **safe with kernel reset false**.
 
