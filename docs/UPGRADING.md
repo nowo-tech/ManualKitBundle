@@ -23,20 +23,30 @@ This guide lists the changes integrators must apply when upgrading between versi
 
 ## Unreleased
 
-Target **1.11.0**. Additive, no action needed.
+Target **1.11.0**. Additive; deploy steps below.
 
 - New optional key `nowo_manual_kit.redirects` and manifest entry `redirects:` (a YAML file of the manual directory or
-  an inline mapping): chapters and anchors that moved ([CONFIGURATION](CONFIGURATION.md#redirects)). The map is
-  validated when the container is built: an absolute URL, `//`, a scheme or a cycle stops the build. An existing
+  an inline mapping): chapters and anchors that moved ([CONFIGURATION](CONFIGURATION.md#redirects)). An existing
   manifest gains nothing unless it adds `redirects:`.
+- **The map is read when the container is built**, including the manifest's `redirects:` file. In production, an edit
+  to the map needs a cache clear (`cache:clear` / `cache:warmup`) or a redeploy. A debug container rebuilds by itself
+  because it tracks the files. An absolute URL, `//`, a scheme or a cycle stops the build.
+- **The docs directory must be present where the container is built.** A build stage without the manual directory
+  (for example a Docker stage that copies `docs/` later), or a `directory` built from an env var, falls back to the
+  inline `nowo_manual_kit.redirects` map only, silently. Build the container where `docs/manual` exists, or keep the
+  map inline.
 - Run `assets:install` (or your deploy's equivalent) so `public/bundles/nowomanualkit/js/manual-anchors.js` exists. The
   default chapter template loads it only on pages whose anchor map is not empty.
 - A custom chapter template (`nowo_manual_kit.template` or an override of `chapter.html.twig`) that does not extend the
-  bundle's page receives a new `anchor_redirects` variable; print it as shown in [TEMPLATES](TEMPLATES.md#variables)
+  bundle's page receives a new `anchor_redirects` variable. Print it as shown in [TEMPLATES](TEMPLATES.md#variables)
   to keep the client-side anchor redirects. Server redirects work without it.
+- Every 301 the bundle answers now has `Cache-Control: private, no-cache`. A proxy that cached the old `.md` or
+  nested-chapter 301s stops doing so.
+- The renderer cache version is bumped: chapters are rendered again once after the upgrade.
 - `ManualController` takes a new last constructor argument (`ChapterRedirectsInterface $redirects`, default an empty
-  map); only code that instantiates the controller itself is concerned.
-- CI: add `php bin/console nowo:manual:redirects --strict` next to `nowo:manual:check --strict`.
+  map). Only code that instantiates the controller itself is concerned.
+- CI: add `php bin/console nowo:manual:redirects --strict` next to `nowo:manual:check --strict`. It also checks the
+  links written inside the chapters (old slugs, missing chapters, missing anchors).
 
 ## To 1.10.0
 

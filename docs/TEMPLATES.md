@@ -51,7 +51,9 @@ All strings come from the `NowoManualKitBundle` domain (`title`, `home`, `chapte
 | `groups` | `list<{key, label, translation_domain}>` | 1.8: the navigation groups with chapters, in the [`groups`](CONFIGURATION.md#groups) order; `label` null = `group.<key>` of the bundle domain |
 | `anchor_redirects` | `array{moved, own}` | 1.11: the anchors that moved, for `js/manual-anchors.js` ([`redirects`](CONFIGURATION.md#redirects)); `[]` when none |
 
-A host template that does not extend the bundle's chapter page keeps the anchor redirects with:
+A host template that does not extend the bundle's chapter page keeps the anchor redirects with the snippet below.
+The bundle's page also prints `<link rel="canonical" href="{{ absolute_url(manual_chapter_path(chapter)) }}">` in the
+`stylesheets` block when the request has `moved_from`.
 
 ```twig
 <article data-chapter="{{ rendered.chapter.slug }}"

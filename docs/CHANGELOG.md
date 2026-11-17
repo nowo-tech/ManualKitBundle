@@ -46,9 +46,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 
 - Chapter redirects (Beacon spec 231 T002): `nowo_manual_kit.redirects` and the manifest's `redirects:` entry (a YAML file of the manual directory or an inline mapping) map old paths to new ones, `old-slug: new-slug` and `'old-slug#anchor': 'new-slug#anchor'`. The map is compiled once when the container is built: targets are internal slugs only (an absolute URL, a scheme, `//`, a path or an empty anchor stops the build: no open redirect), cycles stop the build, chains are collapsed to one hop. See [CONFIGURATION](CONFIGURATION.md#redirects).
-- `GET /manual/<old-slug>`, `/manual/<old-slug>.md`, the child routes and paths through a parent that moved answer **301** to the new chapter in the request locale. The target's access rules run before the redirect, so a reader who may not open it gets exactly the target's 404 (no existence oracle, the new slug of a hidden chapter is never revealed).
+- `GET /manual/<old-slug>`, `/manual/<old-slug>.md`, the child routes and paths through a parent that moved answer **301** to the new chapter in the request locale. The target's access rules run before the redirect, so a reader who may not open it gets exactly the target's 404 (no existence oracle, the new slug of a hidden chapter is never revealed). The `#anchor` of a target is added only when the reader's rendering has it, so the id of an admin block never reaches a member. A chain stops at the first chapter that still exists, since an existing chapter always wins over a rule for its slug; the lint names the rules affected.
 - `js/manual-anchors.js` (external, deferred, CSP-safe; Vite IIFE built from `src/Resources/assets/src/manual-anchors.ts`) and the `data-nowo-manual-anchors` attribute: the anchors of an old chapter (`?moved_from=<old-slug>`, added by the 301) and the moved sections of an existing chapter send the reader to the mapped anchor. Targets the reader may not open and anchors of blocks they cannot see are left out. New `anchor_redirects` chapter template variable.
 - `nowo:manual:redirects` (`--strict`, `--file`, `--route-links`): missing target chapters and anchors, cycles and invalid targets (with `--file`), chains, rules that never apply, and old slugs still used in link maps such as UiKit `nowo_ui_kit.route_links`.
+- `nowo:manual:redirects` also scans the links of every chapter, source and translations, and reports each one with its `file:line`. A link to an old slug or a moved anchor is a warning, and an error with `--strict`. A link to a chapter that does not exist, or to an anchor missing in the target chapter (looked up in the same locale), is an error. Links inside fenced code blocks and links that leave the manual are skipped. In-chapter links are not rewritten by the renderer.
+- A page reached through a redirect (`?moved_from`) prints `<link rel="canonical">` to the chapter URL without the marker. Plain pages are unchanged.
 - Port `Redirect\ChapterRedirectsInterface` (default `ChapterRedirectMap`, `fromRules()` for hosts that keep the map elsewhere) and VO `RedirectTarget` (REQ-ARCH-001).
 - Demo: renamed chapters and a moved section in `demo/symfony8/docs/manual/redirects.yaml`.
 
@@ -57,6 +59,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - Functional tests of the 301 (locale kept, `.md` and child routes, chains, access rules byte for byte), of the anchor map and of the lint command; unit tests of the compiler, loader and container wiring; Vitest for the anchor script; kept-alive worker test `WorkerRedirectsTest` (1,000 iterations, two users, two locales, memory bound).
 
 ### Fixed
+
+- Every 301 the bundle answers now carries `Cache-Control: private, no-cache` explicitly. This covers the moved-chapter redirects and the `.md` and nested-chapter redirects that exist since 1.6. Before, a 301 sent without a session could be stored by a shared cache, although it depends on who asks: the access check runs first.
+- `ManualRenderer::VERSION` is bumped to `2`, so chapters cached by an earlier version are rendered again.
 
 - `ManualRenderer` no longer calls `filemtime()` on a missing `manifest.yaml`: a host `ManualCatalogInterface` serving chapters from a directory without a manifest renders normally (the cache key skips the manifest part).
 

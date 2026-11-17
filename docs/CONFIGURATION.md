@@ -175,7 +175,10 @@ tracked, so a debug container rebuilds when they change). The build stops, namin
 - the manifest names a redirects file that is missing, is not a `.yaml` / `.yml` file inside the manual directory, or
   cannot be parsed.
 
-Chains (`a → b`, `b → c`) are accepted and **collapsed**: `/manual/a` answers one 301 straight to `c`.
+Chains (`a → b`, `b → c`) are accepted and **collapsed**: `/manual/a` answers one 301 straight to `c`. The walk
+stops at the first chapter that still exists. If `b` is still a chapter, `/manual/a` goes to `b`, because an existing
+chapter always wins over a rule for its slug. The lint reports the rule for `b` as an error and names every rule whose
+chain passes through it.
 `nowo:manual:redirects` reports them so you can write the final target ([USAGE](USAGE.md#chapter-redirects)).
 The map is immutable for the life of the container (one deploy): nothing is read per request. A `directory` built
 from an env var cannot be read at build time; only the inline map is used then.
@@ -189,7 +192,10 @@ longer a chapter of the manifest (an existing chapter always wins; the lint comm
 that moved) answers **301** to the new chapter in the request locale (`/es/manual/<old>` → `/es/manual/<new>`). The
 target goes through the same checks as a request for it, **before** the redirect: a reader who may not open it gets
 exactly the 404 the target itself would give (an anonymous visitor is asked to sign in first, as for any chapter).
-The map therefore adds no existence oracle and never reveals where a hidden chapter went.
+The map therefore adds no existence oracle and never reveals where a hidden chapter went. A target's `#anchor` is
+added to the `Location` only when the reader's rendering of the target has it, so the id of an admin block never
+reaches a member. Every 301 of the bundle is sent with `Cache-Control: private, no-cache`, because its answer depends
+on who asks.
 
 **Anchors, client side.** A 301 cannot see the `#fragment`, so the chapter page carries the anchors that moved in
 `data-nowo-manual-anchors` and the default template loads `js/manual-anchors.js` (an external, deferred file: no
@@ -201,12 +207,15 @@ inline script, CSP `script-src 'self'` is enough) only on pages that have some:
 - `own` anchors of an existing chapter (`'organization#members': 'organization#users'`) apply when the fragment is not
   on the page.
 
-Targets the reader may not open are left out of the map, and an anchor their rendering lacks (an admin block) is
-dropped from the URL. Without JavaScript the reader still lands on the new chapter (at its top, or at the anchor of a
+Entries whose target chapter the reader may not open, or whose target anchor is not in the reader's rendering (an
+admin block, a translation without the stable anchor), are left out of the map. A page reached with `moved_from`
+prints `<link rel="canonical">` to the chapter URL without the marker. Without JavaScript the reader still lands on the new chapter (at its top, or at the anchor of a
 plain chapter-to-anchor rule, which the 301 carries). A custom chapter template keeps the feature by printing the
 `anchor_redirects` variable the same way ([TEMPLATES](TEMPLATES.md)).
 
-Search, navigation and every link the bundle prints only ever use the current slugs.
+Search, navigation and every link the bundle prints only ever use the current slugs. Links written inside the
+chapters are not rewritten. `nowo:manual:redirects` reports those that point at an old slug or a moved anchor, a
+missing chapter or a missing anchor, with their file and line ([USAGE](USAGE.md#chapter-redirects)).
 
 ## standalone_lightbox
 

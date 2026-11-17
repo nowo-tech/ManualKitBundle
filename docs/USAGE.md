@@ -185,6 +185,21 @@ php bin/console nowo:manual:redirects --file=docs/manual/redirects.next.yaml   #
 php bin/console nowo:manual:redirects --route-links=nowo_ui_kit.route_links --route-links=app.help_links
 ```
 
+The command also reads every chapter file, the source and each translation, and reports the Markdown links written
+in them with their `file:line`. Links inside fenced code blocks and links that leave the manual (other repository
+docs, URLs, images) are skipped. The renderer never rewrites these links: fix them in the Markdown.
+
+| Link target | Level |
+| --- | --- |
+| An old slug or a moved anchor (`04-projects-and-issues.md#filters`, `#members` after a rename) | warning (error with `--strict`), with the target to write |
+| A chapter that does not exist (`nope.md`) | error |
+| An anchor missing in the target chapter, looked up in the administrators' rendering in the same locale (`faq.md#nowhere`, or a translation without the stable anchor) | error |
+
+```text
+  error     manual/es/README.md:4   Links to the anchor "filters", which is not in chapter "01-using" (es).
+  warning   manual/faq.md:17        Links to the old "01-install#overview": point it at "setup#overview" directly (no redirect hop).
+```
+
 `--route-links` (repeatable, default `nowo_ui_kit.route_links`) names container parameters holding link maps; every
 `manual/<slug>.md#anchor` string found in them that still points at an old slug or a moved anchor is reported with the
 target to write instead (the host links should never need a redirect hop). A missing parameter is skipped. Target
