@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
 - [To 1.10.0](#to-1100)
 - [To 1.9.0](#to-190)
@@ -23,6 +24,14 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## To 1.12.0
+
+From **1.11.0**:
+
+```bash
+composer update nowo-tech/manual-kit-bundle
+```
 
 Additive; nothing changes until you enable it.
 
