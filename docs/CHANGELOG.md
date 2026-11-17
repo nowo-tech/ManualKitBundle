@@ -7,47 +7,79 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
-- [[1.11.0] - 2026-11-17](#1110---2026-11-17)
   - [Added](#added)
   - [Tests](#tests)
+- [[1.11.0] - 2026-11-17](#1110---2026-11-17)
+  - [Added](#added-1)
+  - [Tests](#tests-1)
   - [Fixed](#fixed)
   - [Changed](#changed)
   - [Documentation](#documentation)
 - [[1.10.0] - 2026-11-13](#1100---2026-11-13)
-  - [Added](#added-1)
-  - [Changed](#changed-1)
-  - [Tests](#tests-1)
-- [[1.9.0] - 2026-11-10](#190---2026-11-10)
   - [Added](#added-2)
+  - [Changed](#changed-1)
+  - [Tests](#tests-2)
+- [[1.9.0] - 2026-11-10](#190---2026-11-10)
+  - [Added](#added-3)
   - [Changed](#changed-2)
 - [[1.8.0] - 2026-11-08](#180---2026-11-08)
-  - [Added](#added-3)
+  - [Added](#added-4)
 - [[1.7.0] - 2026-11-07](#170---2026-11-07)
   - [Changed](#changed-3)
 - [[1.6.0] - 2026-11-02](#160---2026-11-02)
-  - [Added](#added-4)
+  - [Added](#added-5)
 - [[1.5.1] - 2026-10-30](#151---2026-10-30)
   - [Fixed](#fixed-1)
 - [[1.5.0] - 2026-10-29](#150---2026-10-29)
-  - [Added](#added-5)
+  - [Added](#added-6)
   - [Changed](#changed-4)
 - [[1.4.0] - 2026-10-28](#140---2026-10-28)
   - [Security](#security)
   - [Changed](#changed-5)
 - [[1.3.0] - 2026-10-23](#130---2026-10-23)
-  - [Added](#added-6)
+  - [Added](#added-7)
   - [Changed](#changed-6)
 - [[1.2.0] - 2026-10-23](#120---2026-10-23)
-  - [Added](#added-7)
+  - [Added](#added-8)
   - [Fixed](#fixed-2)
 - [[1.1.0] - 2026-10-23](#110---2026-10-23)
-  - [Added](#added-8)
+  - [Added](#added-9)
 - [[1.0.1] - 2026-10-23](#101---2026-10-23)
   - [Fixed](#fixed-3)
 - [[1.0.0] - 2026-10-23](#100---2026-10-23)
-  - [Added](#added-9)
+  - [Added](#added-10)
 
 ## [Unreleased]
+
+### Added
+
+- Desktop / phone views of a chapter (symfony-beacon spec 231, D-20261117-21), behind `nowo_manual_kit.device_views`
+  (`enabled: false` by default, `breakpoint: 768`, `image_suffix: '.phone'`). See
+  [USAGE](USAGE.md#desktop-and-phone-views) and [CONFIGURATION](CONFIGURATION.md#device_views).
+- `<!-- device: phone -->` … `<!-- /device -->` and `<!-- device: desktop -->` … `<!-- /device -->` blocks, parsed with
+  the audience-block rules (one shared `CommentBlocks` parser). Content outside the blocks is shared. On GitHub both
+  views show, with the block's own bold label. Unknown device names are rejected: their content is shared. Markers
+  without a pair are dropped. Markers inside fenced code are kept as written.
+- A Desktop / Phone switch on chapters that have device content (no switch on the others). It is a labelled group of
+  buttons with `aria-pressed`, and works with the keyboard. The default comes from the viewport (phone below
+  `breakpoint`). Each reader's choice is kept in `localStorage`, and a blocked storage is ignored. Switching needs no
+  reload. The script is external, `js/manual-devices.js` (Vite IIFE from
+  `src/Resources/assets/src/device-views.ts`), CSP-safe. The styles use UiKit tokens. "On this page" and the lightbox
+  follow the view shown. New `device_views` chapter template variable, and `devices.*` labels in the seven catalogues.
+- Phone companion images. `images/x.webp` gets a phone twin `images/x.phone.webp` when that file exists inside the
+  manual's images directory. Inside a phone block the companion replaces the image.
+- Search indexes both views. A hit inside a device block links to `?device=<view>#section`, and the page opens that
+  view. `device` is checked against an allow-list.
+- `nowo:manual:stamp` and `nowo:manual:translate` treat device blocks like any other content. The markers are kept and
+  their text is translated.
+
+### Tests
+
+- `DeviceViewsBcTest` pins byte-for-byte 1.11.0 output (pages, search) with device views off, against golden files
+  written on the v1.11.0 code (`tests/Fixtures/bc-1.11.0`).
+- Renderer, controller, search, worker (kept-alive kernel), translation and configuration tests. Vitest covers the
+  switch (100%). The demo enables device views on `03-guide/projects`, with a Playwright e2e for the switch
+  (`devices.spec.ts`).
 
 ## [1.11.0] - 2026-11-17
 

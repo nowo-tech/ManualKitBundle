@@ -23,3 +23,7 @@ notice:
   outdated: Deze vertaling is ouder dan het oorspronkelijke hoofdstuk; sommige delen kunnen verouderd zijn.
 search:
   group: Handleiding
+devices:
+  label: "Weergave voor"
+  desktop: "Desktop"
+  phone: "Telefoon"

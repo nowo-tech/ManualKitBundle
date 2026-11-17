@@ -6,6 +6,7 @@ namespace Nowo\ManualKitBundle\Search;
 
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Model\ManualChapter;
+use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
@@ -25,7 +26,8 @@ use function count;
  * SearchKit group "Manual" (registered only when nowo-tech/search-kit-bundle is installed): the chapters and their
  * h2–h4 sections whose title or tags match ({@see ManualSearchText}), among those the viewer may read, in the request
  * locale. Chapter titles first, then sections in manual order. 1.6: nested chapters are indexed with their own tags,
- * behind the same access rules, and titled with their parents ("Parent › Child").
+ * behind the same access rules, and titled with their parents ("Parent › Child"). 1.12: both desktop and phone
+ * sections are indexed; a hit in one of them links to `?device=<view>#<section>` so the page opens that view.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -69,7 +71,9 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
             }
             foreach ($this->renderer->render($chapter, $admin)->toc as $entry) {
                 if (ManualSearchText::matches($query->text, $entry['text'], $entry['tags'])) {
-                    $sections[] = new SearchItem($entry['text'], $url . '#' . $entry['id'], $title, 'tabler:section');
+                    // 1.12: a section of one view (desktop / phone) opens that view.
+                    $target     = isset($entry['device']) && DeviceViews::isDevice($entry['device']) ? ManualRoutes::generate($this->urls, $chapter, [DeviceViews::QUERY => $entry['device']]) : $url;
+                    $sections[] = new SearchItem($entry['text'], $target . '#' . $entry['id'], $title, 'tabler:section');
                 }
             }
         }

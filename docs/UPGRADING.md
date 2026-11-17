@@ -24,6 +24,23 @@ This guide lists the changes integrators must apply when upgrading between versi
 
 ## Unreleased
 
+Additive; nothing changes until you enable it.
+
+- New optional key `nowo_manual_kit.device_views` (`enabled: false`, `breakpoint: 768`, `image_suffix: '.phone'`).
+  Disabled, every page, search hit and image renders exactly as in 1.11.0 (pinned by `DeviceViewsBcTest`).
+- To use it: set `device_views.enabled: true`, run `assets:install` (or your deploy's equivalent) so
+  `public/bundles/nowomanualkit/js/manual-devices.js` exists, and write `<!-- device: phone -->` …
+  `<!-- /device -->` / `<!-- device: desktop -->` … `<!-- /device -->` blocks where the phone differs
+  ([USAGE](USAGE.md#desktop-and-phone-views)). Add phone screenshots as `images/x.phone.webp` next to `images/x.webp`.
+- **Existing `<!-- device: … -->` comments** in your chapters (unlikely) become device blocks once enabled.
+- A custom chapter template that does not extend the bundle's page receives a new `device_views` variable (null unless
+  enabled and the chapter has device content); print the switch as shown in [TEMPLATES](TEMPLATES.md#variables).
+  `RenderedManualChapter::$toc` entries may carry a `device` key, and `RenderedManualChapter` has a new
+  `deviceViews` flag (constructor argument with a default).
+- `ManualRenderer` and `ManualController` take a new last constructor argument (`DeviceViews $devices`, default
+  disabled); `ManualRoutes::generate()` an optional `$query`. Only code that instantiates them itself is concerned.
+- The renderer cache version is bumped: chapters are rendered again once after the upgrade.
+
 ## To 1.11.0
 
 From **1.10.0**:

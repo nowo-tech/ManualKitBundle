@@ -23,6 +23,7 @@
     "src/Resources/assets",
     "vite.config.ts",
     "vite.anchors.config.ts",
+    "vite.devices.config.ts",
     "vitest.config.ts"
   ]
 }

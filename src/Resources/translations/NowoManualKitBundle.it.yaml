@@ -23,3 +23,7 @@ notice:
   outdated: Questa traduzione è precedente al capitolo originale; alcune parti potrebbero non essere aggiornate.
 search:
   group: Manuale
+devices:
+  label: "Vista per"
+  desktop: "Desktop"
+  phone: "Smartphone"

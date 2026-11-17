@@ -11,6 +11,7 @@
 - [Chapter redirects](#chapter-redirects)
 - [External chapters](#external-chapters)
 - [Audiences](#audiences)
+- [Desktop and phone views](#desktop-and-phone-views)
 - [Figures](#figures)
 - [Translations](#translations)
 - [Checking translations](#checking-translations)
@@ -252,6 +253,60 @@ Members never receive an admin block, an admin chapter (404, not 403: the respon
 link to one. The filter **fails closed**: a marker left without its pair — an unclosed block, a typo such as
 `<!-- audience admin -->` — hides the rest of the chapter from members instead of showing them what it was guarding.
 
+## Desktop and phone views
+
+1.12, with [`device_views.enabled: true`](CONFIGURATION.md#device_views) (off by default). Write the steps that differ
+on a phone in a device block; everything outside the blocks is shared:
+
+```markdown
+## Filter the list
+
+The filters are the same everywhere; where they live depends on the screen.
+
+<!-- device: desktop -->
+**Desktop:**
+
+The filters sit in a column on the left. Right-click a card for its menu.
+<!-- /device -->
+
+<!-- device: phone -->
+**Phone:**
+
+Tap **Filters**: a bottom sheet slides up. Long-press a card for its menu.
+<!-- /device -->
+```
+
+- **Parsing** follows the audience blocks: the device name is a word (any case), a block ends at the first
+  `<!-- /device -->` (device blocks do not nest; a device block may hold an audience block and the other way round),
+  and markers inside fenced code stay as written. Only `desktop` and `phone` are device blocks: any other name
+  (`<!-- device: tablet -->`) is rejected — its content is shared and the name never reaches the page. A marker without
+  its pair is dropped and the content is shared. A block holds whole blocks at the chapter's top level: markers inside
+  a list item end the list, and markers left in two different HTML elements share their content.
+- **On GitHub** the comments are invisible, so both views show. Start a block with a bold label alone on its line
+  (`**Phone:**`) so GitHub readers see which is which; in the app that label gets `.manual-device__label` and is hidden
+  once the switch is active.
+- **In the app** each block becomes `div.manual-device.manual-device--desktop|phone[data-nowo-manual-device]`, its
+  content converted and sanitised like the rest of the chapter. A chapter that has device content shows a
+  **Desktop / Phone** switch under its title (none on the others): a labelled group of two buttons with
+  `aria-pressed`, operable with the keyboard, labels from the bundle catalogue (`devices.label`, `devices.desktop`,
+  `devices.phone`). The first view is the one a search hit asks for, else the reader's last choice (`localStorage`,
+  key `nowo-manual-device`; a blocked storage is ignored), else the viewport (phone below
+  [`breakpoint`](CONFIGURATION.md#device_views)). Switching needs no reload. "On this page" lists the sections of the
+  view shown, and the lightbox walks its images only. The switch is `js/manual-devices.js` (external, deferred, no
+  inline script or style: CSP-safe) and the styles use the UiKit tokens (`--nowo-ui-*`) with the manual's own as
+  fallbacks. Without JavaScript both views show with their labels.
+- **Phone screenshots** without a block: when `images/x.webp` has a companion `images/x.phone.webp`
+  ([`image_suffix`](CONFIGURATION.md#device_views)), the figure becomes two — `x.webp` for the desktop view,
+  `x.phone.webp` (its own size and orientation) for the phone one. Inside a phone block the companion simply replaces
+  the image; inside a desktop block it is not used. The companion is looked up by name in the manual's `images/`
+  directory only (never through a symbolic link out of it) and is served by the image route like any image a chapter
+  shows.
+- **Search** indexes the sections of both views; a hit inside a device block links to `?device=<view>#section`, and the
+  page opens that view (`device` is checked against the allow-list on the server and in the script; anything else is
+  ignored). Shared sections link as before.
+- **Translations** treat device blocks like any other content: `nowo:manual:stamp` hashes the whole file (markers
+  included) and `nowo:manual:translate` keeps the markers and translates the blocks' text.
+
 ## Figures
 
 An image alone in its paragraph becomes a figure:
@@ -268,7 +323,8 @@ An image alone in its paragraph becomes a figure:
 - several images in one paragraph become a `.manual-gallery`, side by side;
 - the image is wrapped in `a.manual-zoom` (opens the file; the lightbox takes over when it is registered).
 
-An image inside a sentence stays inline. Remote images (`https://…`) stay remote.
+An image inside a sentence stays inline. Remote images (`https://…`) stay remote. 1.12: with device views on, an image
+with a phone companion (`x.phone.webp`) gets a phone twin ([Desktop and phone views](#desktop-and-phone-views)).
 
 ## Translations
 

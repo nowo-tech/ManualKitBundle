@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Nowo\ManualKitBundle\DependencyInjection;
 
 use InvalidArgumentException;
+use Nowo\ManualKitBundle\Render\DeviceViews;
 use Symfony\Component\Config\Definition\Builder\TreeBuilder;
 use Symfony\Component\Config\Definition\ConfigurationInterface;
 
@@ -127,6 +128,30 @@ final class Configuration implements ConfigurationInterface
                     ->normalizeKeys(false)
                     ->scalarPrototype()->end()
                     ->defaultValue([])
+                ->end()
+                ->arrayNode('device_views')
+                    ->info('1.12: desktop / phone views of a chapter: <!-- device: phone|desktop --> blocks, the Desktop / Phone switch and phone companion images. Off (default): the 1.11 rendering, byte for byte.')
+                    ->addDefaultsIfNotSet()
+                    ->children()
+                        ->booleanNode('enabled')
+                            ->info('Turn the device blocks, the switch and the phone companions on.')
+                            ->defaultFalse()
+                        ->end()
+                        ->integerNode('breakpoint')
+                            ->info('Viewport width in CSS px below which the phone view is the default (until the reader chooses).')
+                            ->defaultValue(DeviceViews::DEFAULT_BREAKPOINT)
+                            ->min(240)
+                            ->max(4096)
+                        ->end()
+                        ->scalarNode('image_suffix')
+                            ->info('Inserted before the extension to find the phone companion of an image: images/x.webp → images/x.phone.webp.')
+                            ->defaultValue(DeviceViews::DEFAULT_IMAGE_SUFFIX)
+                            ->validate()
+                                ->ifTrue(static fn (mixed $suffix): bool => !is_string($suffix) || preg_match(DeviceViews::IMAGE_SUFFIX_PATTERN, $suffix) !== 1)
+                                ->thenInvalid('"nowo_manual_kit.device_views.image_suffix" must be one of "." "_" "-" followed by 1 to 32 letters, digits, "_" or "-" (e.g. ".phone"), got %s.')
+                            ->end()
+                        ->end()
+                    ->end()
                 ->end()
                 ->booleanNode('standalone_lightbox')
                     ->info('The default chapter template loads the self-contained lightbox script (js/manual-lightbox.js) — for applications that do not register the Stimulus peer in their own build.')

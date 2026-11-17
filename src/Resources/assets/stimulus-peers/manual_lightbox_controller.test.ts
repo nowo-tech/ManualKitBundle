@@ -120,4 +120,32 @@ describe('manual lightbox controller', () => {
     expect(dialog.hasAttribute('data-manual-closing')).toBe(false);
     style.mockRestore();
   });
+
+  it('1.12: walks only the images of the view shown', async () => {
+    application.stop();
+    document.body.innerHTML = `
+      <article data-controller="manual-lightbox" data-manual-lightbox-zoom-label-value="Enlarge" data-action="click->manual-lightbox#zoom" data-nowo-manual-device-active="phone">
+        <figure><a class="manual-zoom" href="/manual/images/shared.webp"><img src="/manual/images/shared.webp" alt="Shared"></a></figure>
+        <figure data-nowo-manual-device="desktop"><a class="manual-zoom" href="/manual/images/x.webp"><img src="/manual/images/x.webp" alt="Desktop"></a></figure>
+        <figure data-nowo-manual-device="phone"><a class="manual-zoom" href="/manual/images/x.phone.webp"><img src="/manual/images/x.phone.webp" alt="Phone"></a></figure>
+        <dialog data-manual-lightbox-target="dialog">
+          <button type="button" data-manual-lightbox-target="previous">‹</button>
+          <img data-manual-lightbox-target="image" alt="">
+          <p data-manual-lightbox-target="caption"></p>
+          <button type="button" data-manual-lightbox-target="next" data-action="manual-lightbox#next">›</button>
+        </dialog>
+      </article>
+    `;
+    application = Application.start();
+    application.register('manual-lightbox', ManualLightboxController);
+    await Promise.resolve();
+
+    (document.querySelector('img[alt="Shared"]') as HTMLImageElement).click();
+    const image = document.querySelector('[data-manual-lightbox-target="image"]') as HTMLImageElement;
+    const next = document.querySelector('[data-manual-lightbox-target="next"]') as HTMLButtonElement;
+    expect(next.hidden).toBe(false);
+    next.click();
+    expect(image.alt).toBe('Phone');
+    expect(next.hidden).toBe(true);
+  });
 });

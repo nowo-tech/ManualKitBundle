@@ -54,6 +54,9 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | `Render/ManualRenderer.php` | Markdown rendering, sanitising, cache, tree links | FR-RENDER-001, FR-TREE-005 |
 | `Render/ManualRendererInterface.php` | Renderer port (1.10) | FR-PORT-001 |
 | `Render/LinkContext.php` | Link rewriting context (internal) | FR-TREE-005 |
+| `Render/CommentBlocks.php` | `<!-- name: value -->` block parser shared by audience and device blocks (1.12) | FR-RENDER-001, FR-DEVICE-001 |
+| `Render/DeviceBlocks.php` | Device block markers and wrappers (1.12) | FR-DEVICE-001 |
+| `Render/DeviceViews.php` | `device_views` configuration, device allow-list, companion names (1.12) | FR-DEVICE-001, FR-DEVICE-003 |
 | `Model/ManualChapter.php` | Chapter value object, place in the tree | FR-MODEL-001, FR-TREE-001 |
 | `Model/RenderedManualChapter.php` | Rendered chapter value object | FR-MODEL-001 |
 | `Model/TranslationState.php` | Translation state enum | FR-MODEL-001 |
@@ -94,12 +97,15 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | `Resources/assets/stimulus-peers/motion.ts` | Closing animation helper | FR-ASSET-004 |
 | `Resources/assets/src/register-lightbox.ts` | Standalone registration | FR-ASSET-003 |
 | `Resources/assets/src/manual-lightbox.ts` | Standalone Vite entry | FR-ASSET-003 |
+| `Resources/assets/src/device-views.ts` | Desktop / Phone switch (1.12) | FR-DEVICE-002 |
+| `Resources/assets/src/manual-devices.ts` | Standalone Vite entry of the switch (1.12) | FR-DEVICE-002 |
 
 ## Build outputs
 
 | Output file | Built from | Requirement IDs |
 | --- | --- | --- |
 | `Resources/public/js/manual-lightbox.js` | `Resources/assets/src/manual-lightbox.ts` (`vite.config.ts`, `pnpm run build`) | FR-BUILD-001 |
+| `Resources/public/js/manual-devices.js` | `Resources/assets/src/manual-devices.ts` (`vite.devices.config.ts`, `pnpm run build`) | FR-BUILD-001, FR-DEVICE-002 |
 
 ## Translations
 
@@ -121,13 +127,13 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | Catalog | 3 |
 | CLI | 3 |
 | HTTP & security | 8 |
-| Rendering & model | 6 |
+| Rendering & model | 9 |
 | Search | 2 |
 | Twig | 5 |
 | Machine translation | 5 |
-| Frontend assets | 5 |
-| Build outputs | 1 |
+| Frontend assets | 7 |
+| Build outputs | 2 |
 | Translations | 7 |
-| **Total** | **51** |
+| **Total** | **57** |
 
 Audit: `find src -type f -not -name '*.test.ts' | wc -l` → **42** (excluded: 2 `*.test.ts`).

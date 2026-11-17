@@ -1,0 +1,4 @@
+chapters:
+  - { slug: README }
+  - { slug: 01-tasks, group: using, tags: [board] }
+  - { slug: 02-plain, group: using }

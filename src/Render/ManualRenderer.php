@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Render;
 
+use ArrayObject;
 use Dom\Element;
 use Dom\HTMLDocument;
 use League\CommonMark\Environment\Environment;
@@ -29,10 +30,14 @@ use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
 use function array_key_exists;
+use function bin2hex;
 use function count;
 use function implode;
 use function in_array;
 use function is_array;
+use function is_file;
+use function random_bytes;
+use function realpath;
 use function str_starts_with;
 use function strlen;
 use function substr;
@@ -52,6 +57,10 @@ use const PREG_SET_ORDER;
  * Stable anchors: `<a id="summary"></a>` right before a heading (its own line, then a blank line) or inside it gives
  * the heading that id in every language, so the app's links survive translated titles; GitHub honours the same anchor.
  *
+ * 1.12 ({@see DeviceViews}, off by default): `<!-- device: phone|desktop -->` blocks become `div.manual-device`
+ * wrappers, an image with a phone companion (`x.phone.webp`) gets a phone twin, and the TOC entries of a device block
+ * carry its `device`. Disabled, the output is the 1.11 one byte for byte.
+ *
  * Cached per chapter, audience, locale and file version.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
@@ -60,24 +69,30 @@ use const PREG_SET_ORDER;
 final readonly class ManualRenderer implements ManualRendererInterface
 {
     /** `<!-- audience: admin -->…<!-- /audience -->` (administrators only) or `audience: github` (repository readers only). */
-    private const string AUDIENCE_BLOCK = '/<!--\s*audience:\s*([a-z]+)\s*-->(.*?)<!--\s*\/audience\s*-->/si';
-    /** Any `audience` comment still there after the balanced blocks went: an unclosed or malformed marker. */
-    private const string STRAY_AUDIENCE_MARKER = '/<!--\s*\/?\s*audience.*?-->/si';
+    private const string AUDIENCE = 'audience';
 
-    /** Bumped when the rendered markup changes, so cached chapters are rebuilt. */
-    private const string VERSION = '2';
+    /** Bumped when the rendered markup or the cached object changes, so cached chapters are rebuilt. */
+    private const string VERSION = '3';
+
+    /** A file of the shared images directory (the `nowo_manual_image` route requirement). */
+    private const string IMAGE_FILE = '/^[A-Za-z0-9][A-Za-z0-9._-]*\.(?:webp|png|jpe?g|gif|svg)\z/i';
+
+    /** 1.12: set on a phone companion until the figures are built (never in the output). */
+    private const string COMPANION = 'data-nowo-manual-companion';
 
     /** Taller than wide: a phone screenshot. */
     public const string PORTRAIT = 'manual-img--portrait';
 
     /**
-     * Receives the catalog, router and cache used to render chapters, plus the external docs URL.
+     * Receives the catalog, router and cache used to render chapters, plus the external docs URL and (1.12) the
+     * desktop / phone views configuration.
      */
     public function __construct(
         private ManualCatalogInterface $catalog,
         private UrlGeneratorInterface $urls,
         private CacheInterface $cache,
         private string $docsUrl = '',
+        private DeviceViews $devices = new DeviceViews(),
     ) {
     }
 
@@ -98,6 +113,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
             (string) filesize($chapter->path),
             is_file($manifest) ? (string) filemtime($manifest) : 'no-manifest',
             $this->urls->getContext()->getBaseUrl(),
+            $this->devices->enabled ? 'devices' . $this->devices->imageSuffix : 'no-devices',
         ]));
 
         // @igor-ignore - the cache calls the closure synchronously; nothing outlives this call
@@ -117,13 +133,9 @@ final readonly class ManualRenderer implements ManualRendererInterface
      */
     public static function audienceFiltered(string $markdown, bool $admin): string
     {
-        $filtered = (string) preg_replace_callback(
-            self::AUDIENCE_BLOCK,
-            static fn (array $block): string => strtolower($block[1]) === 'admin' && $admin ? $block[2] : '',
-            $markdown,
-        );
-        $stray = preg_split(self::STRAY_AUDIENCE_MARKER, $filtered);
-        if ($stray === false || count($stray) === 1) {
+        $filtered = CommentBlocks::replace($markdown, self::AUDIENCE, static fn (string $audience, string $content): string => $audience === 'admin' && $admin ? $content : '');
+        $stray    = CommentBlocks::splitAtMarkers($filtered, self::AUDIENCE);
+        if (count($stray) === 1) {
             return $filtered;
         }
 
@@ -167,24 +179,34 @@ final readonly class ManualRenderer implements ManualRendererInterface
         $environment->addExtension(new GithubFlavoredMarkdownExtension());
         $environment->addExtension(new HeadingPermalinkExtension());
         $environment->addExtension(new AttributesExtension());
-        $environment->addEventListener(DocumentParsedEvent::class, function (DocumentParsedEvent $event) use ($visible, $chapter, $chapters, $files): void {
-            $this->rewrite($event, new LinkContext($visible, $chapters, $files, $chapter));
+        /** @var ArrayObject<string, string> $images 1.12: the `src` of each manual image → its file */
+        $images = new ArrayObject();
+        $environment->addEventListener(DocumentParsedEvent::class, function (DocumentParsedEvent $event) use ($visible, $chapter, $chapters, $files, $images): void {
+            $this->rewrite($event, new LinkContext($visible, $chapters, $files, $chapter), $images);
         }, -10);
 
         $markdown = self::audienceFiltered((string) file_get_contents($chapter->path), $admin);
         // The chapter title is the page heading: drop the Markdown's own `# Title` line (after a translation marker).
         $markdown = (string) preg_replace('/\A(?:\s*<!--[^\n]*-->\s*\n)*# [^\n]*\n/', '', $markdown);
-        $html     = $this->document($this->sanitizer()->sanitize((string) new MarkdownConverter($environment)->convert($markdown)));
+        // 1.12: a random token per rendering marks the device blocks (chapter text cannot forge a wrapper).
+        $token = $this->devices->enabled ? 'nowomanualdevice' . bin2hex(random_bytes(12)) . 'x' : null;
+        if ($token !== null) {
+            $markdown = DeviceBlocks::mark($markdown, $token);
+        }
+        [$html, $devices, $views] = $this->document($this->sanitizer()->sanitize((string) new MarkdownConverter($environment)->convert($markdown)), $token, $images);
 
-        return new RenderedManualChapter($chapter, $html, $this->toc($html, $this->sectionTags($markdown), $chapter->tocDepth));
+        return new RenderedManualChapter($chapter, $html, $this->toc($html, $this->sectionTags($markdown), $chapter->tocDepth, $devices), $views);
     }
 
-    private function rewrite(DocumentParsedEvent $event, LinkContext $context): void
+    /**
+     * @param ArrayObject<string, string> $images
+     */
+    private function rewrite(DocumentParsedEvent $event, LinkContext $context, ArrayObject $images): void
     {
         // Collected first: unlinking detaches nodes, which would break a live walk.
         foreach (iterator_to_array($event->getDocument()->iterator(), false) as $node) {
             if ($node instanceof Image) {
-                $this->image($node);
+                $this->image($node, $images);
 
                 continue;
             }
@@ -194,13 +216,17 @@ final readonly class ManualRenderer implements ManualRendererInterface
         }
     }
 
-    private function image(Image $node): void
+    /**
+     * @param ArrayObject<string, string> $images
+     */
+    private function image(Image $node, ArrayObject $images): void
     {
         $file = $this->imageFile($node->getUrl());
         if ($file !== null) {
-            $node->setUrl($this->urls->generate('nowo_manual_image', ['file' => $file]));
-            // A vector image has no intrinsic size to reserve (PHP 8.5 getimagesize() reads SVG too).
-            $size = str_ends_with(strtolower($file), '.svg') ? false : @getimagesize($this->catalog->directory() . '/images/' . $file);
+            $src = $this->urls->generate('nowo_manual_image', ['file' => $file]);
+            $node->setUrl($src);
+            $images[$src] = $file;
+            $size         = $this->imageSize($file);
             if (is_array($size)) {
                 $node->data->set('attributes/width', (string) $size[0]);
                 $node->data->set('attributes/height', (string) $size[1]);
@@ -292,31 +318,136 @@ final readonly class ManualRenderer implements ManualRendererInterface
     }
 
     /**
-     * DOM pass on the sanitised HTML: stable heading anchors, then figures for paragraphs made only of images.
+     * A file's width and height, or false (a vector image has no intrinsic size to reserve; PHP 8.5 getimagesize()
+     * reads SVG too).
+     *
+     * @return array{0: int, 1: int}|false
      */
-    private function document(string $html): string
+    private function imageSize(string $file): array|false
     {
-        if (!str_contains($html, '<img') && !str_contains($html, '<a id=')) {
-            return $html;
+        $size = str_ends_with(strtolower($file), '.svg') ? false : @getimagesize($this->catalog->directory() . '/images/' . $file);
+
+        return is_array($size) ? [$size[0], $size[1]] : false;
+    }
+
+    /**
+     * DOM pass on the sanitised HTML: stable heading anchors, (1.12) device wrappers and phone companions, then
+     * figures for paragraphs made only of images.
+     *
+     * @param ArrayObject<string, string> $images
+     *
+     * @return array{0: string, 1: array<string, string>|null, 2: bool} the HTML; with device views on, the device of
+     *                                                                  each heading id inside a device block; whether
+     *                                                                  the chapter has device content
+     */
+    private function document(string $html, ?string $token, ArrayObject $images): array
+    {
+        if ($token === null && !str_contains($html, '<img') && !str_contains($html, '<a id=')) {
+            return [$html, null, false];
         }
         $document = HTMLDocument::createFromString('<!DOCTYPE html><html><body>' . $html . '</body></html>', LIBXML_NOERROR);
         $body     = $document->body ?? throw new LogicException('The HTML parser always builds a body.');
         $this->stableAnchors($body);
+        $devices = null;
+        $views   = false;
+        if ($token !== null) {
+            $devices = DeviceBlocks::wrap($body, $token);
+            $this->companions($body, $images);
+            $views = $body->querySelector('[' . DeviceBlocks::ATTRIBUTE . ']') instanceof Element;
+        }
         foreach (iterator_to_array($body->querySelectorAll('p')) as $paragraph) {
-            $images = [];
+            $found = [];
             foreach ($paragraph->childNodes as $child) {
                 if ($child instanceof Element && $child->tagName === 'IMG') {
-                    $images[] = $child;
+                    $found[] = $child;
                 } elseif (trim((string) $child->textContent) !== '' || $child instanceof Element) {
                     continue 2;
                 }
             }
-            if ($images !== []) {
-                $paragraph->replaceWith(count($images) === 1 ? $this->figure($document, $images[0]) : $this->gallery($document, $images));
+            if ($found !== []) {
+                // 1.12: a phone companion takes the place of its desktop image, never a place of its own.
+                $places = count(array_filter($found, static fn (Element $image): bool => !$image->hasAttribute(self::COMPANION)));
+                $paragraph->replaceWith(...($places === 1 ? array_map(fn (Element $image): Element => $this->figure($document, $image), $found) : [$this->gallery($document, $found)]));
             }
         }
+        foreach (iterator_to_array($body->querySelectorAll('[' . self::COMPANION . ']')) as $companion) {
+            $companion->removeAttribute(self::COMPANION);
+        }
 
-        return $body->innerHTML;
+        return [$body->innerHTML, $devices, $views];
+    }
+
+    /**
+     * 1.12: a manual image with a phone companion (`x.phone.webp` next to `x.webp`): in a phone block the companion
+     * replaces it; in shared content the image is the desktop view and a twin with the companion the phone one.
+     *
+     * @param ArrayObject<string, string> $images
+     */
+    private function companions(Element $body, ArrayObject $images): void
+    {
+        foreach (iterator_to_array($body->querySelectorAll('img')) as $image) {
+            $file   = $images[(string) $image->getAttribute('src')] ?? null;
+            $device = $image->closest('[' . DeviceBlocks::ATTRIBUTE . ']')?->getAttribute(DeviceBlocks::ATTRIBUTE);
+            $phone  = $file === null || $device === DeviceViews::DESKTOP ? null : $this->companionFile($file);
+            if ($phone === null) {
+                continue;
+            }
+            if ($device === DeviceViews::PHONE) {
+                $this->useImage($image, $phone);
+
+                continue;
+            }
+            $twin = $image->cloneNode(true);
+            if (!$twin instanceof Element) {
+                continue; // @codeCoverageIgnore
+            }
+            $this->useImage($twin, $phone);
+            $twin->setAttribute(self::COMPANION, '');
+            DeviceBlocks::markElement($image, DeviceViews::DESKTOP);
+            DeviceBlocks::markElement($twin, DeviceViews::PHONE);
+            $image->after($twin);
+        }
+    }
+
+    /**
+     * Points an image at another file of the images directory, with that file's size and orientation.
+     */
+    private function useImage(Element $image, string $file): void
+    {
+        $image->setAttribute('src', $this->urls->generate('nowo_manual_image', ['file' => $file]));
+        $classes = array_filter(explode(' ', (string) $image->getAttribute('class')), static fn (string $class): bool => $class !== '' && $class !== self::PORTRAIT);
+        $size    = $this->imageSize($file);
+        if (is_array($size)) {
+            $image->setAttribute('width', (string) $size[0]);
+            $image->setAttribute('height', (string) $size[1]);
+            if ($size[1] > $size[0]) {
+                $classes[] = self::PORTRAIT;
+            }
+        } else {
+            $image->removeAttribute('width');
+            $image->removeAttribute('height');
+        }
+        if ($classes === []) {
+            $image->removeAttribute('class');
+        } else {
+            $image->setAttribute('class', implode(' ', $classes));
+        }
+    }
+
+    /**
+     * 1.12: the phone companion of a manual image when that file exists inside the manual's images directory (never
+     * through a symbolic link out of it), else null.
+     */
+    private function companionFile(string $file): ?string
+    {
+        $name = $this->devices->companion($file);
+        if ($name === null || preg_match(self::IMAGE_FILE, $name) !== 1) {
+            return null;
+        }
+        $directory = realpath($this->catalog->directory() . '/images');
+        $path      = $directory === false ? false : realpath($directory . '/' . $name);
+
+        return $path !== false && is_file($path) && str_starts_with($path, $directory . '/') ? $name : null;
     }
 
     /**
@@ -365,6 +496,12 @@ final readonly class ManualRenderer implements ManualRendererInterface
     {
         $figure = $document->createElement('figure');
         $figure->setAttribute('class', trim('manual-figure' . (str_contains((string) $image->getAttribute('class'), self::PORTRAIT) ? ' manual-figure--portrait' : '')));
+        // 1.12: a desktop / phone image: the whole figure belongs to that view.
+        $device = $image->getAttribute(DeviceBlocks::ATTRIBUTE);
+        if ($device !== null) {
+            $image->removeAttribute(DeviceBlocks::ATTRIBUTE);
+            DeviceBlocks::markElement($figure, $device);
+        }
         $zoom = $document->createElement('a');
         $zoom->setAttribute('class', 'manual-zoom');
         $zoom->setAttribute('href', (string) $image->getAttribute('src'));
@@ -409,10 +546,11 @@ final readonly class ManualRenderer implements ManualRendererInterface
 
     /**
      * @param array<string, list<string>> $sectionTags
+     * @param array<string, string>|null $devices 1.12: the device of the headings inside a device block
      *
-     * @return list<array{level: int, id: string, text: string, tags: list<string>}>
+     * @return list<array{level: int, id: string, text: string, tags: list<string>, device?: string}>
      */
-    private function toc(string $html, array $sectionTags, int $depth = 4): array
+    private function toc(string $html, array $sectionTags, int $depth = 4, ?array $devices = null): array
     {
         preg_match_all('#<h([234])\b[^>]*\bid="([^"]+)"[^>]*>(.*?)</h\1>#s', $html, $matches, PREG_SET_ORDER);
         $toc = [];
@@ -421,7 +559,12 @@ final readonly class ManualRenderer implements ManualRendererInterface
                 continue;
             }
             $text  = trim(html_entity_decode(strip_tags((string) preg_replace('#<a\b[^>]*class="manual-anchor"[^>]*>.*?</a>#s', '', $inner)), ENT_QUOTES | ENT_HTML5));
-            $toc[] = ['level' => (int) $level, 'id' => $id, 'text' => $text, 'tags' => $sectionTags[ManualSearchText::fold($text)] ?? []];
+            $entry = ['level' => (int) $level, 'id' => $id, 'text' => $text, 'tags' => $sectionTags[ManualSearchText::fold($text)] ?? []];
+            if (isset($devices[$id])) {
+                // 1.12: the search opens this view; the chapter page shows the entry with it only.
+                $entry['device'] = $devices[$id];
+            }
+            $toc[] = $entry;
         }
 
         return $toc;
