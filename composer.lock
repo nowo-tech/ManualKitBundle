@@ -4886,16 +4886,16 @@
         },
         {
             "name": "friendsofphp/php-cs-fixer",
-            "version": "v3.95.29",
+            "version": "v3.95.30",
             "source": {
                 "type": "git",
                 "url": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer.git",
-                "reference": "60e424d3e54b15b0174924fb123783aae0de7b0c"
+                "reference": "e85cafc4d861c122839d5409eda3325ac0ec0300"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/PHP-CS-Fixer/PHP-CS-Fixer/zipball/60e424d3e54b15b0174924fb123783aae0de7b0c",
-                "reference": "60e424d3e54b15b0174924fb123783aae0de7b0c",
+                "url": "https://api.github.com/repos/PHP-CS-Fixer/PHP-CS-Fixer/zipball/e85cafc4d861c122839d5409eda3325ac0ec0300",
+                "reference": "e85cafc4d861c122839d5409eda3325ac0ec0300",
                 "shasum": ""
             },
             "require": {
@@ -4978,7 +4978,7 @@
             ],
             "support": {
                 "issues": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/issues",
-                "source": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/tree/v3.95.29"
+                "source": "https://github.com/PHP-CS-Fixer/PHP-CS-Fixer/tree/v3.95.30"
             },
             "funding": [
                 {
@@ -4986,7 +4986,8 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-11-06T16:25:42+00:00"
+            "time": "2026-11-09T14:32:19+00:00",
+            "published-time": "2026-11-09T14:32:30+00:00"
         },
         {
             "name": "igor-php/igor-php",
@@ -5361,16 +5362,16 @@
         },
         {
             "name": "nowo-tech/search-kit-bundle",
-            "version": "v1.6.0",
+            "version": "v1.7.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/nowo-tech/SearchKitBundle.git",
-                "reference": "556743c0dcadbf9a5c6a1654456f3e8ab62389f0"
+                "reference": "24fdaaa45d6421d9dfdc7877da040a94a5a9a21b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/nowo-tech/SearchKitBundle/zipball/556743c0dcadbf9a5c6a1654456f3e8ab62389f0",
-                "reference": "556743c0dcadbf9a5c6a1654456f3e8ab62389f0",
+                "url": "https://api.github.com/repos/nowo-tech/SearchKitBundle/zipball/24fdaaa45d6421d9dfdc7877da040a94a5a9a21b",
+                "reference": "24fdaaa45d6421d9dfdc7877da040a94a5a9a21b",
                 "shasum": ""
             },
             "require": {
@@ -5380,6 +5381,7 @@
                 "symfony/asset": "^7.4 || ^8.0",
                 "symfony/config": "^7.4 || ^8.0",
                 "symfony/dependency-injection": "^7.4 || ^8.0",
+                "symfony/deprecation-contracts": "^2.5 || ^3.0",
                 "symfony/form": "^7.4 || ^8.0",
                 "symfony/framework-bundle": "^7.4 || ^8.0",
                 "symfony/http-foundation": "^7.4 || ^8.0",
@@ -5409,7 +5411,7 @@
                 "symfony/css-selector": "^7.4 || ^8.0",
                 "symfony/ux-icons": "^2.25 || ^3.0",
                 "symfony/yaml": "^7.4 || ^8.0",
-                "vincentlanglet/twig-cs-fixer": "^3.0"
+                "vincentlanglet/twig-cs-fixer": "^3.0 || ^4.0"
             },
             "suggest": {
                 "nowo-tech/dashboard-menu-bundle": "Built-in Pages group: menu entries the user can see (menu_pages)",
@@ -5465,7 +5467,8 @@
                 "issues": "https://github.com/nowo-tech/SearchKitBundle/issues",
                 "source": "https://github.com/nowo-tech/SearchKitBundle"
             },
-            "time": "2026-11-07T21:53:56+00:00"
+            "time": "2026-11-11T21:30:22+00:00",
+            "published-time": "2026-11-11T21:35:11+00:00"
         },
         {
             "name": "phar-io/manifest",
@@ -9989,5 +9992,5 @@
     "platform-overrides": {
         "php": "8.4.1"
     },
-    "plugin-api-version": "2.9.0"
+    "plugin-api-version": "2.11.0"
 }
