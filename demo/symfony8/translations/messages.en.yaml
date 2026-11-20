@@ -1,4 +1,8 @@
 demo:
+  nav:
+    home: 'Home'
+    demo: 'Demo'
+    manual: 'Manual'
   title: 'Manual Kit Bundle'
   brand: 'Manual Kit'
   heading: 'Manual Kit Bundle'

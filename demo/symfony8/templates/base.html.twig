@@ -1,43 +1,36 @@
 {#
-  Demo host layout (REQ-DEMO-014): UiKit's admin layout with UiKit's default theme (nowo-ui.css from the bundle's own
-  asset package, no CSS framework, no CDN). It is also the manual's layout (nowo_manual_kit.layout): the bundle's
-  chapter template fills the `title`, `stylesheets` and `body` blocks. Vite only builds the manual's lightbox peer.
+  REQ-DEMO-014: the demo runs inside UiKit's shared demo platform shell (@NowoUiKit/demo_platform/layout.html.twig).
+  This file only declares the demo (nowo_ui_demo_platform). It is also the manual's layout (nowo_manual_kit.layout):
+  the bundle's chapter template fills the `title`, `stylesheets` and `body` blocks. Vite only builds the manual's
+  lightbox peer (no stylesheet).
 #}
-{% extends '@NowoUiKit/layout/admin.html.twig' %}
-
+{% extends '@NowoUiKit/demo_platform/layout.html.twig' %}
+{% set _locale = app.request.locale %}
+{% set nowo_ui_demo_platform = {
+    bundle: 'Manual Kit',
+    home_route: 'homepage',
+    home_params: {_locale: _locale},
+    repository: 'https://github.com/nowo-tech/ManualKitBundle',
+    translation_domain: 'messages',
+    locales: ['en', 'es'],
+    auth: {login_route: 'demo_login', logout_route: 'demo_logout'},
+    nav: app.user
+        ? [
+            {label: 'demo.nav.home', route: 'homepage', params: {_locale: _locale}, section: 'demo.nav.demo'},
+            {label: 'demo.manual', route: 'nowo_manual_index', params: {_locale: _locale}, active: ['nowo_manual_*'], section: 'demo.nav.manual', testid: 'nav-manual'},
+            {label: 'demo.search.nav', route: 'demo_manual_search', params: {_locale: _locale}, section: 'demo.nav.manual', testid: 'nav-search'},
+        ]
+        : [
+            {label: 'demo.nav.home', route: 'homepage', params: {_locale: _locale}, section: 'demo.nav.demo'},
+            {label: 'demo.manual', route: 'nowo_manual_index', params: {_locale: _locale}, active: ['nowo_manual_*'], section: 'demo.nav.manual', testid: 'nav-manual'},
+        ],
+} %}
 {% block nowo_ui_document_title %}{% block title %}{{ 'demo.title'|trans }}{% endblock %}{% endblock %}
 
 {% block nowo_ui_head %}
     {{ vite_entry_link_tags('app') }}
     {% block stylesheets %}{% endblock %}
 {% endblock %}
-
-{% block nowo_ui_navigation %}
-    {% set locale_route = app.request.attributes.get('_route') %}
-    {% set locale_params = app.request.attributes.get('_route_params')|default({}) %}
-    <header class="nowo-ui-header" data-testid="demo-masthead">
-        <a class="nowo-ui-brand" href="{{ path('homepage', { _locale: app.request.locale }) }}">{{ 'demo.brand'|trans }}</a>
-        <nav class="nowo-ui-menu" aria-label="{{ 'demo.brand'|trans }}">
-            <a class="nowo-ui-link" href="{{ path('nowo_manual_index', { _locale: app.request.locale }) }}" data-testid="nav-manual">{{ 'demo.manual'|trans }}</a>
-            {% if app.user %}
-                <a class="nowo-ui-link" href="{{ path('demo_manual_search', { _locale: app.request.locale }) }}" data-testid="nav-search">{{ 'demo.search.nav'|trans }}</a>
-                <a class="nowo-ui-link" href="{{ path('demo_logout') }}">{{ 'demo.logout'|trans }}</a>
-            {% else %}
-                <a class="nowo-ui-link" href="{{ path('demo_login', { _locale: app.request.locale }) }}">{{ 'demo.login.nav'|trans }}</a>
-            {% endif %}
-            {% if locale_route %}
-                <a class="nowo-ui-link" href="{{ path(locale_route, locale_params|merge({ _locale: 'en' })) }}"{% if app.request.locale == 'en' %} aria-current="true"{% endif %}>English</a>
-                <a class="nowo-ui-link" href="{{ path(locale_route, locale_params|merge({ _locale: 'es' })) }}"{% if app.request.locale == 'es' %} aria-current="true"{% endif %}>Español</a>
-            {% endif %}
-        </nav>
-        <div class="nowo-ui-header__end">
-            {% if app.user %}<span class="nowo-ui-muted">{{ app.user.userIdentifier }}</span>{% endif %}
-            {{ include('@NowoUiKitBundle/partials/_theme_toggle.html.twig', { compact: true }, false) }}
-        </div>
-    </header>
-{% endblock %}
-
-{% block nowo_ui_content %}{% block body %}{% endblock %}{% endblock %}
 
 {% block nowo_ui_scripts %}
     {{ parent() }}

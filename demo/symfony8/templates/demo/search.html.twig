@@ -7,21 +7,23 @@
 {% endblock %}
 
 {% block body %}
-    <section class="nowo-ui-card" role="search">
-        <div class="nowo-ui-card__body">{{ include('demo/_form.html.twig', { form: search_form }) }}</div>
-    </section>
+    {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'demo.search.nav'|trans, kind: 'form', search_form: search_form} %}
+        {% block section_body %}
+            <div role="search">{{ include('demo/_form.html.twig', { form: search_form }) }}</div>
+        {% endblock %}
+    {% endembed %}
     {% if q is not empty %}
-        {% if items is empty %}
-            <p data-testid="manual-search-empty">{{ 'demo.search.empty'|trans }}</p>
-        {% else %}
-            <ul class="nowo-ui-list" data-testid="manual-search-results">
-                {% for item in items %}
-                    <li class="nowo-ui-list-item">
-                        <a class="nowo-ui-link" href="{{ item.url }}" data-testid="manual-search-result">{{ item.title }}</a>
-                        <div class="nowo-ui-muted">{{ item.subtitle }}</div>
-                    </li>
-                {% endfor %}
-            </ul>
-        {% endif %}
+        {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'demo.search.title'|trans, kind: 'list', empty: items is empty, state_message: 'demo.search.empty'|trans, testid: items is empty ? 'manual-search-empty' : null, items: items} %}
+            {% block section_body %}
+                <ul class="nowo-ui-list" data-testid="manual-search-results">
+                    {% for item in items %}
+                        <li class="nowo-ui-list-item">
+                            <a class="nowo-ui-link" href="{{ item.url }}" data-testid="manual-search-result">{{ item.title }}</a>
+                            <div class="nowo-ui-muted">{{ item.subtitle }}</div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endblock %}
+        {% endembed %}
     {% endif %}
 {% endblock %}

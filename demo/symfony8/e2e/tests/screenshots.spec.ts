@@ -14,6 +14,16 @@ test.beforeAll(() => {
 test.use({ viewport: { width: 1280, height: 800 } });
 
 test.beforeEach(async ({ page }) => {
+  // The Symfony debug toolbar is not part of the demo platform: hide it on every page of the capture.
+  await page.addInitScript(() => {
+    const hide = () => {
+      const style = document.createElement('style');
+      style.textContent = '.sf-toolbar,.sf-minitoolbar,[id^="sfwdt"]{display:none!important}';
+      document.head.appendChild(style);
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hide);
+    else hide();
+  });
   await page.goto('/en/login');
   await page.getByLabel('Username').fill('admin');
   await page.getByLabel('Password').fill('admin');
