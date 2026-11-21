@@ -9,7 +9,11 @@ nowo_manual_kit:
     source_locale: en
     locales: []                 # [] = framework.enabled_locales
     role: ROLE_USER
-    admin_role: ROLE_ADMIN
+    admin_role: ~               # ROLE_ADMIN when unset; 1.13: an alias of audiences.admin
+    audiences: {}               # 1.13: named audiences, name => role or security attribute
+    default_audience: member    # 1.13: the audience of a chapter that names none
+    default_firewalls: []       # 1.13: firewalls the default root is served in ([] = any firewall no root lists)
+    roots: {}                   # 1.13: other manual roots (e.g. a customer portal) from the same manifest
     docs_url: ''
     in_app: true
     template: '@NowoManualKitBundle/chapter.html.twig'
@@ -35,6 +39,8 @@ nowo_manual_kit:
 ```
 
 The tree is strict (REQ-SF-006): unknown keys, empty `directory` / `template` / `layout` / `cache` / `admin_role`,
+1.13 audiences and roots that do not fit together (see [audiences](#audiences)), an audience the manifest or a chapter
+block names but the configuration does not,
 malformed locales, a `docs_url` or `machine_translation.url` that is not an absolute `http(s)` URL, a `deepl` provider
 without `api_key`, a `libretranslate` provider without `url`, a `service` provider without `service` and timeouts below one second stop the container compile
 with the offending path and the allowed values, for example:
@@ -51,6 +57,10 @@ required when "provider" is "libretranslate" (e.g. http://libretranslate:5000).
 - [locales](#locales)
 - [role](#role)
 - [admin_role](#admin_role)
+- [audiences](#audiences)
+- [default_audience](#default_audience)
+- [default_firewalls](#default_firewalls)
+- [roots](#roots)
 - [docs_url](#docs_url)
 - [in_app](#in_app)
 - [template](#template)
@@ -92,6 +102,112 @@ it get a 401 / 403 from the firewall (with `form_login`, the sign-in page).
 Readers of `audience: admin` chapters and `<!-- audience: admin -->` blocks (default `ROLE_ADMIN`). Everyone else gets
 a 404 on those chapters, and their links read as plain text.
 
+1.13: `admin_role` is an alias of [`audiences.admin`](#audiences). Set either one. Neither silently wins: when both are
+set to different values, the container build fails with `"nowo_manual_kit.admin_role" (…) and
+"nowo_manual_kit.audiences.admin" (…) disagree`; the same value twice is accepted. The `%nowo_manual_kit.admin_role%`
+parameter always holds the value in force.
+
+## audiences
+
+1.13: named audiences, `name: role or security attribute`. Each one is checked with `isGranted()`, so voters and the
+role hierarchy apply.
+
+```yaml
+nowo_manual_kit:
+    role: ROLE_USER
+    audiences:
+        user: ROLE_USER             # members
+        admin: ROLE_ORG_ADMIN       # replaces admin_role (ROLE_ADMIN by default)
+        developer: ROLE_DEVELOPER
+        customer: ROLE_CRM_CONTACT  # served by the `portal` root below
+    default_audience: user
+    roots:
+        portal:
+            audiences: [customer]
+            role: ROLE_CRM_CONTACT
+            home: portal-home
+            firewalls: [portal]
+```
+
+A manifest row names its readers with `audience: developer` (several: `audience: admin, developer` or a YAML list), and
+a chapter block with `<!-- audience: developer -->` or `<!-- audience: admin, developer -->`. A reader sees a chapter or
+block when they hold **at least one** of its audiences ([USAGE](USAGE.md#audiences)).
+
+Two names are built in:
+
+| Name | Who |
+| --- | --- |
+| `member` | Every reader of the default root (whoever passes `role`): the default audience before 1.13. Cannot be redefined. |
+| `admin` | `audiences.admin`, or `admin_role` (default `ROLE_ADMIN`). |
+
+`github` is reserved: `<!-- audience: github -->` blocks are for repository readers and never reach the app.
+
+A name is 1 to 32 lower-case letters, digits or `_`, starting with a letter. Block markers are read in any case
+(`<!-- audience: Admin -->`); manifest names must be written as configured.
+
+**Deny by default, loudly.** An audience the manifest (`audience:` of a row) or a chapter block (any Markdown file of the
+manual, translations included, and the chapters the manifest takes from outside it) names but the configuration does
+not, or an `audience:` value that is not a name or a list of names, stops the container build:
+
+```text
+Unknown manual audiences (configure them in nowo_manual_kit.audiences): manifest.yaml: "dev" names the unknown
+audience "developer". using.md: a block names the unknown audience "developer".
+```
+
+The Markdown files are tracked, so a debug container is rebuilt when a chapter changes. A `directory` built from an env
+var cannot be read while the container is built: the same check then runs at `cache:warmup` (not an optional warmer).
+If neither ran, the chapter or block is still shown to nobody, and `nowo:manual:check` reports the chapter.
+
+## default_audience
+
+1.13: the audience of a chapter whose manifest row has no `audience` (default `member`: every reader). It must be
+`member` or an audience of the default root (not one a [root](#roots) takes).
+
+## default_firewalls
+
+1.13: the firewalls the default root (`role`, the routes of `routes.php`) is served in. `[]` (default): any firewall no
+[root](#roots) lists. Pinned, the default root answers 404 in every other firewall — so a staff manual imported by
+mistake under a portal path, or reached from a firewall whose users come from another provider, serves nothing — and
+the SearchKit group and `manual_href()` of an unlisted firewall find no root. A firewall listed here cannot be listed by
+a root.
+
+## roots
+
+1.13: other manual roots served from the same manifest — for example a customer portal under its own path and firewall
+that serves only `customer` chapters. Each root takes its `audiences` out of the default root; the default root keeps
+`member` and every audience no root lists.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `audiences` | — (required) | The audiences this root serves (at least one; never `member`). |
+| `role` | — (required) | Role or security attribute needed to open the root at all. Others get the firewall's 401 / 403. `''` lets every visitor of its firewall in, but an anonymous visitor holds no audience (each one is an `isGranted()` check), so every chapter is a 404 to them unless an audience maps to `PUBLIC_ACCESS` (`audiences: { visitor: PUBLIC_ACCESS }`). |
+| `home` | `README` | Slug of the chapter the root's index serves (its own page is then a 404, like `README` in the default root). |
+| `firewalls` | — (required) | Firewalls the root is served in (at least one). The root is a 404 anywhere else; a firewall a root lists serves no other root; the SearchKit group and `manual_href()` of that firewall use this root. |
+
+A root name is 1 to 32 lower-case letters, digits or `_` (`default` is the root of `role`); a firewall serves one root.
+With roots configured, the renderer behind `ManualRendererInterface` must implement
+`ReaderAwareManualRendererInterface` (the bundle's does); the container build fails otherwise.
+Import the routes of a root with the `nowo_manual` route type, the resource being the root name:
+
+```yaml
+# config/routes/nowo_manual_kit.yaml
+nowo_manual_kit:
+    resource: '@NowoManualKitBundle/Resources/config/routes.php'
+    prefix: /manual
+
+nowo_manual_portal:
+    resource: portal
+    type: nowo_manual
+    prefix: /portal/help
+    trailing_slash_on_root: false
+```
+
+The routes of a root are named `nowo_manual.<root>.<route>` (`nowo_manual.portal.index`, `nowo_manual.portal.chapter`,
+`nowo_manual.portal.image`, …) and carry the root as a route default a URL cannot change. A chapter belongs to a root
+when every level of it (its parents and itself) names an audience of the root, so chapters never cross roots: no route,
+link, image, previous / next entry or search result of one root points at a chapter of another, unless the chapter's
+manifest row names an audience of both (`audience: [user, customer]`).
+
 ## docs_url
 
 Base URL of the published documentation, e.g. `https://github.com/acme/app/blob/main/docs/` (empty, or an absolute
@@ -107,8 +223,9 @@ applications that ship the manual on GitHub only.
 ## template
 
 Twig template of a chapter page. Variables: `rendered` (`RenderedManualChapter`: `chapter`, `html`, `toc`), `chapters`
-(the chapters the viewer may read, in the request locale), `previous`, `next`, `ancestors`, `children` and `groups`
-(1.8). Point it at one of your templates for a fully custom page, or at a template that extends
+(the chapters the viewer may read, in the request locale), `previous`, `next`, `ancestors`, `children`, `groups`
+(1.8) and `manual_root` (1.13: the `ManualRoot` of the page). Link chapters with `manual_chapter_path(chapter)` and the
+index with `manual_index_path()` (1.13), never `path('nowo_manual_…')`: both follow the page's root. Point it at one of your templates for a fully custom page, or at a template that extends
 `@NowoManualKitBundle/chapter.html.twig` and fills its blocks (1.8: `manual_nav`, `manual_body`, ...; see
 [TEMPLATES.md](TEMPLATES.md#blocks)).
 
@@ -245,7 +362,8 @@ when the peer is already registered: the figures would get two controllers.
 ## cache
 
 Cache pool service id for rendered chapters (default `cache.app`). Entries are keyed by chapter, locale, translation
-state, audience, file mtime and size, manifest mtime, router base URL and (1.12) the device views settings, and expire
+state, audience (1.13: the root and the sorted audiences the reader holds, plus a hash of the audiences and roots
+configuration), file mtime and size, manifest mtime, router base URL and (1.12) the device views settings, and expire
 after a day. Adding or removing a phone companion image does not change the key: clear the pool when you deploy new
 screenshots, as for any image size change.
 
@@ -297,3 +415,5 @@ copy the package into `framework.assets.packages` unless you override it (CDN, `
 
 Every key is exposed as `nowo_manual_kit.<key>` (e.g. `%nowo_manual_kit.directory%`). 1.11:
 `%nowo_manual_kit.redirects%` holds the merged map (config + manifest file) as written, before chains are collapsed.
+1.13: `%nowo_manual_kit.admin_role%` holds the admin attribute in force and `%nowo_manual_kit.audiences%` the audiences
+with `admin` filled in.

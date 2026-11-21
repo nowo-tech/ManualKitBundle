@@ -17,6 +17,7 @@
 | Catalog | `Catalog` | `ManualCatalog`: reads `manifest.yaml`, resolves a chapter for a locale (source, translated, outdated, missing), titles, neighbours, `sourceHash()`. `TranslationAudit`: states and missing stable anchors per locale, `stamp()` |
 | Rendering | `Render` | `ManualRenderer`: audience filter, CommonMark + GFM, link and image rewriting, sanitiser, DOM pass (stable anchors, figures), toc with section tags, cache |
 | Access | `Security` | `ManualAccess`: `role` (readers) and `admin_role` through the authorisation checker |
+| Audiences | `Audience` | 1.13: `ManualAudiences` (named audiences, default audience, roots; immutable config), `ManualRoot`, `ManualReader` (root + audiences held, built per request), `ManualReaderResolver` (`isGranted()` per audience), `ManualRootResolver` (root of a request: route, firewall), `AudienceManifestValidator` (unknown names fail the build) |
 | HTTP | `Controller` | `ManualController`: index, chapter, `.md` redirect, sandboxed images |
 | Twig | `Twig`, `Resources/views` | `ManualLinkExtension` (`manual_href`, `manual_is_external`, `nowo_manual_layout`, `nowo_manual_asset`, `nowo_manual_asset_package`, `nowo_manual_standalone_lightbox`); `chapter.html.twig`, `layout.html.twig` |
 | Console | `Command` | `nowo:manual:check [--strict]`, `nowo:manual:stamp <locale> <chapter>` |
@@ -27,11 +28,14 @@
 ## Request flow
 
 1. `GET /manual/02-dashboard` → `ManualController::chapter()`.
-2. `ManualAccess::canRead()` or 403 / 401 (through the firewall's entry point).
+2. 1.13: `ManualRootResolver::forRoute()` → the route's root (404 when not served in the request's firewall), then
+   `ManualReaderResolverInterface::reader($root)` → the reader (root + audiences held), or 403 / 401 (through the
+   firewall's entry point) when the user may not open the root (`ManualAccess::canRead()` for the default root).
 3. `ManualCatalog::find('02-dashboard', $request->getLocale())` → the chapter resolved for the locale. Unknown slug,
-   the home slug, or an admin chapter for a member → 404.
-4. `ManualRenderer::render($chapter, $admin)` (cached) and `ManualCatalog::visible()` / `neighbours()` for the sidebar
-   and the pager, then the configured template.
+   the home slug, or a chapter the reader may not see (`ManualAudiences::canSee()`: one held audience on every level;
+   then the host's per-chapter rule) → 404.
+4. `ManualRenderer::renderFor($chapter, $reader)` (cached) and the chapters the reader may open for the sidebar and the
+   pager, then the configured template.
 
 The slug in the URL is only compared with the manifest's slugs; the file path always comes from the catalog. Images
 use `basename()` of a name restricted by the route requirement.
@@ -39,8 +43,8 @@ use `basename()` of a name restricted by the route requirement.
 ## Rendering pipeline
 
 1. Read the resolved file (translation or source).
-2. `audienceFiltered()`: keep `admin` blocks for administrators, drop them for members, always drop `github` blocks;
-   cut at a stray marker for members (fail closed).
+2. `audiencesFiltered()`: keep the blocks naming an audience the reader holds, drop the others, always drop `github`
+   blocks; cut at a stray marker unless the reader holds every audience of the root (fail closed).
 3. Remove the leading `# Title` (after any comment such as the translation marker).
 4. CommonMark (core, GFM, heading permalinks, attributes); on `DocumentParsedEvent`, rewrite links (chapters → routes,
    admin chapters → plain text for members, other docs → `docs_url`) and images (→ the image route, intrinsic size,
@@ -50,8 +54,8 @@ use `basename()` of a name restricted by the route requirement.
    paragraphs become figures or galleries.
 7. Table of contents from `h2` – `h4`, with the `<!-- tags: … -->` under each heading.
 
-The cache key holds the renderer version, slug, locale, translation state, audience, file mtime and size, manifest
-mtime and the router base URL.
+The cache key holds the renderer version, slug, locale, translation state, reader (1.13: root and sorted audiences),
+file mtime and size, manifest mtime and the router base URL.
 
 ## Design rules
 
@@ -70,6 +74,8 @@ mtime and the router base URL.
 | `Render\ManualRendererInterface` | `Render\ManualRenderer` | Renders a chapter to sanitised HTML plus its table of contents. |
 | `Security\ManualAccessInterface` | `Security\ManualAccess` | Who may read and who is admin. |
 | `Security\ManualChapterAccessCheckerInterface` | `Security\AllowAllManualChapterAccessChecker` | Per-chapter rule of the host. |
+| `Audience\ManualReaderResolverInterface` | `Audience\ManualReaderResolver` | 1.13: the reader of a root (its audiences for the current user). |
+| `Render\ReaderAwareManualRendererInterface` | `Render\ManualRenderer` | 1.13: renders a chapter for a reader (root + audiences). |
 | `Translation\MachineTranslatorInterface` | none (`machine_translation.provider`) | Machine translation provider. |
 | `Redirect\ChapterRedirectsInterface` | `Redirect\ChapterRedirectMap` | 1.11: chapters and anchors that moved; compiled at container build from `redirects` + the manifest's `redirects:` file. |
 

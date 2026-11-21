@@ -50,7 +50,7 @@ and firewall, and the content of the manual (written by the host's team, in the 
 | **Device views (1.12)** | Device-block content is chapter Markdown: converted and sanitised like the rest. Blocks are marked with a random token per rendering before conversion and wrapped on the sanitised DOM, so chapter text cannot forge a wrapper; only `desktop` / `phone` reach the markup (any other name is shared content). A phone companion is a file name derived from an already-validated image name plus a validated suffix (no `/`, no `..`) and must `realpath()` to a regular file inside `{directory}/images`. `?device=` is checked against the allow-list on the server (`DeviceViews::isDevice`, arrays ignored) and again in the script; it only selects which view shows. The switch script is an external file (no inline script or style) that never builds HTML from strings; `localStorage` access is wrapped in try/catch. |
 | **Script in SVG images** | Images are served with `X-Content-Type-Options: nosniff` and `Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox`, so an SVG opened directly never runs script in the application's origin; in the page, an SVG is an `<img>` (no script). |
 | **Reverse tabnabbing** | External links get `target="_blank" rel="noopener noreferrer"`. |
-| **Information leaks** | Images are `private`, max-age one day; chapter pages are rendered per audience and the cache key includes the audience, so a member never gets the admin rendering. |
+| **Information leaks** | Images are `private`, max-age one day; chapter pages are rendered per audience and the cache key includes the audience (1.13: the root and every audience the reader holds), so a member never gets the admin rendering. Search is answered per reader at query time (no shared index). |
 | **Injection** | No SQL, no shell, no `eval`, no `unserialize`. The manifest is parsed with `Yaml::parseFile()` (no PHP objects). |
 | **Stalled third-party HTTP / resource exhaustion** | The only outbound HTTP is the machine-translation provider of the `nowo:manual:translate` console command (off by default, `provider: none`). Every request carries an idle `timeout` (30 s) and a hard `max_duration` (120 s), both configurable and validated (≥ 1 s); a timeout fails the chapter with a domain error. Provider URLs must be absolute `http(s)`; no web request ever calls a provider ([CONFIGURATION](CONFIGURATION.md#timeouts), REQ-RUNTIME-001). |
 | **Invalid or unsafe configuration** | The config tree is strict: unknown keys, empty `admin_role` (would show admin content to everybody), malformed locales, non-`http(s)` `docs_url` / provider URLs and missing provider credentials fail the container compile with the path and the allowed values. |
@@ -87,6 +87,8 @@ dependencies current. Security fixes are released as patch versions of the suppo
 | --- | --- |
 | Chapters and images | `role` (default `ROLE_USER`); empty `role` = public manual |
 | `audience: admin` chapters and blocks | `admin_role` (default `ROLE_ADMIN`); 404 / removed for everyone else |
+| 1.13 named-audience chapters and blocks | One held audience (`isGranted()` on its attribute) of the request's root; 404 / removed / plain-text links for everyone else; unknown names fail the build |
+| 1.13 other roots | The root's `role` and `firewalls`; a chapter of another root is a 404, its links plain text, its images and search hits absent |
 | SearchKit "Manual" group | The same rules, in the request locale |
 
 ## Host responsibilities (residual risks)

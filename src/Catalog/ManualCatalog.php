@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Catalog;
 
+use Nowo\ManualKitBundle\Audience\ManualAudiences;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Model\TranslationState;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
 
+use function array_filter;
+use function array_key_exists;
 use function array_map;
 use function array_reverse;
 use function array_unique;
+use function array_values;
 use function basename;
 use function count;
 use function dirname;
@@ -54,6 +58,9 @@ final readonly class ManualCatalog implements ManualCatalogInterface
 {
     public const string MANIFEST = 'manifest.yaml';
 
+    /** 1.13: the audience of a chapter whose manifest `audience` is malformed: no reader holds it. */
+    private const string NOBODY = '-';
+
     /** A chapter slug (also a URL segment and a file name). */
     public const string SLUG = '/^[A-Za-z0-9-]+\z/';
 
@@ -62,11 +69,13 @@ final readonly class ManualCatalog implements ManualCatalogInterface
 
     /**
      * @param list<string> $locales the locales a translation may exist for (the source locale included or not)
+     * @param ManualAudiences $audiences 1.13: the audience names a manifest row may use and the default audience
      */
     public function __construct(
         private string $directory,
         private string $sourceLocale = 'en',
         private array $locales = [],
+        private ManualAudiences $audiences = new ManualAudiences(),
     ) {
     }
 
@@ -130,7 +139,7 @@ final readonly class ManualCatalog implements ManualCatalogInterface
         }
         $rows = is_array($manifest) && is_array($manifest['chapters'] ?? null) ? $manifest['chapters'] : [];
 
-        /** @var array<string, array{row: array<mixed>, external: string|null, parent: string|null, audience: mixed}> $entries */
+        /** @var array<string, array{row: array<mixed>, external: string|null, parent: string|null, audience: list<string>}> $entries */
         $entries  = [];
         $problems = [];
         foreach ($rows as $index => $row) {
@@ -152,12 +161,7 @@ final readonly class ManualCatalog implements ManualCatalogInterface
 
                     continue;
                 }
-                // audience is "member" (default) or "admin"; anything else (a typo) is treated as admin — fail closed.
-                $audience = $row['audience'] ?? 'member';
-                if ($audience !== 'member' && $audience !== 'admin') {
-                    $problems[] = sprintf('%s: chapter "%s" has an unknown audience %s (use member or admin); it is shown to admins only.', self::MANIFEST, $slug, json_encode($audience));
-                }
-                $entries[$slug] = ['row' => $row, 'external' => $external, 'parent' => $parent, 'audience' => $audience];
+                $entries[$slug] = ['row' => $row, 'external' => $external, 'parent' => $parent, 'audience' => $this->audienceOf($slug, $row, $problems)];
             }
         }
 
@@ -206,10 +210,13 @@ final readonly class ManualCatalog implements ManualCatalogInterface
                 }
             }
             $top = $ancestors === [] ? $row : $nodes[$ancestors[0]][0]['row'];
-            // A child inherits its parent's audience and group and may only narrow the audience.
+            // A child inherits its parent's audience and group and may only narrow the audience: a reader needs one
+            // audience of every level (1.13). `adminOnly` (1.12): some level is not for every member.
+            $levels    = [];
             $adminOnly = false;
             foreach ([...$ancestors, $slug] as $own) {
-                $adminOnly = $adminOnly || $nodes[$own][0]['audience'] !== 'member';
+                $levels[]  = $nodes[$own][0]['audience'];
+                $adminOnly = $adminOnly || !in_array(ManualAudiences::MEMBER, $nodes[$own][0]['audience'], true);
             }
             if ($ancestors !== [] && is_string($row['group'] ?? null) && $row['group'] !== ($top['group'] ?? 'using')) {
                 $problems[] = sprintf('%s: chapter "%s" sits under "%s" and takes its group; its own group "%s" is ignored.', self::MANIFEST, $slug, $ancestors[0], $row['group']);
@@ -230,6 +237,7 @@ final readonly class ManualCatalog implements ManualCatalogInterface
                 $ancestors,
                 [],
                 $folder,
+                $levels,
             );
         }
 
@@ -237,10 +245,40 @@ final readonly class ManualCatalog implements ManualCatalogInterface
     }
 
     /**
+     * 1.13: the audiences of a manifest row (`audience: admin`, `audience: admin, developer` or a YAML list; none = the
+     * default audience). Deny by default: an unknown name stays in the list — no root serves it, so it adds no reader
+     * — and is reported (the container build fails on it, see {@see AudienceManifestValidator}); a malformed value
+     * becomes an audience nobody holds.
+     *
+     * @param array<mixed> $row
+     * @param list<string> $problems
+     *
+     * @return list<string>
+     */
+    private function audienceOf(string $slug, array $row, array &$problems): array
+    {
+        if (!array_key_exists('audience', $row)) {
+            return [$this->audiences->defaultAudience()];
+        }
+        $audiences = ManualAudiences::parse($row['audience']);
+        if ($audiences === null) {
+            $problems[] = sprintf('%s: chapter "%s" has an invalid audience %s (a name, "a, b" or a list of names); it is shown to nobody.', self::MANIFEST, $slug, json_encode($row['audience'], JSON_UNESCAPED_SLASHES));
+
+            return [self::NOBODY];
+        }
+        $unknown = array_values(array_filter($audiences, fn (string $audience): bool => !$this->audiences->isKnown($audience)));
+        if ($unknown !== []) {
+            $problems[] = sprintf('%s: chapter "%s" names the unknown audience %s (known: %s); it is shown to nobody but readers of its other audiences.', self::MANIFEST, $slug, ManualAudiences::quote($unknown), ManualAudiences::quote($this->audiences->names()));
+        }
+
+        return $audiences;
+    }
+
+    /**
      * The slugs above `$slug`, top-level first, or false (with a problem) for an unknown parent, a cycle, a tree
      * deeper than {@see ManualChapter::MAX_DEPTH} or the home page in the tree.
      *
-     * @param array<string, array{row: array<mixed>, external: string|null, parent: string|null, audience: mixed}> $entries
+     * @param array<string, array{row: array<mixed>, external: string|null, parent: string|null, audience: list<string>}> $entries
      * @param array<string, false|list<string>> $ancestry memo, filled in
      * @param list<string> $problems
      *
@@ -368,6 +406,7 @@ final readonly class ManualCatalog implements ManualCatalogInterface
                     $chapter->ancestors,
                     $titles,
                     $chapter->folder,
+                    $chapter->audienceLevels,
                 );
                 $walk($chapter->slug, [...$titles, $chapter->title]);
             }

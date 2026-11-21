@@ -1,0 +1,15 @@
+# 1.13: named audiences (user by default, admin, developer, customer) and a customer portal root.
+chapters:
+  - { slug: README }
+  - { slug: using, group: using, tags: [start] }
+  - { slug: admin-guide, group: administration, audience: admin, tags: [organisation] }
+  - { slug: dev, group: developers, audience: developer, tags: [api] }
+  - { slug: dev-child, parent: dev, tags: [webhooks] }
+  - { slug: shared, group: administration, audience: 'admin, developer', tags: [tokens] }
+  - { slug: portal-home, group: portal, audience: customer }
+  - { slug: portal-guide, group: portal, audience: customer, tags: [invoices] }
+  - { slug: everyone, group: using, audience: [user, customer], tags: [contact] }
+  # Audit MK113-H1: stray and nested markers in both roots.
+  - { slug: portal-faq, group: portal, audience: customer }
+  - { slug: portal-nested, group: portal, audience: customer }
+  - { slug: staff-typo, group: using }

@@ -10,6 +10,9 @@ use function count;
 use function preg_quote;
 use function preg_replace_callback;
 use function preg_split;
+use function substr;
+
+use const PREG_SPLIT_DELIM_CAPTURE;
 
 /**
  * The `<!-- name: value -->…<!-- /name -->` blocks of a chapter (`audience`, 1.12 `device`), invisible on GitHub. One
@@ -25,13 +28,15 @@ use function preg_split;
 final class CommentBlocks
 {
     /**
-     * The balanced blocks of a kind: group 1 is the value, group 2 the content.
+     * The balanced blocks of a kind: group 1 is the value, group 2 the content. 1.13: with `$list`, the value is one
+     * or several comma-separated names (`admin, developer`; letters, digits and `_`, starting with a letter).
      */
-    public static function blockPattern(string $kind): string
+    public static function blockPattern(string $kind, bool $list = false): string
     {
-        $kind = preg_quote($kind, '/');
+        $kind  = preg_quote($kind, '/');
+        $value = $list ? '[a-z][a-z0-9_]*(?:\s*,\s*[a-z][a-z0-9_]*)*' : '[a-z]+';
 
-        return '/<!--\s*' . $kind . ':\s*([a-z]+)\s*-->(.*?)<!--\s*\/' . $kind . '\s*-->/si';
+        return '/<!--\s*' . $kind . ':\s*(' . $value . ')\s*-->(.*?)<!--\s*\/' . $kind . '\s*-->/si';
     }
 
     /**
@@ -46,14 +51,28 @@ final class CommentBlocks
      * Replaces every balanced block of a kind with what `$replace` returns for it.
      *
      * @param Closure(string, string): string $replace receives the value (lower case) and the content
+     * @param bool $list 1.13: the value may list several names ({@see self::blockPattern()})
      */
-    public static function replace(string $markdown, string $kind, Closure $replace): string
+    public static function replace(string $markdown, string $kind, Closure $replace, bool $list = false): string
     {
         return (string) preg_replace_callback(
-            self::blockPattern($kind),
+            self::blockPattern($kind, $list),
             static fn (array $block): string => $replace(strtolower($block[1]), $block[2]),
             $markdown,
         );
+    }
+
+    /**
+     * 1.13: the text split at the markers of a kind still there, the markers kept: text, marker, text, … (one part
+     * when there is none).
+     *
+     * @return list<string>
+     */
+    public static function splitKeepingMarkers(string $markdown, string $kind): array
+    {
+        $parts = preg_split('/(' . substr(self::markerPattern($kind), 1, -3) . ')/si', $markdown, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+        return $parts === false || count($parts) === 0 ? [$markdown] : $parts;
     }
 
     /**

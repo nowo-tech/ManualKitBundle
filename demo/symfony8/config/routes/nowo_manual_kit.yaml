@@ -5,3 +5,10 @@ nowo_manual_kit:
     requirements:
         _locale: 'en|es'
     trailing_slash_on_root: false
+
+# 1.13: the customer portal's manual root (routes nowo_manual.portal.*), inside the `portal` firewall.
+nowo_manual_portal:
+    resource: portal
+    type: nowo_manual
+    prefix: /portal/help
+    trailing_slash_on_root: false

@@ -32,6 +32,10 @@ This bundle is **FrankenPHP worker mode friendly**. See [docs/FRANKENPHP-WORKER-
 - **Audiences that fail closed**: `audience: admin` chapters answer 404 to members (no existence oracle);
   `<!-- audience: admin -->` blocks are dropped for members, `audience: github` blocks never show in the app, and an
   unclosed or misspelt marker hides the rest of the chapter
+- **Named audiences and manual roots** (1.13): your own audiences (`developer: ROLE_DEVELOPER`, …) for chapters and
+  blocks (`audience: admin, developer`), checked with `isGranted()`; an unknown name fails the container build; a second
+  root (a customer portal under its own path and firewall) serves only its audiences' chapters, with no route, link,
+  image or search hit crossing roots
 - **Figures**: images become figures with their title as caption, intrinsic width / height, lazy loading, phone
   screenshots sized down, several images of one paragraph side by side, and an opt-in Stimulus lightbox
 - **Sub-pages (1.6)**: `parent: <slug>` nests chapters up to three levels (`/manual/guide/install/docker`, files in

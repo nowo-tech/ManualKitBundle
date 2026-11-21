@@ -10,7 +10,6 @@ This guide lists the changes integrators must apply when upgrading between versi
 - [To 1.11.0](#to-1110)
 - [To 1.10.0](#to-1100)
 - [To 1.9.0](#to-190)
-- [To 1.9.0](#to-190-1)
 - [To 1.8.0](#to-180)
 - [To 1.7.0](#to-170)
 - [To 1.6.0](#to-160)
@@ -25,6 +24,36 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+Named audiences and manual roots (1.13, see [CONFIGURATION — audiences](CONFIGURATION.md#audiences)). Nothing to do for
+a manual that only uses `member` / `admin`; check these points:
+
+- **Unknown audiences stop the build.** A manifest `audience` other than `member` / `admin` / a configured audience (a
+  typo such as `admins`), or a block marker naming one (`<!-- audience: admins -->`), used to be treated as admin-only
+  or dropped; it now fails the container build (or `cache:warmup` when `directory` comes from an env var). Fix the name
+  or add it to `nowo_manual_kit.audiences`. `<!-- audience: github -->` stays allowed.
+- **`admin_role` and `audiences.admin` are one setting.** Keep `admin_role`, or move it to `audiences.admin`; setting
+  both to different values fails the build.
+- **`<!-- audience: member -->` blocks** are now shown to every reader of the default root (they were dropped for
+  everyone).
+- **Your own `ManualRendererInterface`** keeps working in the default root: it is called with `render($chapter, $admin)`
+  and never receives named audiences. To render named-audience blocks, implement
+  `ReaderAwareManualRendererInterface::renderFor()`. With `roots` configured it **must** implement it: the container
+  build fails otherwise (a 1.12 renderer would render another root's pages with the default root's blocks and links).
+- **Your own `ManualAccessInterface`** keeps deciding who reads the default root (`canRead()`) and who holds `admin`
+  (`isAdmin()`); named audiences go through `ManualReaderResolverInterface` (alias it to replace them).
+  `ManualAccess::canReadChapter()` applies the admin-only rule only to chapters that use `member` / `admin` alone.
+- **Your own chapter template**: link the index with `manual_index_path()` instead of `path('nowo_manual_index')` if
+  the template serves a second root; `manual_chapter_path()` already follows the page's root.
+- **`ManualCatalog::visible()` / `neighbours()` / `children()`** still take `bool $admin` and only know the 1.12 rule
+  (`$admin = true` returns every chapter, named audiences included). Filter with `ManualAudiences::canSee()` and a
+  `ManualReader` instead.
+- **A second root**: add it under `nowo_manual_kit.roots` with its `firewalls` (required), optionally pin the default
+  root with `default_firewalls`, and import its routes with `type: nowo_manual`
+  ([CONFIGURATION — roots](CONFIGURATION.md#roots)).
+- **Stray markers**: only a reader who holds every configured audience keeps the text after an unclosed or misspelt
+  audience marker (an administrator, with the 1.12 configuration); everyone else gets the chapter cut there. The text
+  after a stray `<!-- audience: github -->` opening is dropped for everyone.
 
 ## To 1.12.1
 
@@ -103,14 +132,6 @@ composer update nowo-tech/manual-kit-bundle
 ```
 
 `ManualCatalog` and `ManualRenderer` now implement `ManualCatalogInterface` and `ManualRendererInterface`, aliased to the bundle services; the bundle's own services type-hint the interfaces. Type-hint the interfaces in new code (the class ids keep working). To replace one, alias the interface to your own service; a replacement renderer must keep the audience rule (members never receive admin content) and sanitise its HTML.
-
-## To 1.9.0
-
-From **1.8.0**:
-
-```bash
-composer update nowo-tech/manual-kit-bundle
-```
 
 ## To 1.9.0
 

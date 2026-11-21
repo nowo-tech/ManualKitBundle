@@ -17,6 +17,9 @@ use League\CommonMark\Extension\GithubFlavoredMarkdownExtension;
 use League\CommonMark\Extension\HeadingPermalink\HeadingPermalinkExtension;
 use League\CommonMark\MarkdownConverter;
 use LogicException;
+use Nowo\ManualKitBundle\Audience\ManualAudiences;
+use Nowo\ManualKitBundle\Audience\ManualReader;
+use Nowo\ManualKitBundle\Audience\ManualRoot;
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Model\ManualChapter;
@@ -29,6 +32,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\Contracts\Cache\ItemInterface;
 
+use function array_diff;
+use function array_intersect;
 use function array_key_exists;
 use function bin2hex;
 use function count;
@@ -67,10 +72,13 @@ use const PREG_SET_ORDER;
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
  */
-final readonly class ManualRenderer implements ManualRendererInterface
+final readonly class ManualRenderer implements ReaderAwareManualRendererInterface
 {
     /** `<!-- audience: admin -->…<!-- /audience -->` (administrators only) or `audience: github` (repository readers only). */
     private const string AUDIENCE = 'audience';
+
+    /** The image route of the default root (1.13: {@see ManualRoot::routeName()} names it in other roots). */
+    public const string IMAGE_ROUTE = 'nowo_manual_image';
 
     /** Bumped when the rendered markup or the cached object changes, so cached chapters are rebuilt. */
     private const string VERSION = '3';
@@ -85,8 +93,8 @@ final readonly class ManualRenderer implements ManualRendererInterface
     public const string PORTRAIT = 'manual-img--portrait';
 
     /**
-     * Receives the catalog, router and cache used to render chapters, plus the external docs URL and (1.12) the
-     * desktop / phone views configuration.
+     * Receives the catalog, router and cache used to render chapters, plus the external docs URL, (1.12) the
+     * desktop / phone views configuration and (1.13) the audiences and roots.
      */
     public function __construct(
         private ManualCatalogInterface $catalog,
@@ -94,13 +102,23 @@ final readonly class ManualRenderer implements ManualRendererInterface
         private CacheInterface $cache,
         private string $docsUrl = '',
         private DeviceViews $devices = new DeviceViews(),
+        private ManualAudiences $audiences = new ManualAudiences(),
     ) {
     }
 
     /**
-     * Renders a chapter to HTML (cached per chapter, locale, translation state and audience).
+     * Renders a chapter to HTML (cached per chapter, locale, translation state and audience): the 1.12 API — the
+     * default root, `member`, plus `admin` for administrators ({@see ManualReader::legacy()}).
      */
     public function render(ManualChapter $chapter, bool $admin): RenderedManualChapter
+    {
+        return $this->renderFor($chapter, ManualReader::legacy($admin));
+    }
+
+    /**
+     * 1.13: renders a chapter for one reader (cached per chapter, locale, translation state, root and audiences).
+     */
+    public function renderFor(ManualChapter $chapter, ManualReader $reader): RenderedManualChapter
     {
         // A host catalog (ManualCatalogInterface) may serve chapters without a manifest.yaml in its directory.
         $manifest = $this->catalog->directory() . '/' . ManualCatalog::MANIFEST;
@@ -112,7 +130,8 @@ final readonly class ManualRenderer implements ManualRendererInterface
             $chapter->slug,
             $chapter->locale,
             $chapter->translation->value,
-            $admin ? 'admin' : 'member',
+            $reader->key(),
+            $this->audiences->fingerprint(),
             (string) filemtime($chapter->path),
             (string) filesize($chapter->path),
             is_file($manifest) ? (string) filemtime($manifest) : 'no-manifest',
@@ -121,10 +140,10 @@ final readonly class ManualRenderer implements ManualRendererInterface
         ]));
 
         // @igor-ignore - the cache calls the closure synchronously; nothing outlives this call
-        return $this->cache->get($key, function (ItemInterface $item) use ($chapter, $admin, $recent): RenderedManualChapter {
+        return $this->cache->get($key, function (ItemInterface $item) use ($chapter, $reader, $recent): RenderedManualChapter {
             $item->expiresAfter($recent ? 2 : 86400);
 
-            return $this->build($chapter, $admin);
+            return $this->build($chapter, $reader);
         });
     }
 
@@ -137,22 +156,53 @@ final readonly class ManualRenderer implements ManualRendererInterface
      */
     public static function audienceFiltered(string $markdown, bool $admin): string
     {
-        $filtered = CommentBlocks::replace($markdown, self::AUDIENCE, static fn (string $audience, string $content): string => $audience === 'admin' && $admin ? $content : '');
-        $stray    = CommentBlocks::splitAtMarkers($filtered, self::AUDIENCE);
-        if (count($stray) === 1) {
-            return $filtered;
-        }
-
-        return $admin ? implode('', $stray) : $stray[0];
+        return self::audiencesFiltered($markdown, $admin ? [ManualAudiences::MEMBER, ManualAudiences::ADMIN] : [ManualAudiences::MEMBER], $admin);
     }
 
-    private function build(ManualChapter $chapter, bool $admin): RenderedManualChapter
+    /**
+     * 1.13: keeps the blocks naming an audience of `$granted` (`<!-- audience: admin, developer -->`: any of them),
+     * drops the others — `github` blocks always. A marker left without its pair hides the rest of the chapter unless
+     * `$whole` (a reader who holds every configured audience, who would see every block anyway — never a reader of a
+     * root that serves only some audiences); even then the text after a stray `github` opening marker is dropped.
+     *
+     * @param list<string> $granted the audiences the reader holds
+     */
+    public static function audiencesFiltered(string $markdown, array $granted, bool $whole = false): string
     {
+        $filtered = CommentBlocks::replace(
+            $markdown,
+            self::AUDIENCE,
+            static fn (string $audiences, string $content): string => array_intersect(ManualAudiences::parseBlock($audiences), array_diff($granted, [ManualAudiences::GITHUB])) !== [] ? $content : '',
+            true,
+        );
+        $parts = CommentBlocks::splitKeepingMarkers($filtered, self::AUDIENCE);
+        if (count($parts) === 1) {
+            return $filtered;
+        }
+        if (!$whole) {
+            return $parts[0];
+        }
+        $kept = '';
+        foreach ($parts as $index => $part) {
+            if ($index % 2 === 0) {
+                $kept .= $part;
+            } elseif (preg_match('/<!--\s*audience:\s*github\b/i', $part) === 1) {
+                // Repository-only notes (demo credentials) never reach the app, not even a whole reader (MK113-L3).
+                break;
+            }
+        }
+
+        return $kept;
+    }
+
+    private function build(ManualChapter $chapter, ManualReader $reader): RenderedManualChapter
+    {
+        $root     = $this->audiences->root($reader->root) ?? $this->audiences->defaultRoot();
         $visible  = [];
         $chapters = [];
         $files    = [];
         foreach ($this->catalog->all() as $candidate) {
-            $visible[$candidate->slug]  = $admin || !$candidate->adminOnly;
+            $visible[$candidate->slug]  = $this->audiences->canSee($candidate, $reader);
             $chapters[$candidate->slug] = $candidate;
             if (!$candidate->external) {
                 // 1.6: `manual/guide/install.md` → install (what a relative link resolves to, from the docs root).
@@ -185,11 +235,11 @@ final readonly class ManualRenderer implements ManualRendererInterface
         $environment->addExtension(new AttributesExtension());
         /** @var ArrayObject<string, string> $images 1.12: the `src` of each manual image → its file */
         $images = new ArrayObject();
-        $environment->addEventListener(DocumentParsedEvent::class, function (DocumentParsedEvent $event) use ($visible, $chapter, $chapters, $files, $images): void {
-            $this->rewrite($event, new LinkContext($visible, $chapters, $files, $chapter), $images);
+        $environment->addEventListener(DocumentParsedEvent::class, function (DocumentParsedEvent $event) use ($visible, $chapter, $chapters, $files, $images, $root): void {
+            $this->rewrite($event, new LinkContext($visible, $chapters, $files, $chapter, $root), $images);
         }, -10);
 
-        $markdown = self::audienceFiltered((string) file_get_contents($chapter->path), $admin);
+        $markdown = self::audiencesFiltered((string) file_get_contents($chapter->path), $reader->audiences, $this->audiences->isWhole($reader));
         // The chapter title is the page heading: drop the Markdown's own `# Title` line (after a translation marker).
         $markdown = (string) preg_replace('/\A(?:\s*<!--[^\n]*-->\s*\n)*# [^\n]*\n/', '', $markdown);
         // 1.12: a random token per rendering marks the device blocks (chapter text cannot forge a wrapper).
@@ -197,7 +247,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
         if ($token !== null) {
             $markdown = DeviceBlocks::mark($markdown, $token);
         }
-        [$html, $devices, $views] = $this->document($this->sanitizer()->sanitize((string) new MarkdownConverter($environment)->convert($markdown)), $token, $images);
+        [$html, $devices, $views] = $this->document($this->sanitizer()->sanitize((string) new MarkdownConverter($environment)->convert($markdown)), $token, $images, $root);
 
         return new RenderedManualChapter($chapter, $html, $this->toc($html, $this->sectionTags($markdown), $chapter->tocDepth, $devices), $views);
     }
@@ -210,7 +260,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
         // Collected first: unlinking detaches nodes, which would break a live walk.
         foreach (iterator_to_array($event->getDocument()->iterator(), false) as $node) {
             if ($node instanceof Image) {
-                $this->image($node, $images);
+                $this->image($node, $images, $context->root);
 
                 continue;
             }
@@ -223,11 +273,11 @@ final readonly class ManualRenderer implements ManualRendererInterface
     /**
      * @param ArrayObject<string, string> $images
      */
-    private function image(Image $node, ArrayObject $images): void
+    private function image(Image $node, ArrayObject $images, ManualRoot $root): void
     {
         $file = $this->imageFile($node->getUrl());
         if ($file !== null) {
-            $src = $this->urls->generate('nowo_manual_image', ['file' => $file]);
+            $src = $this->urls->generate($root->routeName(self::IMAGE_ROUTE), ['file' => $file]);
             $node->setUrl($src);
             $images[$src] = $file;
             $size         = $this->imageSize($file);
@@ -280,7 +330,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
 
                 return;
             }
-            $node->setUrl(ManualRoutes::generate($this->urls, $context->chapters[$slug]) . $fragment);
+            $node->setUrl(ManualRoutes::generate($this->urls, $context->chapters[$slug], [], $context->root) . $fragment);
 
             return;
         }
@@ -344,7 +394,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
      *                                                                  each heading id inside a device block; whether
      *                                                                  the chapter has device content
      */
-    private function document(string $html, ?string $token, ArrayObject $images): array
+    private function document(string $html, ?string $token, ArrayObject $images, ManualRoot $root): array
     {
         if ($token === null && !str_contains($html, '<img') && !str_contains($html, '<a id=')) {
             return [$html, null, false];
@@ -356,7 +406,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
         $views   = false;
         if ($token !== null) {
             $devices = DeviceBlocks::wrap($body, $token);
-            $this->companions($body, $images);
+            $this->companions($body, $images, $root);
             $views = $body->querySelector('[' . DeviceBlocks::ATTRIBUTE . ']') instanceof Element;
         }
         foreach (iterator_to_array($body->querySelectorAll('p')) as $paragraph) {
@@ -387,7 +437,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
      *
      * @param ArrayObject<string, string> $images
      */
-    private function companions(Element $body, ArrayObject $images): void
+    private function companions(Element $body, ArrayObject $images, ManualRoot $root): void
     {
         foreach (iterator_to_array($body->querySelectorAll('img')) as $image) {
             $file   = $images[(string) $image->getAttribute('src')] ?? null;
@@ -397,7 +447,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
                 continue;
             }
             if ($device === DeviceViews::PHONE) {
-                $this->useImage($image, $phone);
+                $this->useImage($image, $phone, $root);
 
                 continue;
             }
@@ -405,7 +455,7 @@ final readonly class ManualRenderer implements ManualRendererInterface
             if (!$twin instanceof Element) {
                 continue; // @codeCoverageIgnore
             }
-            $this->useImage($twin, $phone);
+            $this->useImage($twin, $phone, $root);
             $twin->setAttribute(self::COMPANION, '');
             DeviceBlocks::markElement($image, DeviceViews::DESKTOP);
             DeviceBlocks::markElement($twin, DeviceViews::PHONE);
@@ -416,9 +466,9 @@ final readonly class ManualRenderer implements ManualRendererInterface
     /**
      * Points an image at another file of the images directory, with that file's size and orientation.
      */
-    private function useImage(Element $image, string $file): void
+    private function useImage(Element $image, string $file, ManualRoot $root): void
     {
-        $image->setAttribute('src', $this->urls->generate('nowo_manual_image', ['file' => $file]));
+        $image->setAttribute('src', $this->urls->generate($root->routeName(self::IMAGE_ROUTE), ['file' => $file]));
         $classes = array_filter(explode(' ', (string) $image->getAttribute('class')), static fn (string $class): bool => $class !== '' && $class !== self::PORTRAIT);
         $size    = $this->imageSize($file);
         if (is_array($size)) {

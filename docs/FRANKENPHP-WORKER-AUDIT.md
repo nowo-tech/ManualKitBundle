@@ -45,6 +45,7 @@ A bundle that is safe under **B** is safe under **A** and under classic mode / P
 |---------|-------|-----------------|
 | `ManualCatalog`, `ManualRenderer`, `ManualAccess`, `TranslationAudit`, `ManualSearchProvider` | `final readonly`; injected collaborators and configuration only; the manifest is re-read per call | none needed |
 | `ManualController` | `final readonly`; the request, locale and user are read per call | none needed |
+| `ManualAudiences`, `ManualReaderResolver`, `ManualRootResolver`, `ManualRouteLoader`, `AudienceCacheWarmer` (1.13) | `final readonly` (the loader: readonly configuration); configuration only. The reader (root + audiences) is a value object built per request from the authorisation checker and the request's route / firewall, never stored | none needed |
 | `ChapterRedirectMap` (1.11) | `final readonly`; the redirect map compiled at container build (arrays passed as arguments), never written after construction; nothing read per request | none needed |
 | `RedirectsCommand` (1.11) | CLI, `final readonly` | none needed |
 | `ManualLinkExtension` | readonly injected collaborators and configuration | none needed |
@@ -60,6 +61,11 @@ redirects: one kernel, never reset, 1,000 iterations alternating a member and an
 301 with `?moved_from`, a redirect to an admin chapter (404 for the member, 301 for the administrator) and pages
 carrying the anchor map; every Location and page must match the reader and locale of its own request, memory growth
 after warm-up below 4 MiB.
+
+1.13: `WorkerAudiencesTest` (`tests/Integration/Worker/WorkerAudiencesTest.php`): one kernel with two real firewalls,
+never reset, 900 iterations rotating a member, a developer (named audience) and a portal contact (second root); each
+response holds only the chapters and blocks of its own reader and root, and memory growth after warm-up stays below
+4 MiB.
 
 Result: no state is carried between requests, so the bundle is **safe with kernel reset false**.
 

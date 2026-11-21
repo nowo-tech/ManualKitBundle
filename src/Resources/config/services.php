@@ -2,6 +2,11 @@
 
 declare(strict_types=1);
 
+use Nowo\ManualKitBundle\Audience\ManualAudiences;
+use Nowo\ManualKitBundle\Audience\ManualReaderResolver;
+use Nowo\ManualKitBundle\Audience\ManualReaderResolverInterface;
+use Nowo\ManualKitBundle\Audience\ManualRootResolver;
+use Nowo\ManualKitBundle\CacheWarmer\AudienceCacheWarmer;
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Catalog\TranslationAudit;
@@ -15,6 +20,7 @@ use Nowo\ManualKitBundle\Redirect\ChapterRedirectsInterface;
 use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
+use Nowo\ManualKitBundle\Routing\ManualRouteLoader;
 use Nowo\ManualKitBundle\Search\ManualSearchProvider;
 use Nowo\ManualKitBundle\Security\AllowAllManualChapterAccessChecker;
 use Nowo\ManualKitBundle\Security\ManualAccess;
@@ -40,8 +46,11 @@ return static function (ContainerConfigurator $container): void {
             ->autoconfigure()
             ->private();
 
+    // 1.13: the named audiences, the default audience and the roots (arguments set by NowoManualKitExtension).
+    $services->set(ManualAudiences::class);
+
     $services->set(ManualCatalog::class)
-        ->args([param('nowo_manual_kit.directory'), param('nowo_manual_kit.source_locale'), param('nowo_manual_kit.locales')]);
+        ->args([param('nowo_manual_kit.directory'), param('nowo_manual_kit.source_locale'), param('nowo_manual_kit.locales'), service(ManualAudiences::class)]);
     // 1.10: the catalog as a port (REQ-ARCH-001 rule 1); alias it to your own service to serve chapters from elsewhere.
     $services->alias(ManualCatalogInterface::class, ManualCatalog::class);
 
@@ -69,6 +78,24 @@ return static function (ContainerConfigurator $container): void {
         ->arg('$chapters', service(ManualChapterAccessCheckerInterface::class));
     // 1.9: the access policy as a port; alias it to your own service to replace it entirely.
     $services->alias(ManualAccessInterface::class, ManualAccess::class);
+
+    // 1.13: the reader of a root (its audiences for the current user) as a port; and which root a request is for.
+    $services->set(ManualReaderResolver::class)
+        ->arg('$access', service(ManualAccessInterface::class))
+        ->arg('$authorization', service('security.authorization_checker')->nullOnInvalid());
+    $services->alias(ManualReaderResolverInterface::class, ManualReaderResolver::class);
+    $services->set(ManualRootResolver::class)
+        ->arg('$security', service('security.helper')->nullOnInvalid());
+    // 1.13: `type: nowo_manual` route imports (one per root).
+    $services->set(ManualRouteLoader::class)
+        ->autoconfigure(false)
+        ->arg('$env', param('kernel.environment'))
+        ->tag('routing.loader');
+    // 1.13: `cache:warmup` fails on an unknown audience (a `directory` from an env var is not read at build time).
+    $services->set(AudienceCacheWarmer::class)
+        ->autoconfigure(false)
+        ->arg('$directory', param('nowo_manual_kit.directory'))
+        ->tag('kernel.cache_warmer');
 
     // Not autoconfigured (REQ-SF-004 rule 7): on Symfony >= 7.3 a #[Route] class is autoconfigured with the
     // routing.controller tag, and the host's `routing.controllers` resource would then register the manual routes

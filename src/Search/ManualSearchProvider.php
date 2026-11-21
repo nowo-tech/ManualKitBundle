@@ -4,10 +4,17 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Search;
 
+use Nowo\ManualKitBundle\Audience\ManualAudiences;
+use Nowo\ManualKitBundle\Audience\ManualReader;
+use Nowo\ManualKitBundle\Audience\ManualReaderResolver;
+use Nowo\ManualKitBundle\Audience\ManualReaderResolverInterface;
+use Nowo\ManualKitBundle\Audience\ManualRoot;
+use Nowo\ManualKitBundle\Audience\ManualRootResolver;
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
+use Nowo\ManualKitBundle\Render\ReaderRendering;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
 use Nowo\ManualKitBundle\Security\ReadableChapters;
@@ -19,7 +26,9 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
+use function array_filter;
 use function array_slice;
+use function array_values;
 use function count;
 
 /**
@@ -28,6 +37,11 @@ use function count;
  * locale. Chapter titles first, then sections in manual order. 1.6: nested chapters are indexed with their own tags,
  * behind the same access rules, and titled with their parents ("Parent › Child"). 1.12: both desktop and phone
  * sections are indexed; a hit in one of them links to `?device=<view>#<section>` so the page opens that view.
+ *
+ * 1.13: there is no shared index — every query is answered for the reader of the request: the manual root of the
+ * request (its firewall's, {@see ManualRootResolver}) and the audiences of it the user holds. Chapters of other roots
+ * or audiences, and the sections of blocks the reader may not see, never match, so neither their titles nor their
+ * URLs leave the server.
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -44,6 +58,9 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
         private UrlGeneratorInterface $urls,
         private TranslatorInterface $translator,
         private RequestStack $requests,
+        private ManualAudiences $audiences = new ManualAudiences(),
+        private ?ManualReaderResolverInterface $readers = null,
+        private ManualRootResolver $roots = new ManualRootResolver(),
     ) {
     }
 
@@ -52,27 +69,30 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
      */
     public function search(SearchQuery $query): ?SearchGroup
     {
-        if (!$this->access->canRead()) {
+        $request = $this->requests->getCurrentRequest();
+        $root    = $this->roots->resolve($request);
+        $reader  = $root instanceof ManualRoot ? ($this->readers ?? new ManualReaderResolver($this->access, $this->audiences))->reader($root) : null;
+        if (!$root instanceof ManualRoot || !$reader instanceof ManualReader) {
             return null;
         }
-        $admin  = $this->access->isAdmin();
-        $locale = $this->requests->getCurrentRequest()?->getLocale();
+        $locale = $request?->getLocale();
 
         $chapters = [];
         $sections = [];
-        $visible  = $this->catalog->visible($admin, $locale);
-        // 1.9: only the chapters the host's per-chapter rule lets the user open.
+        // 1.13: the chapters of the root the reader may see by audience; 1.9: then the host's per-chapter rule.
+        $visible = array_values(array_filter($this->catalog->all($locale), fn (ManualChapter $chapter): bool => $this->audiences->canSee($chapter, $reader)));
         foreach (ReadableChapters::filter($visible, $visible, $this->access) as $chapter) {
-            $url = ManualRoutes::generate($this->urls, $chapter);
+            $url = ManualRoutes::generate($this->urls, $chapter, [], $root);
             // 1.6: a nested chapter reads "Parent › Child" (its own title and tags are what match).
             $title = $chapter->trailTitle();
             if (ManualSearchText::matches($query->text, $chapter->title, $chapter->tags)) {
                 $chapters[] = new SearchItem($title, $url, $this->groupLabel($chapter), 'tabler:book');
             }
-            foreach ($this->renderer->render($chapter, $admin)->toc as $entry) {
+            $rendered = ReaderRendering::render($this->renderer, $chapter, $reader);
+            foreach ($rendered->toc as $entry) {
                 if (ManualSearchText::matches($query->text, $entry['text'], $entry['tags'])) {
                     // 1.12: a section of one view (desktop / phone) opens that view.
-                    $target     = isset($entry['device']) && DeviceViews::isDevice($entry['device']) ? ManualRoutes::generate($this->urls, $chapter, [DeviceViews::QUERY => $entry['device']]) : $url;
+                    $target     = isset($entry['device']) && DeviceViews::isDevice($entry['device']) ? ManualRoutes::generate($this->urls, $chapter, [DeviceViews::QUERY => $entry['device']], $root) : $url;
                     $sections[] = new SearchItem($entry['text'], $target . '#' . $entry['id'], $title, 'tabler:section');
                 }
             }

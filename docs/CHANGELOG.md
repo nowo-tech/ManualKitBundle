@@ -7,56 +7,109 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+  - [Added](#added)
+  - [Changed](#changed)
+  - [Tests](#tests)
 - [[1.12.1] - 2026-11-17](#1121---2026-11-17)
   - [Fixed](#fixed)
 - [[1.12.0] - 2026-11-17](#1120---2026-11-17)
-  - [Added](#added)
-  - [Tests](#tests)
-- [[1.11.0] - 2026-11-17](#1110---2026-11-17)
   - [Added](#added-1)
   - [Tests](#tests-1)
+- [[1.11.0] - 2026-11-17](#1110---2026-11-17)
+  - [Added](#added-2)
+  - [Tests](#tests-2)
   - [Fixed](#fixed-1)
-  - [Changed](#changed)
+  - [Changed](#changed-1)
   - [Documentation](#documentation)
 - [[1.10.0] - 2026-11-13](#1100---2026-11-13)
-  - [Added](#added-2)
-  - [Changed](#changed-1)
-  - [Tests](#tests-2)
-- [[1.9.0] - 2026-11-10](#190---2026-11-10)
   - [Added](#added-3)
   - [Changed](#changed-2)
-- [[1.8.0] - 2026-11-08](#180---2026-11-08)
+  - [Tests](#tests-3)
+- [[1.9.0] - 2026-11-10](#190---2026-11-10)
   - [Added](#added-4)
-- [[1.7.0] - 2026-11-07](#170---2026-11-07)
   - [Changed](#changed-3)
-- [[1.6.0] - 2026-11-02](#160---2026-11-02)
+- [[1.8.0] - 2026-11-08](#180---2026-11-08)
   - [Added](#added-5)
+- [[1.7.0] - 2026-11-07](#170---2026-11-07)
+  - [Changed](#changed-4)
+- [[1.6.0] - 2026-11-02](#160---2026-11-02)
+  - [Added](#added-6)
 - [[1.5.1] - 2026-10-30](#151---2026-10-30)
   - [Fixed](#fixed-2)
 - [[1.5.0] - 2026-10-29](#150---2026-10-29)
-  - [Added](#added-6)
-  - [Changed](#changed-4)
+  - [Added](#added-7)
+  - [Changed](#changed-5)
 - [[1.4.0] - 2026-10-28](#140---2026-10-28)
   - [Security](#security)
-  - [Changed](#changed-5)
-- [[1.3.0] - 2026-10-23](#130---2026-10-23)
-  - [Added](#added-7)
   - [Changed](#changed-6)
-- [[1.2.0] - 2026-10-23](#120---2026-10-23)
+- [[1.3.0] - 2026-10-23](#130---2026-10-23)
   - [Added](#added-8)
+  - [Changed](#changed-7)
+- [[1.2.0] - 2026-10-23](#120---2026-10-23)
+  - [Added](#added-9)
   - [Fixed](#fixed-3)
 - [[1.1.0] - 2026-10-23](#110---2026-10-23)
-  - [Added](#added-9)
+  - [Added](#added-10)
 - [[1.0.1] - 2026-10-23](#101---2026-10-23)
   - [Fixed](#fixed-4)
 - [[1.0.0] - 2026-10-23](#100---2026-10-23)
-  - [Added](#added-10)
+  - [Added](#added-11)
 
 ## [Unreleased]
+
+### Added
+
+- **Named audiences** (`nowo_manual_kit.audiences`): `name: role or security attribute`, checked with `isGranted()`
+  (voters, role hierarchy), plus `default_audience` for chapters that name none. A manifest row names one or several
+  (`audience: developer`, `audience: 'admin, developer'`, `audience: [user, customer]`) and so does a block
+  (`<!-- audience: admin, developer -->`); a reader sees a chapter or block when they hold one of its audiences, and a
+  child needs one audience of every level above it. `member` and `admin` stay built in; `admin_role` is an alias of
+  `audiences.admin`.
+- **Deny by default, loudly**: an audience the manifest or a chapter block names but the configuration does not, or a
+  malformed manifest `audience`, stops the container build (the Markdown files are tracked for debug rebuilds); with a
+  `directory` from an env var, the non-optional `AudienceCacheWarmer` fails `cache:warmup` instead. At runtime such a
+  chapter or block is shown to nobody.
+- **Per-reader filtering everywhere**: pages (404), navigation, previous / next, sub-pages, "On this page", links
+  (plain text), images, anchor maps and the SearchKit group are filtered for the request's reader (`ManualReader`: the
+  root and the audiences held). The rendering cache key holds the root and the sorted audiences.
+- **Manual roots** (`nowo_manual_kit.roots`): other roots served from the same manifest — `audiences`, `role`, `home`,
+  `firewalls` (required) — imported with the `nowo_manual` route type (`resource: <root>`), routes `nowo_manual.<root>.*`. A root
+  takes its audiences out of the default root; chapters never cross roots (routes, links, images, search), a root is a
+  404 outside its firewalls and in a firewall another root lists, and the SearchKit group answers for the root of the
+  request's firewall. `default_firewalls` optionally pins the default root to its firewalls. With roots configured, a
+  renderer that does not implement `ReaderAwareManualRendererInterface` fails the container build.
+- Stray or nested audience markers: only a reader who holds every configured audience keeps the text after them (never
+  a reader of a second root); the text after a stray `github` opening is dropped for everyone (it reached
+  administrators since 1.0). The rendering cache key holds a hash of the audiences and roots configuration.
+- Ports and services: `Audience\ManualReaderResolverInterface` (default `ManualReaderResolver`),
+  `Render\ReaderAwareManualRendererInterface` (`ManualRenderer::renderFor()`), `Audience\ManualAudiences`,
+  `Audience\ManualRootResolver`, `Routing\ManualRouteLoader`; `ManualChapter::audienceLevels()` / `audiences()`;
+  Twig `manual_index_path()`; the chapter page variable `manual_root`.
+- Demo: a `developer` audience (account `dev`, chapter *API for developers* with an `admin, developer` block) and the
+  customer portal root at `/portal/help` (firewall `portal`, account `contact`), with PHPUnit and Playwright checks.
 
 ### Changed
 
 - Demo: runs in UiKit's demo platform shell (`@NowoUiKit/demo_platform/layout.html.twig`, UiKit ^2.60): the demo declares itself in `templates/base.html.twig` (sign-in and user menu, locale pills and the manual in the aside from the shell), the pages use the page header and section cards, the demo's own masthead is gone, a demo-platform e2e spec checks the layout rules, the drawer and axe, and the README screenshots no longer show the Symfony toolbar.
+- `admin_role` defaults to unset in the configuration tree (the extension still resolves it to `ROLE_ADMIN`); setting
+  it and `audiences.admin` to different values fails the build.
+- An unknown manifest `audience` (a typo such as `admins`) now stops the container build instead of making the chapter
+  admin-only; at runtime the chapter is shown to nobody.
+- `<!-- audience: member -->` blocks are shown to every reader of the default root (they were dropped for everyone).
+- `ManualAccess::canReadChapter()` keeps the admin-only rule for chapters that only use `member` / `admin`; named
+  audiences are checked by the bundle for the request's reader.
+- The default chapter template links the breadcrumb root with `manual_index_path()`; `manual_chapter_path()`,
+  `manual_href()` and `manual_is_external()` follow the page's root.
+
+### Tests
+
+- Kernel tests with two real firewalls: a reader per audience sees only their chapters and blocks in pages, the
+  navigation, "On this page", links, images, previous / next and search; the portal root serves only `customer`
+  chapters, and neither root is reachable from the other (routes, misplaced imports, links, images, search). A kept-alive
+  kernel alternates readers of different audiences and roots (FrankenPHP worker mode, no reset). Build errors for every
+  invalid audience configuration and unknown name, roots without firewalls and a renderer without `renderFor()`.
+  Stray and nested markers in both roots (page, "On this page", search, images).
+
 
 ## [1.12.1] - 2026-11-17
 

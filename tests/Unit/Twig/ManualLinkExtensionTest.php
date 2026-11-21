@@ -37,7 +37,7 @@ final class ManualLinkExtensionTest extends TestCase
             $functions[$function->getName()] = $callable;
         }
 
-        self::assertSame(['manual_href', 'manual_is_external', 'manual_chapter_path', 'nowo_manual_breadcrumbs_template', 'nowo_manual_layout', 'nowo_manual_asset', 'nowo_manual_asset_package', 'nowo_manual_standalone_lightbox'], array_keys($functions));
+        self::assertSame(['manual_href', 'manual_is_external', 'manual_chapter_path', 'manual_index_path', 'nowo_manual_breadcrumbs_template', 'nowo_manual_layout', 'nowo_manual_asset', 'nowo_manual_asset_package', 'nowo_manual_standalone_lightbox'], array_keys($functions));
         self::assertSame('@NowoManualKitBundle/layout.html.twig', $functions['nowo_manual_layout']());
         // Resolved by the `nowo_manual_kit` asset package (here on a CDN), never a hard-coded /bundles path.
         self::assertSame('https://cdn.example/manual/css/manual.css', $functions['nowo_manual_asset']('/css/manual.css'));
