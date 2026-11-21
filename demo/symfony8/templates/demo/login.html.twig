@@ -4,16 +4,22 @@
     {{ include(nowo_ui_partial('page_header'), {title: 'demo.login.nav'|trans, intro: 'demo.login.hint'|trans}) }}
 {% endblock %}
 
-{% block body %}
+{#- A failed sign-in and the signed-in notice are the shell's flashes, under the page header. -#}
+{% block nowo_ui_flashes %}
+    {% set _messages = app.flashes %}
     {% if login_error %}
-        <div class="nowo-ui-flash nowo-ui-flash--error" role="alert">{{ login_error.messageKey|trans(login_error.messageData, 'security') }}</div>
+        {% set _messages = _messages|merge({error: (_messages.error ?? [])|merge([login_error.messageKey|trans(login_error.messageData, 'security')])}) %}
     {% endif %}
     {% if app.user %}
-        <div class="nowo-ui-flash nowo-ui-flash--success" role="status">{{ 'demo.login.signed_in'|trans({ '%user%': app.user.userIdentifier }) }}</div>
+        {% set _messages = _messages|merge({success: (_messages.success ?? [])|merge(['demo.login.signed_in'|trans({ '%user%': app.user.userIdentifier })])}) %}
     {% endif %}
-    <section class="nowo-ui-card">
-        <div class="nowo-ui-card__body">
+    {{ include('@NowoUiKit/demo_platform/_flashes.html.twig', {flash_messages: _messages}) }}
+{% endblock %}
+
+{% block body %}
+    {% embed '@NowoUiKit/demo_platform/_section.html.twig' with {title: 'demo.login.nav'|trans, kind: 'form', login_form: login_form} %}
+        {% block section_body %}
             {{ include('demo/_form.html.twig', { form: login_form }) }}
-        </div>
-    </section>
+        {% endblock %}
+    {% endembed %}
 {% endblock %}
