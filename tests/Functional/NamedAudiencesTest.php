@@ -33,11 +33,11 @@ final class NamedAudiencesTest extends WebTestCase
 {
     /** Default-root chapters by reader (manual order). */
     private const array DEFAULT_CHAPTERS = [
-        'uma'     => ['README', 'using', 'everyone'],
-        'ada'     => ['README', 'using', 'admin-guide', 'shared', 'everyone'],
-        'dev'     => ['README', 'using', 'dev', 'dev-child', 'shared', 'everyone'],
-        'both'    => ['README', 'using', 'admin-guide', 'dev', 'dev-child', 'shared', 'everyone'],
-        'insider' => ['README', 'using', 'everyone'],
+        'uma'     => ['README', 'using', 'everyone', 'staff-typo'],
+        'ada'     => ['README', 'using', 'admin-guide', 'shared', 'everyone', 'staff-typo'],
+        'dev'     => ['README', 'using', 'dev', 'dev-child', 'shared', 'everyone', 'staff-typo'],
+        'both'    => ['README', 'using', 'admin-guide', 'dev', 'dev-child', 'shared', 'everyone', 'staff-typo'],
+        'insider' => ['README', 'using', 'everyone', 'staff-typo'],
     ];
 
     /** Paths of every default-root chapter but the home page. */
@@ -48,6 +48,7 @@ final class NamedAudiencesTest extends WebTestCase
         'dev-child'   => '/en/manual/dev/dev-child',
         'shared'      => '/en/manual/shared',
         'everyone'    => '/en/manual/everyone',
+        'staff-typo'  => '/en/manual/staff-typo',
     ];
 
     /**
@@ -70,7 +71,7 @@ final class NamedAudiencesTest extends WebTestCase
                 $client->request('GET', $path);
                 self::assertResponseStatusCodeSame(in_array($slug, $chapters, true) ? 200 : 404, $user . ' ' . $path);
             }
-            foreach (['portal-home', 'portal-guide'] as $portal) {
+            foreach (['portal-home', 'portal-guide', 'portal-faq', 'portal-nested'] as $portal) {
                 $client->request('GET', '/en/manual/' . $portal);
                 self::assertResponseStatusCodeSame(404, $user . ': a portal chapter is never served in the default root');
                 $client->request('GET', '/en/manual/' . $portal . '.md');
@@ -146,10 +147,10 @@ final class NamedAudiencesTest extends WebTestCase
     public function testImagesAreServedOnlyWhenTheReadersChaptersShowThem(): void
     {
         $images = [
-            'uma'  => ['user.png' => 200, 'admin.png' => 404, 'dev.png' => 404, 'customer.png' => 404],
-            'ada'  => ['user.png' => 200, 'admin.png' => 200, 'dev.png' => 404, 'customer.png' => 404],
-            'dev'  => ['user.png' => 200, 'admin.png' => 404, 'dev.png' => 200, 'customer.png' => 404],
-            'both' => ['user.png' => 200, 'admin.png' => 200, 'dev.png' => 200, 'customer.png' => 404],
+            'uma'  => ['user.png' => 200, 'admin.png' => 404, 'dev.png' => 404, 'customer.png' => 404, 'secret.png' => 404],
+            'ada'  => ['user.png' => 200, 'admin.png' => 200, 'dev.png' => 404, 'customer.png' => 404, 'secret.png' => 404],
+            'dev'  => ['user.png' => 200, 'admin.png' => 404, 'dev.png' => 200, 'customer.png' => 404, 'secret.png' => 404],
+            'both' => ['user.png' => 200, 'admin.png' => 200, 'dev.png' => 200, 'customer.png' => 404, 'secret.png' => 404, 'staff.png' => 404],
         ];
         foreach ($images as $user => $statuses) {
             $client = $this->signedIn($user);
@@ -166,7 +167,7 @@ final class NamedAudiencesTest extends WebTestCase
         $crawler = $client->request('GET', '/portal/help');
         self::assertResponseIsSuccessful();
         self::assertStringContainsString('PORTAL-HOME-text', (string) $crawler->filter('.manual-prose')->html());
-        self::assertSame(['everyone', 'portal-guide', 'portal-home'], self::sorted($this->nav($crawler)));
+        self::assertSame(['everyone', 'portal-faq', 'portal-guide', 'portal-home', 'portal-nested'], self::sorted($this->nav($crawler)));
         self::assertSame('/portal/help', $crawler->filter('[data-testid="manual-nav-portal-home"]')->attr('href'));
         self::assertSame(['/portal/help/portal-guide', '/portal/help/everyone'], $crawler->filter('.manual-prose a')->each(static fn (Crawler $a): string => (string) $a->attr('href')), 'staff chapter: plain text');
         self::assertSame('/portal/help/portal-guide', $crawler->filter('[data-testid="manual-next"]')->attr('href'));
@@ -192,10 +193,53 @@ final class NamedAudiencesTest extends WebTestCase
         }
         $client->request('GET', '/portal/help/images/customer.png');
         self::assertResponseIsSuccessful();
-        foreach (['user.png', 'admin.png', 'dev.png'] as $file) {
+        foreach (['user.png', 'admin.png', 'dev.png', 'staff.png', 'secret.png'] as $file) {
             $client->request('GET', '/portal/help/images/' . $file);
             self::assertResponseStatusCodeSame(404, $file . ' is only shown in staff chapters and blocks');
         }
+    }
+
+    /** Audit MK113-H1: a stray or nested marker never lets staff text out to a portal reader. */
+    public function testStrayAndNestedMarkersNeverLeakStaffBlocksToThePortal(): void
+    {
+        $client  = $this->contact('carla');
+        $crawler = $client->request('GET', '/portal/help/portal-faq');
+        self::assertResponseIsSuccessful();
+        $html = (string) $crawler->filter('.manual-prose')->html();
+        self::assertStringContainsString('FAQ-START', $html);
+        self::assertStringNotContainsString('STAFF-ESCALATION', $html, 'an unclosed user block');
+        self::assertStringNotContainsString('staff.png', $html);
+        self::assertStringNotContainsString('FAQ-AFTER-TYPO', $html, 'the chapter is cut at the stray marker');
+        self::assertSame([], $crawler->filter('[data-testid="manual-toc"] a')->each(static fn (Crawler $a): string => $a->text()));
+
+        $crawler = $client->request('GET', '/portal/help/portal-nested');
+        self::assertResponseIsSuccessful();
+        $html = (string) $crawler->filter('.manual-prose')->html();
+        self::assertStringContainsString('NESTED-CUSTOMER', $html);
+        self::assertStringNotContainsString('STAFF-NESTED', $html, 'a user block nested in a customer block');
+        self::assertStringNotContainsString('NESTED-TAIL', $html);
+        self::assertSame([], $crawler->filter('[data-testid="manual-toc"] a')->each(static fn (Crawler $a): string => $a->text()));
+
+        $client->request('GET', '/portal/help/images/staff.png');
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame([], $this->search('/portal/search', 'carla', 'escalation', 'portal'));
+        self::assertSame([], $this->search('/portal/search', 'carla', 'internals', 'portal'));
+    }
+
+    /** Audit MK113-H1, the other way round: a stray customer marker in a staff chapter, for a reader of every staff audience. */
+    public function testAStrayCustomerMarkerNeverLeaksToStaff(): void
+    {
+        $client  = $this->signedIn('both');
+        $crawler = $client->request('GET', '/en/manual/staff-typo');
+        self::assertResponseIsSuccessful();
+        $html = (string) $crawler->filter('.manual-prose')->html();
+        self::assertStringContainsString('STAFF-START', $html);
+        self::assertStringNotContainsString('CUSTOMER-SECRET', $html);
+        self::assertStringNotContainsString('STAFF-AFTER-TYPO', $html);
+        self::assertSame([], $crawler->filter('[data-testid="manual-toc"] a')->each(static fn (Crawler $a): string => $a->text()));
+        $client->request('GET', '/en/manual/images/secret.png');
+        self::assertResponseStatusCodeSame(404);
+        self::assertSame([], $this->search('/en/search', 'both', 'secrets'));
     }
 
     public function testThePortalNeedsItsRole(): void

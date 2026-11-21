@@ -14,7 +14,7 @@ use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
-use Nowo\ManualKitBundle\Render\ReaderAwareManualRendererInterface;
+use Nowo\ManualKitBundle\Render\ReaderRendering;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
 use Nowo\ManualKitBundle\Security\ReadableChapters;
@@ -88,7 +88,7 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
             if (ManualSearchText::matches($query->text, $chapter->title, $chapter->tags)) {
                 $chapters[] = new SearchItem($title, $url, $this->groupLabel($chapter), 'tabler:book');
             }
-            $rendered = $this->renderer instanceof ReaderAwareManualRendererInterface ? $this->renderer->renderFor($chapter, $reader) : $this->renderer->render($chapter, $reader->has(ManualAudiences::ADMIN));
+            $rendered = ReaderRendering::render($this->renderer, $chapter, $reader);
             foreach ($rendered->toc as $entry) {
                 if (ManualSearchText::matches($query->text, $entry['text'], $entry['tags'])) {
                     // 1.12: a section of one view (desktop / phone) opens that view.

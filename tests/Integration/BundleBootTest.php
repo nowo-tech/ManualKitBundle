@@ -30,6 +30,7 @@ final class BundleBootTest extends TestCase
             'admin_role'          => null,
             'audiences'           => [],
             'default_audience'    => 'member',
+            'default_firewalls'   => [],
             'roots'               => [],
             'docs_url'            => '',
             'in_app'              => true,

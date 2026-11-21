@@ -22,6 +22,7 @@ use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Render\ReaderAwareManualRendererInterface;
+use Nowo\ManualKitBundle\Render\ReaderRendering;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
 use Nowo\ManualKitBundle\Security\ReadableChapters;
@@ -35,7 +36,6 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Twig\Environment;
 
-use function array_diff;
 use function array_filter;
 use function array_map;
 use function array_search;
@@ -390,11 +390,11 @@ final readonly class ManualController
 
     /**
      * 1.13: the chapter rendered for the reader — through {@see ReaderAwareManualRendererInterface} when the aliased
-     * renderer implements it, else the 1.12 call (`admin` held or not).
+     * renderer implements it, else the 1.12 call (`admin` held or not), never for another root.
      */
     private function render(ManualChapter $chapter, ManualReader $reader): RenderedManualChapter
     {
-        return $this->renderer instanceof ReaderAwareManualRendererInterface ? $this->renderer->renderFor($chapter, $reader) : $this->renderer->render($chapter, $reader->has(ManualAudiences::ADMIN));
+        return ReaderRendering::render($this->renderer, $chapter, $reader);
     }
 
     /**
@@ -521,7 +521,7 @@ final readonly class ManualController
     {
         $root     = $this->root($reader);
         $readable = $this->readableChapters($locale, $reader);
-        if (array_diff($root->audiences, $reader->audiences) === [] && count($readable) === count($this->catalog->all($locale))) {
+        if ($this->audiences->isWhole($reader) && count($readable) === count($this->catalog->all($locale))) {
             // Every chapter and block of the manual open to this reader: every image (administrators before 1.13).
             return true;
         }

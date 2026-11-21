@@ -13,12 +13,14 @@ use function array_merge;
 use function array_unique;
 use function array_values;
 use function explode;
+use function hash;
 use function implode;
 use function in_array;
 use function is_array;
 use function is_string;
 use function json_encode;
 use function preg_match;
+use function serialize;
 use function sort;
 use function sprintf;
 use function strtolower;
@@ -56,12 +58,15 @@ final readonly class ManualAudiences
      * @param array<string, array{audiences: list<string>, role: string, home: string, firewalls: list<string>}> $roots
      *                                                                                                                  the roots other than the default one
      * @param string $defaultRole `nowo_manual_kit.role`: who opens the default root
+     * @param list<string> $defaultFirewalls `nowo_manual_kit.default_firewalls`: the firewalls of the default root
+     *                                       ([] = any firewall no other root lists)
      */
     public function __construct(
         private array $attributes = [self::ADMIN => 'ROLE_ADMIN'],
         private string $defaultAudience = self::MEMBER,
         private array $roots = [],
         private string $defaultRole = 'ROLE_USER',
+        private array $defaultFirewalls = [],
     ) {
     }
 
@@ -128,7 +133,7 @@ final readonly class ManualAudiences
             $claimed = array_merge($claimed, $root['audiences']);
         }
 
-        return new ManualRoot(ManualRoot::DEFAULT, array_values(array_diff($this->names(), $claimed)), $this->defaultRole);
+        return new ManualRoot(ManualRoot::DEFAULT, array_values(array_diff($this->names(), $claimed)), $this->defaultRole, ManualChapter::HOME, $this->defaultFirewalls);
     }
 
     /**
@@ -162,6 +167,16 @@ final readonly class ManualAudiences
     }
 
     /**
+     * 1.13: whether the reader holds every configured audience (`member`, `admin` and the named ones) — the only
+     * reader who keeps the text after a stray block marker and gets every image. Never true in a root that serves only
+     * some audiences, whose chapters may hold blocks of other roots (MK113-H1).
+     */
+    public function isWhole(ManualReader $reader): bool
+    {
+        return array_diff($this->names(), $reader->audiences) === [];
+    }
+
+    /**
      * Whether a chapter belongs to a root (every level names an audience of the root), whoever reads it.
      */
     public function belongsTo(ManualChapter $chapter, ManualRoot $root): bool
@@ -187,6 +202,9 @@ final readonly class ManualAudiences
             $errors[] = sprintf('"nowo_manual_kit.default_audience" %s must be "member" or an audience of "nowo_manual_kit.audiences" that no root of "nowo_manual_kit.roots" lists.', json_encode($this->defaultAudience));
         }
         $firewalls = [];
+        foreach ($this->defaultFirewalls as $firewall) {
+            $firewalls[$firewall] = ManualRoot::DEFAULT;
+        }
         foreach ($this->roots as $name => $root) {
             if (preg_match(self::NAME, $name) !== 1 || $name === ManualRoot::DEFAULT) {
                 $errors[] = sprintf('"nowo_manual_kit.roots" cannot define %s: a root name is 1 to 32 lower-case letters, digits or "_" starting with a letter, and "default" is the root of "role".', json_encode($name));
@@ -208,13 +226,26 @@ final readonly class ManualAudiences
     }
 
     /**
-     * The firewall => root map of `roots.*.firewalls`.
+     * 1.13 (audit MK113-I2): a hash of the whole audiences configuration — part of the rendering cache key, so a
+     * deploy that only changes audiences, the default audience or the roots never serves renderings made under the
+     * previous configuration.
+     */
+    public function fingerprint(): string
+    {
+        return hash('xxh128', serialize([$this->attributes, $this->defaultAudience, $this->roots, $this->defaultRole, $this->defaultFirewalls]));
+    }
+
+    /**
+     * The firewall => root map of `default_firewalls` and `roots.*.firewalls`.
      *
      * @return array<string, string>
      */
     public function firewalls(): array
     {
         $map = [];
+        foreach ($this->defaultFirewalls as $firewall) {
+            $map[$firewall] = ManualRoot::DEFAULT;
+        }
         foreach ($this->roots as $name => $root) {
             foreach ($root['firewalls'] as $firewall) {
                 $map[$firewall] ??= $name;

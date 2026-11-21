@@ -8,12 +8,26 @@ security:
                 users:
                     demo: { password: demo, roles: [ROLE_USER] }
                     admin: { password: admin, roles: [ROLE_ADMIN] }
+                    # 1.13: reads the `developer` audience (nowo_manual_kit.audiences).
+                    dev: { password: dev, roles: [ROLE_USER, ROLE_DEVELOPER] }
+        # 1.13: customer-portal contacts — not application users — for the `portal` manual root.
+        portal_contacts:
+            memory:
+                users:
+                    contact: { password: contact, roles: [ROLE_CRM_CONTACT] }
     role_hierarchy:
         ROLE_ADMIN: [ROLE_USER]
     firewalls:
         dev:
             pattern: ^/(_(profiler|wdt)|css|images|js|bundles|build)/
             security: false
+        # 1.13: the customer portal (its own users, HTTP basic): serves only the `portal` manual root.
+        portal:
+            pattern: ^/portal
+            lazy: true
+            provider: portal_contacts
+            http_basic:
+                realm: Customer portal
         main:
             lazy: true
             provider: demo_users

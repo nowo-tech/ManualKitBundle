@@ -71,7 +71,7 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
      */
     public function load(array $configs, ContainerBuilder $container): void
     {
-        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string|null, audiences: array<string, string>, default_audience: string, roots: array<string, array{audiences: list<string>, role: string, home: string, firewalls: list<string>}>, docs_url: string, in_app: bool, template: string, layout: string, groups: list<array{key: string, label: string|null, translation_domain: string}>, redirects: array<string, string>, device_views: array{enabled: bool, breakpoint: int, image_suffix: string}, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, service: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
+        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string|null, audiences: array<string, string>, default_audience: string, default_firewalls: list<string>, roots: array<string, array{audiences: list<string>, role: string, home: string, firewalls: list<string>}>, docs_url: string, in_app: bool, template: string, layout: string, groups: list<array{key: string, label: string|null, translation_domain: string}>, redirects: array<string, string>, device_views: array{enabled: bool, breakpoint: int, image_suffix: string}, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, service: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
         $config = $this->processConfiguration(new Configuration(), $configs);
         // 1.13: admin_role and audiences.admin are one setting.
         $admin                                       = $this->adminAttribute($config['admin_role'], $config['audiences']);
@@ -90,12 +90,12 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
         // 1.12: one immutable DeviceViews for the renderer and the controller.
         $container->getDefinition(DeviceViews::class)->setArguments([$config['device_views']['enabled'], $config['device_views']['breakpoint'], $config['device_views']['image_suffix']]);
         $this->loadRedirects($config['directory'], $config['redirects'], $container);
-        $audiences = new ManualAudiences($config['audiences'], $config['default_audience'], $config['roots'], $config['role']);
+        $audiences = new ManualAudiences($config['audiences'], $config['default_audience'], $config['roots'], $config['role'], $config['default_firewalls']);
         $errors    = $audiences->configErrors();
         if ($errors !== []) {
             throw new InvalidConfigurationException('Invalid manual audiences: ' . implode(' ', $errors));
         }
-        $container->getDefinition(ManualAudiences::class)->setArguments([$config['audiences'], $config['default_audience'], $config['roots'], $config['role']]);
+        $container->getDefinition(ManualAudiences::class)->setArguments([$config['audiences'], $config['default_audience'], $config['roots'], $config['role'], $config['default_firewalls']]);
         $this->validateAudiences($config['directory'], $audiences, $container);
 
         $machine = $config['machine_translation'];

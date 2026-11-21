@@ -6,6 +6,18 @@ nowo_manual_kit:
     locales: [en, es]
     role: ROLE_USER
     admin_role: ROLE_ADMIN
+    # 1.13: named audiences (`audience: developer` in the manifest, <!-- audience: admin, developer --> blocks) and a
+    # second manual root: the customer portal under /portal/help, in its own firewall, with `customer` chapters only.
+    audiences:
+        developer: ROLE_DEVELOPER
+        customer: ROLE_CRM_CONTACT
+    default_firewalls: [main]
+    roots:
+        portal:
+            audiences: [customer]
+            role: ROLE_CRM_CONTACT
+            home: portal-home
+            firewalls: [portal]
     docs_url: 'https://github.com/nowo-tech/ManualKitBundle/blob/main/demo/symfony8/docs/'
     layout: 'base.html.twig'
     # 1.11: redirects can also be written here (merged with docs/manual/redirects.yaml). A redirect to the admin

@@ -73,14 +73,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   (plain text), images, anchor maps and the SearchKit group are filtered for the request's reader (`ManualReader`: the
   root and the audiences held). The rendering cache key holds the root and the sorted audiences.
 - **Manual roots** (`nowo_manual_kit.roots`): other roots served from the same manifest — `audiences`, `role`, `home`,
-  `firewalls` — imported with the `nowo_manual` route type (`resource: <root>`), routes `nowo_manual.<root>.*`. A root
+  `firewalls` (required) — imported with the `nowo_manual` route type (`resource: <root>`), routes `nowo_manual.<root>.*`. A root
   takes its audiences out of the default root; chapters never cross roots (routes, links, images, search), a root is a
   404 outside its firewalls and in a firewall another root lists, and the SearchKit group answers for the root of the
-  request's firewall.
+  request's firewall. `default_firewalls` optionally pins the default root to its firewalls. With roots configured, a
+  renderer that does not implement `ReaderAwareManualRendererInterface` fails the container build.
+- Stray or nested audience markers: only a reader who holds every configured audience keeps the text after them (never
+  a reader of a second root); the text after a stray `github` opening is dropped for everyone (it reached
+  administrators since 1.0). The rendering cache key holds a hash of the audiences and roots configuration.
 - Ports and services: `Audience\ManualReaderResolverInterface` (default `ManualReaderResolver`),
   `Render\ReaderAwareManualRendererInterface` (`ManualRenderer::renderFor()`), `Audience\ManualAudiences`,
   `Audience\ManualRootResolver`, `Routing\ManualRouteLoader`; `ManualChapter::audienceLevels()` / `audiences()`;
   Twig `manual_index_path()`; the chapter page variable `manual_root`.
+- Demo: a `developer` audience (account `dev`, chapter *API for developers* with an `admin, developer` block) and the
+  customer portal root at `/portal/help` (firewall `portal`, account `contact`), with PHPUnit and Playwright checks.
 
 ### Changed
 
@@ -101,7 +107,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   navigation, "On this page", links, images, previous / next and search; the portal root serves only `customer`
   chapters, and neither root is reachable from the other (routes, misplaced imports, links, images, search). A kept-alive
   kernel alternates readers of different audiences and roots (FrankenPHP worker mode, no reset). Build errors for every
-  invalid audience configuration and unknown name.
+  invalid audience configuration and unknown name, roots without firewalls and a renderer without `renderFor()`.
+  Stray and nested markers in both roots (page, "On this page", search, images).
 
 
 ## [1.12.1] - 2026-11-17

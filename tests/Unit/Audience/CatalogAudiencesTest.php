@@ -36,15 +36,18 @@ final class CatalogAudiencesTest extends TestCase
         }
 
         self::assertSame([
-            'README'       => [['user']],
-            'using'        => [['user']],
-            'admin-guide'  => [['admin']],
-            'dev'          => [['developer']],
-            'dev-child'    => [['developer'], ['user']],
-            'shared'       => [['admin', 'developer']],
-            'portal-home'  => [['customer']],
-            'portal-guide' => [['customer']],
-            'everyone'     => [['user', 'customer']],
+            'README'        => [['user']],
+            'using'         => [['user']],
+            'admin-guide'   => [['admin']],
+            'dev'           => [['developer']],
+            'dev-child'     => [['developer'], ['user']],
+            'shared'        => [['admin', 'developer']],
+            'portal-home'   => [['customer']],
+            'portal-guide'  => [['customer']],
+            'everyone'      => [['user', 'customer']],
+            'portal-faq'    => [['customer']],
+            'portal-nested' => [['customer']],
+            'staff-typo'    => [['user']],
         ], $levels);
         self::assertSame([], $catalog->problems());
         $find = $catalog->find('dev-child') ?? self::fail('dev-child');

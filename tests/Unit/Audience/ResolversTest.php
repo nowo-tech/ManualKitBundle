@@ -86,7 +86,17 @@ final class ResolversTest extends TestCase
         $outside = new ManualRootResolver($audiences, $this->security(null));
         self::assertSame('default', ($outside->resolve(Request::create('/public')) ?? self::fail('a root'))->name, 'no firewall at all');
 
-        // A root without firewalls is served in any firewall no other root claims.
+        // A pinned default root is a 404 outside its firewalls.
+        $pinned = new ManualAudiences(['customer' => 'ROLE_C'], 'member', ['portal' => ['audiences' => ['customer'], 'role' => 'ROLE_C', 'home' => 'README', 'firewalls' => ['portal']]], 'ROLE_USER', ['main']);
+        self::assertSame(['main' => 'default', 'portal' => 'portal'], $pinned->firewalls());
+        self::assertSame(['main'], $pinned->defaultRoot()->firewalls);
+        self::assertSame('default', (new ManualRootResolver($pinned, $this->security('main'))->forRoute(Request::create('/manual')) ?? self::fail('a root'))->name);
+        self::assertNull(new ManualRootResolver($pinned, $this->security('api'))->forRoute(Request::create('/manual')));
+        self::assertNull(new ManualRootResolver($pinned, $this->security('api'))->resolve(Request::create('/search')), 'an unlisted firewall finds no root');
+        self::assertSame([], $pinned->configErrors());
+
+        // A root without firewalls (built by hand: the configuration requires them) is served in any firewall no
+        // other root claims.
         $open = new ManualRootResolver(new ManualAudiences(['customer' => 'ROLE_C'], 'member', ['portal' => ['audiences' => ['customer'], 'role' => 'ROLE_C', 'home' => 'README', 'firewalls' => []]]), $this->security('main'));
         self::assertSame('portal', ($open->forRoute($this->routed('portal')) ?? self::fail('a root'))->name);
     }

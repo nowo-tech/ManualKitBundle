@@ -286,7 +286,9 @@ Administrators and developers read this paragraph.
   readers whose chapters show them. A block's headings leave "On this page" and search with the block.
 - `member` (every reader) and `admin` are built in; `github` blocks never reach the app.
 - An audience the configuration does not define stops the container build (deny by default, loudly). The same
-  fail-closed rule as above applies to a malformed marker.
+  fail-closed rule as above applies to a malformed marker, and to a block nested in a block of the same kind: only a
+  reader who holds every configured audience keeps the text after it (never a reader of a second root), and the
+  text after a stray `<!-- audience: github -->` opening is dropped for everyone.
 - `ManualChapterAccessCheckerInterface` (your own per-chapter rule) still applies on top of the audiences.
 
 ### A second manual root
@@ -301,12 +303,14 @@ nowo_manual_kit:
     default_audience: user
     roots:
         portal: { audiences: [customer], role: ROLE_CRM_CONTACT, home: portal-home, firewalls: [portal] }
+    default_firewalls: [main]   # optional: the staff manual only in the main firewall
 
 # config/routes/nowo_manual_kit.yaml
 nowo_manual_portal:
     resource: portal
     type: nowo_manual
     prefix: /portal/help
+    trailing_slash_on_root: false
 ```
 
 The portal's index (`/portal/help`) serves `portal-home`; its chapters live at `/portal/help/{chapter}` (routes

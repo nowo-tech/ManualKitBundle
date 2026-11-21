@@ -10,6 +10,9 @@ use function count;
 use function preg_quote;
 use function preg_replace_callback;
 use function preg_split;
+use function substr;
+
+use const PREG_SPLIT_DELIM_CAPTURE;
 
 /**
  * The `<!-- name: value -->…<!-- /name -->` blocks of a chapter (`audience`, 1.12 `device`), invisible on GitHub. One
@@ -57,6 +60,19 @@ final class CommentBlocks
             static fn (array $block): string => $replace(strtolower($block[1]), $block[2]),
             $markdown,
         );
+    }
+
+    /**
+     * 1.13: the text split at the markers of a kind still there, the markers kept: text, marker, text, … (one part
+     * when there is none).
+     *
+     * @return list<string>
+     */
+    public static function splitKeepingMarkers(string $markdown, string $kind): array
+    {
+        $parts = preg_split('/(' . substr(self::markerPattern($kind), 1, -3) . ')/si', $markdown, -1, PREG_SPLIT_DELIM_CAPTURE);
+
+        return $parts === false || count($parts) === 0 ? [$markdown] : $parts;
     }
 
     /**

@@ -12,6 +12,7 @@ nowo_manual_kit:
     admin_role: ~               # ROLE_ADMIN when unset; 1.13: an alias of audiences.admin
     audiences: {}               # 1.13: named audiences, name => role or security attribute
     default_audience: member    # 1.13: the audience of a chapter that names none
+    default_firewalls: []       # 1.13: firewalls the default root is served in ([] = any firewall no root lists)
     roots: {}                   # 1.13: other manual roots (e.g. a customer portal) from the same manifest
     docs_url: ''
     in_app: true
@@ -58,6 +59,7 @@ required when "provider" is "libretranslate" (e.g. http://libretranslate:5000).
 - [admin_role](#admin_role)
 - [audiences](#audiences)
 - [default_audience](#default_audience)
+- [default_firewalls](#default_firewalls)
 - [roots](#roots)
 - [docs_url](#docs_url)
 - [in_app](#in_app)
@@ -161,6 +163,14 @@ If neither ran, the chapter or block is still shown to nobody, and `nowo:manual:
 1.13: the audience of a chapter whose manifest row has no `audience` (default `member`: every reader). It must be
 `member` or an audience of the default root (not one a [root](#roots) takes).
 
+## default_firewalls
+
+1.13: the firewalls the default root (`role`, the routes of `routes.php`) is served in. `[]` (default): any firewall no
+[root](#roots) lists. Pinned, the default root answers 404 in every other firewall — so a staff manual imported by
+mistake under a portal path, or reached from a firewall whose users come from another provider, serves nothing — and
+the SearchKit group and `manual_href()` of an unlisted firewall find no root. A firewall listed here cannot be listed by
+a root.
+
 ## roots
 
 1.13: other manual roots served from the same manifest — for example a customer portal under its own path and firewall
@@ -170,11 +180,13 @@ that serves only `customer` chapters. Each root takes its `audiences` out of the
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `audiences` | — (required) | The audiences this root serves (at least one; never `member`). |
-| `role` | — (required) | Role or security attribute needed to open the root at all (`''`: every visitor of its firewall). Others get the firewall's 401 / 403. |
+| `role` | — (required) | Role or security attribute needed to open the root at all. Others get the firewall's 401 / 403. `''` lets every visitor of its firewall in, but an anonymous visitor holds no audience (each one is an `isGranted()` check), so every chapter is a 404 to them unless an audience maps to `PUBLIC_ACCESS` (`audiences: { visitor: PUBLIC_ACCESS }`). |
 | `home` | `README` | Slug of the chapter the root's index serves (its own page is then a 404, like `README` in the default root). |
-| `firewalls` | `[]` | Firewalls the root is served in. Recommended. A root that lists firewalls is a 404 anywhere else; a firewall a root lists serves no other root; the SearchKit group and `manual_href()` of that firewall use this root. A root without firewalls is served in any firewall no other root lists. |
+| `firewalls` | — (required) | Firewalls the root is served in (at least one). The root is a 404 anywhere else; a firewall a root lists serves no other root; the SearchKit group and `manual_href()` of that firewall use this root. |
 
 A root name is 1 to 32 lower-case letters, digits or `_` (`default` is the root of `role`); a firewall serves one root.
+With roots configured, the renderer behind `ManualRendererInterface` must implement
+`ReaderAwareManualRendererInterface` (the bundle's does); the container build fails otherwise.
 Import the routes of a root with the `nowo_manual` route type, the resource being the root name:
 
 ```yaml
@@ -187,6 +199,7 @@ nowo_manual_portal:
     resource: portal
     type: nowo_manual
     prefix: /portal/help
+    trailing_slash_on_root: false
 ```
 
 The routes of a root are named `nowo_manual.<root>.<route>` (`nowo_manual.portal.index`, `nowo_manual.portal.chapter`,
@@ -349,7 +362,8 @@ when the peer is already registered: the figures would get two controllers.
 ## cache
 
 Cache pool service id for rendered chapters (default `cache.app`). Entries are keyed by chapter, locale, translation
-state, audience (1.13: the root and the sorted audiences the reader holds), file mtime and size, manifest mtime, router base URL and (1.12) the device views settings, and expire
+state, audience (1.13: the root and the sorted audiences the reader holds, plus a hash of the audiences and roots
+configuration), file mtime and size, manifest mtime, router base URL and (1.12) the device views settings, and expire
 after a day. Adding or removing a phone companion image does not change the key: clear the pool when you deploy new
 screenshots, as for any image size change.
 

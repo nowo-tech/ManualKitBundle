@@ -131,6 +131,7 @@ final readonly class ManualRenderer implements ReaderAwareManualRendererInterfac
             $chapter->locale,
             $chapter->translation->value,
             $reader->key(),
+            $this->audiences->fingerprint(),
             (string) filemtime($chapter->path),
             (string) filesize($chapter->path),
             is_file($manifest) ? (string) filemtime($manifest) : 'no-manifest',
@@ -161,7 +162,8 @@ final readonly class ManualRenderer implements ReaderAwareManualRendererInterfac
     /**
      * 1.13: keeps the blocks naming an audience of `$granted` (`<!-- audience: admin, developer -->`: any of them),
      * drops the others — `github` blocks always. A marker left without its pair hides the rest of the chapter unless
-     * `$whole` (a reader who holds every audience of the root, who would see every block anyway).
+     * `$whole` (a reader who holds every configured audience, who would see every block anyway — never a reader of a
+     * root that serves only some audiences); even then the text after a stray `github` opening marker is dropped.
      *
      * @param list<string> $granted the audiences the reader holds
      */
@@ -173,12 +175,24 @@ final readonly class ManualRenderer implements ReaderAwareManualRendererInterfac
             static fn (string $audiences, string $content): string => array_intersect(ManualAudiences::parseBlock($audiences), array_diff($granted, [ManualAudiences::GITHUB])) !== [] ? $content : '',
             true,
         );
-        $stray = CommentBlocks::splitAtMarkers($filtered, self::AUDIENCE);
-        if (count($stray) === 1) {
+        $parts = CommentBlocks::splitKeepingMarkers($filtered, self::AUDIENCE);
+        if (count($parts) === 1) {
             return $filtered;
         }
+        if (!$whole) {
+            return $parts[0];
+        }
+        $kept = '';
+        foreach ($parts as $index => $part) {
+            if ($index % 2 === 0) {
+                $kept .= $part;
+            } elseif (preg_match('/<!--\s*audience:\s*github\b/i', $part) === 1) {
+                // Repository-only notes (demo credentials) never reach the app, not even a whole reader (MK113-L3).
+                break;
+            }
+        }
 
-        return $whole ? implode('', $stray) : $stray[0];
+        return $kept;
     }
 
     private function build(ManualChapter $chapter, ManualReader $reader): RenderedManualChapter
@@ -225,7 +239,7 @@ final readonly class ManualRenderer implements ReaderAwareManualRendererInterfac
             $this->rewrite($event, new LinkContext($visible, $chapters, $files, $chapter, $root), $images);
         }, -10);
 
-        $markdown = self::audiencesFiltered((string) file_get_contents($chapter->path), $reader->audiences, array_diff($root->audiences, $reader->audiences) === []);
+        $markdown = self::audiencesFiltered((string) file_get_contents($chapter->path), $reader->audiences, $this->audiences->isWhole($reader));
         // The chapter title is the page heading: drop the Markdown's own `# Title` line (after a translation marker).
         $markdown = (string) preg_replace('/\A(?:\s*<!--[^\n]*-->\s*\n)*# [^\n]*\n/', '', $markdown);
         // 1.12: a random token per rendering marks the device blocks (chapter text cannot forge a wrapper).

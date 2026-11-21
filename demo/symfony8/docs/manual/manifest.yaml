@@ -11,3 +11,6 @@ chapters:
   - { slug: sharing, parent: projects, tags: [share, invite, compartir] }
   - { slug: billing, parent: 03-guide, audience: admin, tags: [invoice, factura] }
   - { slug: 02-admin, group: administration, audience: admin, tags: [users, usuarios] }
+  # 1.13: a named audience (nowo_manual_kit.audiences.developer) and a chapter of the customer portal root.
+  - { slug: 04-api, group: using, audience: developer, tags: [api, webhook] }
+  - { slug: portal-home, group: using, audience: customer, tags: [portal, invoices] }

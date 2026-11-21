@@ -10,7 +10,9 @@ Stimulus peer, registered in `assets/app.ts` as `nowo-manual-lightbox`.
 | User | Password | Role | Sees |
 | --- | --- | --- | --- |
 | `demo` | `demo` | `ROLE_USER` | Home and *Getting started*; admin chapters answer 404, admin-only blocks are left out |
-| `admin` | `admin` | `ROLE_ADMIN` | Everything, including the *Administration* chapter |
+| `admin` | `admin` | `ROLE_ADMIN` | Every member and admin chapter, including *Administration* (not the developer one) |
+| `dev` | `dev` | `ROLE_USER`, `ROLE_DEVELOPER` | 1.13: the member chapters plus *API for developers* (`audience: developer`) |
+| `contact` | `contact` | `ROLE_CRM_CONTACT` (portal firewall, HTTP basic) | 1.13: only the customer portal root at `/portal/help` |
 
 ## Quick start
 

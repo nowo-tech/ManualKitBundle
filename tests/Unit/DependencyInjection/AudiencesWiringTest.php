@@ -55,7 +55,7 @@ final class AudiencesWiringTest extends TestCase
 
         self::assertSame('ROLE_ADMIN', $container->getParameter('nowo_manual_kit.admin_role'));
         self::assertSame(['admin' => 'ROLE_ADMIN'], $container->getParameter('nowo_manual_kit.audiences'));
-        self::assertSame([['admin' => 'ROLE_ADMIN'], 'member', [], 'ROLE_USER'], $container->getDefinition(ManualAudiences::class)->getArguments());
+        self::assertSame([['admin' => 'ROLE_ADMIN'], 'member', [], 'ROLE_USER', []], $container->getDefinition(ManualAudiences::class)->getArguments());
     }
 
     public function testAdminRoleIsAnAliasOfAudiencesAdmin(): void
@@ -90,7 +90,7 @@ final class AudiencesWiringTest extends TestCase
      */
     public static function invalidConfigurations(): iterable
     {
-        $portal = static fn (array $root): array => ['audiences' => ['customer' => 'ROLE_CRM_CONTACT'], 'roots' => ['portal' => [...['audiences' => ['customer'], 'role' => 'ROLE_CRM_CONTACT'], ...$root]]];
+        $portal = static fn (array $root): array => ['audiences' => ['customer' => 'ROLE_CRM_CONTACT'], 'roots' => ['portal' => [...['audiences' => ['customer'], 'role' => 'ROLE_CRM_CONTACT', 'firewalls' => ['portal']], ...$root]]];
 
         yield 'member redefined' => [['audiences' => ['member' => 'ROLE_X']], 'cannot define "member"'];
         yield 'github redefined' => [['audiences' => ['github' => 'ROLE_X']], 'cannot define "github"'];
@@ -99,16 +99,27 @@ final class AudiencesWiringTest extends TestCase
         yield 'empty admin_role' => [['admin_role' => ''], 'must be a non-empty role'];
         yield 'unknown default audience' => [['default_audience' => 'user'], '"nowo_manual_kit.default_audience" "user" must be'];
         yield 'default audience of another root' => [[...$portal([]), 'default_audience' => 'customer'], '"nowo_manual_kit.default_audience" "customer" must be'];
-        yield 'root named default' => [['audiences' => ['customer' => 'ROLE_C'], 'roots' => ['default' => ['audiences' => ['customer'], 'role' => 'ROLE_C']]], 'cannot define "default"'];
+        yield 'root named default' => [['audiences' => ['customer' => 'ROLE_C'], 'roots' => ['default' => ['audiences' => ['customer'], 'role' => 'ROLE_C', 'firewalls' => ['portal']]]], 'cannot define "default"'];
         yield 'root lists member' => [$portal(['audiences' => ['member']]), '"nowo_manual_kit.roots.portal.audiences" lists "member"'];
         yield 'root lists an unknown audience' => [$portal(['audiences' => ['customers']]), '"nowo_manual_kit.roots.portal.audiences" lists "customers"'];
         yield 'root without audiences' => [$portal(['audiences' => []]), 'should have at least 1 element'];
         yield 'root with a bad home' => [$portal(['home' => '../x']), 'must be a chapter slug'];
         yield 'root with a bad role' => [$portal(['role' => 5]), 'must be a role / security attribute string'];
+        yield 'root without firewalls' => [['audiences' => ['customer' => 'ROLE_C'], 'roots' => ['portal' => ['audiences' => ['customer'], 'role' => 'ROLE_C']]], 'The child config "firewalls" under "nowo_manual_kit.roots.portal" must be configured'];
+        yield 'root with no firewall' => [$portal(['firewalls' => []]), 'should have at least 1 element'];
+        yield 'a firewall of the default root and a root' => [[...$portal([]), 'default_firewalls' => ['main', 'portal']], 'The firewall "portal" is listed by the roots "default" and "portal"'];
         yield 'a firewall serving two roots' => [['audiences' => ['customer' => 'ROLE_C', 'partner' => 'ROLE_P'], 'roots' => [
             'portal'   => ['audiences' => ['customer'], 'role' => 'ROLE_C', 'firewalls' => ['portal']],
             'partners' => ['audiences' => ['partner'], 'role' => 'ROLE_P', 'firewalls' => ['portal']],
         ]], 'The firewall "portal" is listed by the roots "portal" and "partners"'];
+    }
+
+    public function testTheDefaultRootCanBePinnedToFirewalls(): void
+    {
+        $container = $this->load(['default_firewalls' => ['main']]);
+
+        self::assertSame(['main'], $container->getParameter('nowo_manual_kit.default_firewalls'));
+        self::assertSame(['main'], $container->getDefinition(ManualAudiences::class)->getArgument(4));
     }
 
     public function testTheFixtureManualBuildsWithItsAudiencesAndItsFilesAreTracked(): void
@@ -117,7 +128,7 @@ final class AudiencesWiringTest extends TestCase
             'directory'        => '%kernel.project_dir%' . self::FIXTURE,
             'audiences'        => ['user' => 'ROLE_USER', 'developer' => 'ROLE_DEVELOPER', 'customer' => 'ROLE_CRM_CONTACT'],
             'default_audience' => 'user',
-            'roots'            => ['portal' => ['audiences' => ['customer'], 'role' => 'ROLE_CRM_CONTACT']],
+            'roots'            => ['portal' => ['audiences' => ['customer'], 'role' => 'ROLE_CRM_CONTACT', 'firewalls' => ['portal']]],
         ]);
 
         $root    = dirname(__DIR__, 3) . self::FIXTURE;

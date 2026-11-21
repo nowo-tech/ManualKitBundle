@@ -20,6 +20,7 @@ use function sprintf;
  *         resource: portal
  *         type: nowo_manual
  *         prefix: /portal/help
+ *         trailing_slash_on_root: false
  *
  * The routes are the bundle's (`routes.php`), named `nowo_manual.<root>.<route>` (`nowo_manual.portal.chapter`) and
  * carrying the root as the `_nowo_manual_root` default, which a URL cannot set. `resource: default` gives the routes of

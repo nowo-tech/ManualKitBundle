@@ -131,4 +131,40 @@ final class DemoControllerTest extends WebTestCase
         $client->request('GET', '/en/manual/old-admin');
         self::assertResponseStatusCodeSame(404);
     }
+
+    /** 1.13: a named audience — the API chapter and its block are for developers only. */
+    public function testDevelopersReadTheApiChapterAndMembersDoNot(): void
+    {
+        $client = static::createClient();
+        $client->loginUser(new InMemoryUser('dev', 'dev', ['ROLE_USER', 'ROLE_DEVELOPER']));
+        $crawler = $client->request('GET', '/en/manual/04-api');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('h2#rotating-tokens');
+        self::assertCount(1, $crawler->filter('[data-testid="manual-nav-04-api"]'));
+
+        $client->loginUser(new InMemoryUser('demo', 'demo', ['ROLE_USER']));
+        $crawler = $client->request('GET', '/en/manual');
+        self::assertCount(0, $crawler->filter('[data-testid="manual-nav-04-api"]'));
+        $client->request('GET', '/en/manual/04-api');
+        self::assertResponseStatusCodeSame(404);
+        $client->request('GET', '/en/manual/portal-home');
+        self::assertResponseStatusCodeSame(404, 'a portal chapter is never served in the staff manual');
+    }
+
+    /** 1.13: the customer portal root serves only `customer` chapters, in its own firewall. */
+    public function testThePortalServesOnlyCustomerChapters(): void
+    {
+        $client = static::createClient();
+        $client->request('GET', '/portal/help');
+        self::assertResponseStatusCodeSame(401);
+
+        $client->loginUser(new InMemoryUser('contact', 'contact', ['ROLE_CRM_CONTACT']), 'portal');
+        $crawler = $client->request('GET', '/portal/help');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('h1', 'Customer help');
+        self::assertSelectorNotExists('h2#staff-notes');
+        self::assertCount(0, $crawler->filter('.manual-prose a[href*="01-getting-started"]'));
+        $client->request('GET', '/portal/help/01-getting-started');
+        self::assertResponseStatusCodeSame(404);
+    }
 }
