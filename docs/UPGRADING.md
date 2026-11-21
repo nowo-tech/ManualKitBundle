@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.13.0](#to-1130)
 - [To 1.12.1](#to-1121)
 - [To 1.12.0](#to-1120)
 - [To 1.11.0](#to-1110)
@@ -24,6 +25,14 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## To 1.13.0
+
+From **1.12.1**:
+
+```bash
+composer update nowo-tech/manual-kit-bundle
+```
 
 Named audiences and manual roots (1.13, see [CONFIGURATION — audiences](CONFIGURATION.md#audiences)). Nothing to do for
 a manual that only uses `member` / `admin`; check these points:

@@ -7,6 +7,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+- [[1.13.0] - 2026-11-21](#1130---2026-11-21)
   - [Added](#added)
   - [Changed](#changed)
   - [Tests](#tests)
@@ -56,6 +57,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   - [Added](#added-11)
 
 ## [Unreleased]
+
+## [1.13.0] - 2026-11-21
 
 ### Added
 
@@ -109,7 +112,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   kernel alternates readers of different audiences and roots (FrankenPHP worker mode, no reset). Build errors for every
   invalid audience configuration and unknown name, roots without firewalls and a renderer without `renderFor()`.
   Stray and nested markers in both roots (page, "On this page", search, images).
-
 
 ## [1.12.1] - 2026-11-17
 
