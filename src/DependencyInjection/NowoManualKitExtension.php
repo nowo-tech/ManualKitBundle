@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\DependencyInjection;
 
+use Nowo\ManualKitBundle\Audience\AudienceManifestValidator;
+use Nowo\ManualKitBundle\Audience\ManualAudiences;
+use Nowo\ManualKitBundle\CacheWarmer\AudienceCacheWarmer;
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Redirect\ChapterRedirectMap;
 use Nowo\ManualKitBundle\Redirect\RedirectMapCompiler;
@@ -17,6 +20,7 @@ use Nowo\ManualKitBundle\Translation\MarkdownTranslator;
 use Nowo\ManualKitBundle\Translation\UiGlossary;
 use Symfony\Component\Config\Definition\Exception\InvalidConfigurationException;
 use Symfony\Component\Config\FileLocator;
+use Symfony\Component\Config\Resource\DirectoryResource;
 use Symfony\Component\Config\Resource\FileResource;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -27,7 +31,10 @@ use Symfony\Component\DependencyInjection\Loader\PhpFileLoader;
 use Symfony\Component\DependencyInjection\Reference;
 
 use function implode;
+use function is_dir;
 use function is_string;
+use function json_encode;
+use function sprintf;
 
 /**
  * Loads `nowo_manual_kit` into `nowo_manual_kit.*` container parameters and `Resources/config/services.php`, and
@@ -64,8 +71,12 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
      */
     public function load(array $configs, ContainerBuilder $container): void
     {
-        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string, docs_url: string, in_app: bool, template: string, layout: string, groups: list<array{key: string, label: string|null, translation_domain: string}>, redirects: array<string, string>, device_views: array{enabled: bool, breakpoint: int, image_suffix: string}, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, service: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
+        /** @var array{directory: string, source_locale: string, locales: list<string>, role: string, admin_role: string|null, audiences: array<string, string>, default_audience: string, roots: array<string, array{audiences: list<string>, role: string, home: string, firewalls: list<string>}>, docs_url: string, in_app: bool, template: string, layout: string, groups: list<array{key: string, label: string|null, translation_domain: string}>, redirects: array<string, string>, device_views: array{enabled: bool, breakpoint: int, image_suffix: string}, standalone_lightbox: bool, cache: string, machine_translation: array{provider: string, service: string, api_key: string, url: string, formality: string, languages: array<string, string>, timeout: float|int, max_duration: float|int, glossary_domains: list<string>}} $config */
         $config = $this->processConfiguration(new Configuration(), $configs);
+        // 1.13: admin_role and audiences.admin are one setting.
+        $admin                                       = $this->adminAttribute($config['admin_role'], $config['audiences']);
+        $config['admin_role']                        = $admin;
+        $config['audiences'][ManualAudiences::ADMIN] = $admin;
 
         foreach ($config as $key => $value) {
             $container->setParameter(Configuration::ALIAS . '.' . $key, $value);
@@ -79,6 +90,13 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
         // 1.12: one immutable DeviceViews for the renderer and the controller.
         $container->getDefinition(DeviceViews::class)->setArguments([$config['device_views']['enabled'], $config['device_views']['breakpoint'], $config['device_views']['image_suffix']]);
         $this->loadRedirects($config['directory'], $config['redirects'], $container);
+        $audiences = new ManualAudiences($config['audiences'], $config['default_audience'], $config['roots'], $config['role']);
+        $errors    = $audiences->configErrors();
+        if ($errors !== []) {
+            throw new InvalidConfigurationException('Invalid manual audiences: ' . implode(' ', $errors));
+        }
+        $container->getDefinition(ManualAudiences::class)->setArguments([$config['audiences'], $config['default_audience'], $config['roots'], $config['role']]);
+        $this->validateAudiences($config['directory'], $audiences, $container);
 
         $machine = $config['machine_translation'];
         $container->getDefinition(UiGlossary::class)
@@ -103,6 +121,58 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
     }
 
     /**
+     * 1.13: `admin_role` is an alias of `audiences.admin`: either one sets the `admin` audience (default ROLE_ADMIN);
+     * both with different values is a build error (neither silently wins). The `admin_role` parameter keeps the value
+     * in force.
+     *
+     * @param array<string, string> $audiences
+     */
+    private function adminAttribute(?string $alias, array $audiences): string
+    {
+        $explicit = $audiences[ManualAudiences::ADMIN] ?? null;
+        if ($alias !== null && $explicit !== null && $alias !== $explicit) {
+            throw new InvalidConfigurationException(sprintf('"nowo_manual_kit.admin_role" (%s) and "nowo_manual_kit.audiences.admin" (%s) disagree: set one of them (admin_role is an alias of audiences.admin).', json_encode($alias), json_encode($explicit)));
+        }
+
+        return $explicit ?? $alias ?? 'ROLE_ADMIN';
+    }
+
+    /**
+     * 1.13: deny by default, at build time — an audience the manifest or a block names but the configuration does not
+     * stops the container build. The files read are tracked, so a debug container is rebuilt when a chapter changes.
+     * A `directory` built from an env var is checked at `cache:warmup` instead ({@see AudienceCacheWarmer}).
+     */
+    private function validateAudiences(string $directory, ManualAudiences $audiences, ContainerBuilder $container): void
+    {
+        $resolved = $this->staticDirectory($directory, $container);
+        if ($resolved === null) {
+            return;
+        }
+        $validated = AudienceManifestValidator::validate($resolved, $audiences);
+        if (is_dir($resolved)) {
+            $container->addResource(new DirectoryResource($resolved, '/\.md$/'));
+        }
+        foreach ($validated['files'] as $file) {
+            $container->addResource(new FileResource($file));
+        }
+        if ($validated['errors'] !== []) {
+            throw new InvalidConfigurationException('Unknown manual audiences (configure them in nowo_manual_kit.audiences): ' . implode(' ', $validated['errors']));
+        }
+    }
+
+    /**
+     * The manual directory when it is known while the container is built (no env var), else null.
+     */
+    private function staticDirectory(string $directory, ContainerBuilder $container): ?string
+    {
+        $resolved = $container->getParameterBag()->resolveValue($directory);
+        $usedEnvs = [];
+        $container->resolveEnvPlaceholders($resolved, true, $usedEnvs);
+
+        return is_string($resolved) && $usedEnvs === [] ? $resolved : null;
+    }
+
+    /**
      * 1.11: compiles the redirect map (config + the manifest's `redirects:` file) once, here: an invalid entry, an
      * absolute URL or a cycle stops the container build; chains are collapsed. The files read are tracked so a debug
      * container is rebuilt when they change. A `directory` built from an env var cannot be read at build time: only
@@ -112,11 +182,9 @@ final class NowoManualKitExtension extends Extension implements PrependExtension
      */
     private function loadRedirects(string $directory, array $inline, ContainerBuilder $container): void
     {
-        $resolved = $container->getParameterBag()->resolveValue($directory);
-        $usedEnvs = [];
-        $container->resolveEnvPlaceholders($resolved, true, $usedEnvs);
-        $loaded = ['rules' => $inline, 'files' => [], 'errors' => []];
-        if (is_string($resolved) && $usedEnvs === []) {
+        $resolved = $this->staticDirectory($directory, $container);
+        $loaded   = ['rules' => $inline, 'files' => [], 'errors' => []];
+        if ($resolved !== null) {
             $container->fileExists($resolved . '/' . ManualCatalog::MANIFEST);
             $loaded = RedirectMapLoader::load($inline, $resolved);
             foreach ($loaded['files'] as $file) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Render;
 
+use Nowo\ManualKitBundle\Audience\ManualRoot;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 
 /**
@@ -21,12 +22,14 @@ final readonly class LinkContext
      * @param array<string, bool> $visible chapter slug => readable by this viewer
      * @param array<string, ManualChapter> $chapters chapter slug => chapter
      * @param array<string, string> $files `manual/guide/install.md` => slug (manual chapters, not external files)
+     * @param ManualRoot $root 1.13: the root the chapter is rendered in (route names)
      */
     public function __construct(
         public array $visible,
         public array $chapters,
         public array $files,
         public ManualChapter $chapter,
+        public ManualRoot $root = new ManualRoot(ManualRoot::DEFAULT, ['member', 'admin']),
     ) {
     }
 }

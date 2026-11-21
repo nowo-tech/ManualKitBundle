@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Nowo\ManualKitBundle\Controller;
 
+use Nowo\ManualKitBundle\Audience\ManualAudiences;
+use Nowo\ManualKitBundle\Audience\ManualReader;
+use Nowo\ManualKitBundle\Audience\ManualReaderResolver;
+use Nowo\ManualKitBundle\Audience\ManualReaderResolverInterface;
+use Nowo\ManualKitBundle\Audience\ManualRoot;
+use Nowo\ManualKitBundle\Audience\ManualRootResolver;
 use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\Model\ManualChapter;
@@ -13,7 +19,9 @@ use Nowo\ManualKitBundle\Redirect\ChapterRedirectsInterface;
 use Nowo\ManualKitBundle\Redirect\RedirectMapCompiler;
 use Nowo\ManualKitBundle\Redirect\RedirectTarget;
 use Nowo\ManualKitBundle\Render\DeviceViews;
+use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
+use Nowo\ManualKitBundle\Render\ReaderAwareManualRendererInterface;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
 use Nowo\ManualKitBundle\Security\ReadableChapters;
@@ -27,6 +35,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 use Twig\Environment;
 
+use function array_diff;
+use function array_filter;
 use function array_map;
 use function array_search;
 use function array_values;
@@ -59,6 +69,11 @@ use const ENT_QUOTES;
  * target BEFORE the 301: a reader who may not open the target gets the same 404 as for the target itself or an unknown
  * slug, so the map adds no existence oracle and never reveals where a hidden chapter went.
  *
+ * 1.13: every page is served to a reader — the request's manual root (the route's, {@see ManualRootResolver}) and the
+ * audiences of it the user holds ({@see ManualReaderResolverInterface}). A chapter the reader may not see by audience,
+ * or that belongs to another root, is the same 404 as an unknown slug; the navigation, previous / next, sub-pages,
+ * links, images and anchor maps only ever hold chapters the reader may open, with the routes of the request's root.
+ *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
  */
@@ -74,6 +89,10 @@ final readonly class ManualController
      *                                                                                         labels of the navigation)
      * @param ChapterRedirectsInterface $redirects 1.11: the chapters and anchors that moved
      * @param DeviceViews $devices 1.12: desktop / phone views
+     * @param ManualAudiences $audiences 1.13: the audiences and roots
+     * @param ManualReaderResolverInterface|null $readers 1.13: the reader of a root (null: from `$access` alone —
+     *                                                    `member` and `admin` of the default root)
+     * @param ManualRootResolver $roots 1.13: the root of a request
      */
     public function __construct(
         private ManualCatalogInterface $catalog,
@@ -85,6 +104,9 @@ final readonly class ManualController
         private array $groups = [],
         private ChapterRedirectsInterface $redirects = new ChapterRedirectMap(),
         private DeviceViews $devices = new DeviceViews(),
+        private ManualAudiences $audiences = new ManualAudiences(),
+        private ?ManualReaderResolverInterface $readers = null,
+        private ManualRootResolver $roots = new ManualRootResolver(),
     ) {
     }
 
@@ -94,43 +116,43 @@ final readonly class ManualController
     #[Route('', name: 'nowo_manual_index', methods: ['GET'])]
     public function index(Request $request): Response
     {
-        $this->requireReader();
+        $reader = $this->reader($request);
 
-        return $this->page($request, $this->readable($this->catalog->find(ManualChapter::HOME, $request->getLocale())));
+        return $this->page($request, $this->readable($this->catalog->find($this->root($reader)->home, $request->getLocale()), $reader), $reader);
     }
 
     /** Links written for GitHub (`04-projects.md#filters`) keep working: the `.md` form redirects. */
     #[Route('/{chapter}.md', name: 'nowo_manual_chapter_md', requirements: ['chapter' => '[A-Za-z0-9-]+'], methods: ['GET'])]
-    public function markdownAlias(string $chapter): RedirectResponse
+    public function markdownAlias(Request $request, string $chapter): RedirectResponse
     {
-        $this->requireReader();
-        $found = $this->catalog->find($chapter);
+        $reader = $this->reader($request);
+        $found  = $this->catalog->find($chapter);
         if (!$found instanceof ManualChapter) {
             // 1.11: `old-slug.md` of a chapter that moved goes straight to its new place (one hop).
-            return $this->moved($chapter, null);
+            return $this->moved($chapter, null, $reader);
         }
 
-        return $this->permanent(ManualRoutes::generate($this->urls, $this->readable($found)));
+        return $this->permanent($this->path($this->readable($found, $reader), $reader));
     }
 
     /** 1.6: `guide/install.md` (a link written for GitHub inside a sub-folder) redirects to the child chapter. */
     #[Route('/{parent}/{chapter}.md', name: 'nowo_manual_child_md', requirements: ['parent' => ManualRoutes::SEGMENT, 'chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
-    public function childMarkdownAlias(string $parent, string $chapter): RedirectResponse
+    public function childMarkdownAlias(Request $request, string $parent, string $chapter): RedirectResponse
     {
-        $this->requireReader();
-        $found = $this->nested($chapter, [$parent], null);
+        $reader = $this->reader($request);
+        $found  = $this->nested($chapter, [$parent], null, $reader);
 
-        return $found instanceof ManualChapter ? $this->permanent(ManualRoutes::generate($this->urls, $found)) : $found;
+        return $found instanceof ManualChapter ? $this->permanent($this->path($found, $reader)) : $found;
     }
 
     /** 1.6: `guide/install/docker.md` redirects to the grandchild chapter. */
     #[Route('/{grandparent}/{parent}/{chapter}.md', name: 'nowo_manual_grandchild_md', requirements: ['grandparent' => ManualRoutes::SEGMENT, 'parent' => ManualRoutes::SEGMENT, 'chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
-    public function grandchildMarkdownAlias(string $grandparent, string $parent, string $chapter): RedirectResponse
+    public function grandchildMarkdownAlias(Request $request, string $grandparent, string $parent, string $chapter): RedirectResponse
     {
-        $this->requireReader();
-        $found = $this->nested($chapter, [$grandparent, $parent], null);
+        $reader = $this->reader($request);
+        $found  = $this->nested($chapter, [$grandparent, $parent], null, $reader);
 
-        return $found instanceof ManualChapter ? $this->permanent(ManualRoutes::generate($this->urls, $found)) : $found;
+        return $found instanceof ManualChapter ? $this->permanent($this->path($found, $reader)) : $found;
     }
 
     /**
@@ -140,9 +162,9 @@ final readonly class ManualController
     #[Route('/images/{file}', name: 'nowo_manual_image', requirements: ['file' => '[A-Za-z0-9][A-Za-z0-9._-]*\.(?:webp|png|jpe?g|gif|svg)'], methods: ['GET'], priority: 10)]
     public function image(Request $request, string $file): BinaryFileResponse
     {
-        $this->requireReader();
-        $path = $this->confinedImage(basename($file));
-        if ($path === null || !$this->imageReadable(basename($file), $request->getLocale())) {
+        $reader = $this->reader($request);
+        $path   = $this->confinedImage(basename($file));
+        if ($path === null || !$this->imageReadable(basename($file), $request->getLocale(), $reader)) {
             throw new NotFoundHttpException();
         }
 
@@ -162,21 +184,21 @@ final readonly class ManualController
     #[Route('/{chapter}', name: 'nowo_manual_chapter', requirements: ['chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
     public function chapter(Request $request, string $chapter): Response
     {
-        $this->requireReader();
-        $found = $this->catalog->find($chapter, $request->getLocale());
+        $reader = $this->reader($request);
+        $found  = $this->catalog->find($chapter, $request->getLocale());
         if (!$found instanceof ManualChapter) {
-            return $this->moved($chapter, $request->getLocale());
+            return $this->moved($chapter, $request->getLocale(), $reader);
         }
-        $found = $this->readable($found);
-        if ($found->isHome()) {
+        $found = $this->readable($found, $reader);
+        if (ManualRoutes::isHome($found, $this->root($reader))) {
             throw new NotFoundHttpException();
         }
         if ($found->ancestors !== []) {
             // 1.6: a nested chapter lives under its parents; a link built from the slug alone still reaches it.
-            return $this->permanent(ManualRoutes::generate($this->urls, $found));
+            return $this->permanent($this->path($found, $reader));
         }
 
-        return $this->page($request, $found);
+        return $this->page($request, $found, $reader);
     }
 
     /**
@@ -185,10 +207,10 @@ final readonly class ManualController
     #[Route('/{parent}/{chapter}', name: 'nowo_manual_child', requirements: ['parent' => ManualRoutes::SEGMENT, 'chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
     public function child(Request $request, string $parent, string $chapter): Response
     {
-        $this->requireReader();
-        $found = $this->nested($chapter, [$parent], $request->getLocale());
+        $reader = $this->reader($request);
+        $found  = $this->nested($chapter, [$parent], $request->getLocale(), $reader);
 
-        return $found instanceof ManualChapter ? $this->page($request, $found) : $found;
+        return $found instanceof ManualChapter ? $this->page($request, $found, $reader) : $found;
     }
 
     /**
@@ -197,10 +219,10 @@ final readonly class ManualController
     #[Route('/{grandparent}/{parent}/{chapter}', name: 'nowo_manual_grandchild', requirements: ['grandparent' => ManualRoutes::SEGMENT, 'parent' => ManualRoutes::SEGMENT, 'chapter' => ManualRoutes::SEGMENT], methods: ['GET'])]
     public function grandchild(Request $request, string $grandparent, string $parent, string $chapter): Response
     {
-        $this->requireReader();
-        $found = $this->nested($chapter, [$grandparent, $parent], $request->getLocale());
+        $reader = $this->reader($request);
+        $found  = $this->nested($chapter, [$grandparent, $parent], $request->getLocale(), $reader);
 
-        return $found instanceof ManualChapter ? $this->page($request, $found) : $found;
+        return $found instanceof ManualChapter ? $this->page($request, $found, $reader) : $found;
     }
 
     /**
@@ -210,17 +232,17 @@ final readonly class ManualController
      *
      * @param list<string> $ancestors
      */
-    private function nested(string $slug, array $ancestors, ?string $locale): ManualChapter|RedirectResponse
+    private function nested(string $slug, array $ancestors, ?string $locale, ManualReader $reader): ManualChapter|RedirectResponse
     {
         $chapter = $this->catalog->find($slug, $locale);
         if (!$chapter instanceof ManualChapter) {
-            return $this->moved($slug, $locale);
+            return $this->moved($slug, $locale, $reader);
         }
-        $found = $this->readable($chapter);
+        $found = $this->readable($chapter, $reader);
         if ($found->ancestors !== $ancestors) {
             foreach ($ancestors as $ancestor) {
                 if ($this->redirects->chapterTarget($ancestor) instanceof RedirectTarget && !$this->catalog->find($ancestor) instanceof ManualChapter) {
-                    return $this->permanent(ManualRoutes::generate($this->urls, $found));
+                    return $this->permanent($this->path($found, $reader));
                 }
             }
 
@@ -235,7 +257,7 @@ final readonly class ManualController
      * keeps `_locale`). The target goes through the same checks as a request for it, before the redirect: a reader
      * who may not open it gets its 404. A slug that is neither a chapter nor redirected is a 404 too.
      */
-    private function moved(string $slug, ?string $locale): RedirectResponse
+    private function moved(string $slug, ?string $locale, ManualReader $reader): RedirectResponse
     {
         $target = $this->redirects->chapterTarget($slug);
         if (!$target instanceof RedirectTarget) {
@@ -247,12 +269,12 @@ final readonly class ManualController
         if ($stopped) {
             $target = RedirectTarget::fromString($walked);
         }
-        $chapter = $this->readable($this->catalog->find($target->slug, $locale));
-        $url     = ManualRoutes::generate($this->urls, $chapter);
+        $chapter = $this->readable($this->catalog->find($target->slug, $locale), $reader);
+        $url     = $this->path($chapter, $reader);
         if (!$stopped && $this->redirects->hasMovedAnchors($slug)) {
             // The browser keeps the reader's #fragment (no fragment in Location); js/manual-anchors.js maps it.
             $url .= '?' . http_build_query([self::MOVED_FROM => $slug]);
-        } elseif ($target->anchor !== null && $this->hasAnchor($this->renderer->render($chapter, $this->access->isAdmin()), $target->anchor)) {
+        } elseif ($target->anchor !== null && $this->hasAnchor($this->render($chapter, $reader), $target->anchor)) {
             // Only an anchor the reader's rendering has: the id of an admin block never reaches a member.
             $url .= '#' . rawurlencode($target->anchor);
         }
@@ -286,12 +308,12 @@ final readonly class ManualController
      *
      * @return array{moved?: array<string, string>, own?: array<string, string>}
      */
-    private function anchorRedirects(Request $request, RenderedManualChapter $rendered, bool $admin): array
+    private function anchorRedirects(Request $request, RenderedManualChapter $rendered, ManualReader $reader): array
     {
         $chapter = $rendered->chapter;
         $from    = $request->query->all()[self::MOVED_FROM] ?? null;
-        $moved   = is_string($from) && preg_match(ManualCatalog::SLUG, $from) === 1 ? $this->anchorUrls($this->redirects->movedAnchors($chapter->slug, $from), $rendered, $admin, $request->getLocale()) : [];
-        $own     = $this->anchorUrls($this->redirects->ownAnchors($chapter->slug), $rendered, $admin, $request->getLocale());
+        $moved   = is_string($from) && preg_match(ManualCatalog::SLUG, $from) === 1 ? $this->anchorUrls($this->redirects->movedAnchors($chapter->slug, $from), $rendered, $reader, $request->getLocale()) : [];
+        $own     = $this->anchorUrls($this->redirects->ownAnchors($chapter->slug), $rendered, $reader, $request->getLocale());
 
         return $moved === [] && $own === [] ? [] : ['moved' => $moved, 'own' => $own];
     }
@@ -301,17 +323,17 @@ final readonly class ManualController
      *
      * @return array<string, string>
      */
-    private function anchorUrls(array $targets, RenderedManualChapter $current, bool $admin, string $locale): array
+    private function anchorUrls(array $targets, RenderedManualChapter $current, ManualReader $reader, string $locale): array
     {
         $urls = [];
         foreach ($targets as $anchor => $target) {
             $chapter = $target->slug === $current->chapter->slug ? $current->chapter : $this->catalog->find($target->slug, $locale);
-            if (!$chapter instanceof ManualChapter || !$this->canOpen($chapter)) {
+            if (!$chapter instanceof ManualChapter || !$this->canOpen($chapter, $reader)) {
                 continue;
             }
-            $url = ManualRoutes::generate($this->urls, $chapter);
+            $url = $this->path($chapter, $reader);
             if ($target->anchor !== null) {
-                if (!$this->hasAnchor($chapter === $current->chapter ? $current : $this->renderer->render($chapter, $admin), $target->anchor)) {
+                if (!$this->hasAnchor($chapter === $current->chapter ? $current : $this->render($chapter, $reader), $target->anchor)) {
                     continue;
                 }
                 $url .= '#' . rawurlencode($target->anchor);
@@ -325,15 +347,14 @@ final readonly class ManualController
         return $urls;
     }
 
-    private function page(Request $request, ManualChapter $chapter): Response
+    private function page(Request $request, ManualChapter $chapter, ManualReader $reader): Response
     {
-        $admin   = $this->access->isAdmin();
-        $locale  = $request->getLocale();
-        $visible = $this->catalog->visible($admin, $locale);
-        // 1.9: the host's per-chapter rule (ManualAccessInterface::canReadChapter) on top of the admin-only rule.
-        $chapters          = ReadableChapters::filter($visible, $visible, $this->access);
+        $locale = $request->getLocale();
+        // 1.13: the chapters of the request's root the reader may see by audience; 1.9: then the host's per-chapter
+        // rule (ManualAccessInterface::canReadChapter).
+        $chapters          = $this->readableChapters($locale, $reader);
         [$previous, $next] = $this->neighbours($chapter, $chapters);
-        $rendered          = $this->renderer->render($chapter, $admin);
+        $rendered          = $this->render($chapter, $reader);
 
         return new Response($this->twig->render($this->template, [
             'rendered' => $rendered,
@@ -344,12 +365,52 @@ final readonly class ManualController
             'next'     => $next,
             // 1.6: the chapter's parents (breadcrumb) and the sub-pages the viewer may read.
             'ancestors' => $this->catalog->ancestors($chapter, $locale),
-            'children'  => ReadableChapters::filter($this->catalog->children($chapter, $admin, $locale), $visible, $this->access),
+            'children'  => array_values(array_filter($chapters, static fn (ManualChapter $candidate): bool => $candidate->parent() === $chapter->slug)),
             // 1.11: the anchors that moved, for js/manual-anchors.js (empty: no script, no attribute).
-            'anchor_redirects' => $this->anchorRedirects($request, $rendered, $admin),
+            'anchor_redirects' => $this->anchorRedirects($request, $rendered, $reader),
             // 1.12: the Desktop / Phone switch (null: none — device views off or no device content).
             'device_views' => $this->deviceViews($request, $rendered),
+            // 1.13: the manual root of the page (its routes: manual_chapter_path(), manual_index_path()).
+            'manual_root' => $this->root($reader),
         ]));
+    }
+
+    /**
+     * 1.13: the chapters of the reader's root the reader may open, in manual order: visible by audience
+     * ({@see ManualAudiences::canSee()}), then the host's per-chapter rule on each and on its parents.
+     *
+     * @return list<ManualChapter>
+     */
+    private function readableChapters(?string $locale, ManualReader $reader): array
+    {
+        $visible = array_values(array_filter($this->catalog->all($locale), fn (ManualChapter $chapter): bool => $this->audiences->canSee($chapter, $reader)));
+
+        return ReadableChapters::filter($visible, $visible, $this->access);
+    }
+
+    /**
+     * 1.13: the chapter rendered for the reader — through {@see ReaderAwareManualRendererInterface} when the aliased
+     * renderer implements it, else the 1.12 call (`admin` held or not).
+     */
+    private function render(ManualChapter $chapter, ManualReader $reader): RenderedManualChapter
+    {
+        return $this->renderer instanceof ReaderAwareManualRendererInterface ? $this->renderer->renderFor($chapter, $reader) : $this->renderer->render($chapter, $reader->has(ManualAudiences::ADMIN));
+    }
+
+    /**
+     * 1.13: the URL of a chapter in the reader's root.
+     */
+    private function path(ManualChapter $chapter, ManualReader $reader): string
+    {
+        return ManualRoutes::generate($this->urls, $chapter, [], $this->root($reader));
+    }
+
+    /**
+     * 1.13: the root of a reader (resolved by {@see self::reader()}, so it exists).
+     */
+    private function root(ManualReader $reader): ManualRoot
+    {
+        return $this->audiences->root($reader->root) ?? throw new NotFoundHttpException();
     }
 
     /**
@@ -412,9 +473,9 @@ final readonly class ManualController
      * The chapter, or a 404 when it does not exist, is for administrators only or (1.9) is refused by the host's
      * per-chapter rule, itself or through a parent (no existence oracle).
      */
-    private function readable(?ManualChapter $chapter): ManualChapter
+    private function readable(?ManualChapter $chapter, ManualReader $reader): ManualChapter
     {
-        if (!$chapter instanceof ManualChapter || !$this->canOpen($chapter)) {
+        if (!$chapter instanceof ManualChapter || !$this->canOpen($chapter, $reader)) {
             throw new NotFoundHttpException();
         }
 
@@ -422,13 +483,13 @@ final readonly class ManualController
     }
 
     /**
-     * Whether the viewer may open the chapter: the admin-only rule, the host's per-chapter rule, on it and every parent.
+     * Whether the viewer may open the chapter: its audiences (1.13: one held audience of the reader's root on every
+     * level — this keeps the admin-only rule whatever ManualAccessInterface implementation is aliased, audit KN-M-L2),
+     * then the host's per-chapter rule, on it and every parent.
      */
-    private function canOpen(ManualChapter $chapter): bool
+    private function canOpen(ManualChapter $chapter, ManualReader $reader): bool
     {
-        // The admin-only rule is always enforced here, whatever ManualAccessInterface implementation is aliased
-        // (audit KN-M-L2); canReadChapter() adds the host's rule.
-        if (($chapter->adminOnly && !$this->access->isAdmin()) || !$this->access->canReadChapter($chapter)) {
+        if (!$this->audiences->canSee($chapter, $reader) || !$this->access->canReadChapter($chapter)) {
             return false;
         }
         foreach ($this->catalog->ancestors($chapter) as $ancestor) {
@@ -456,20 +517,19 @@ final readonly class ManualController
      * Whether a member's chapters show this image: screenshots of the administrators' chapters and blocks stay with
      * them. The member renderings are cached, so this costs a lookup per chapter.
      */
-    private function imageReadable(string $file, string $locale): bool
+    private function imageReadable(string $file, string $locale, ManualReader $reader): bool
     {
-        $admin    = $this->access->isAdmin();
-        $visible  = $this->catalog->visible($admin, $locale);
-        $readable = ReadableChapters::filter($visible, $visible, $this->access);
-        if ($admin && count($readable) === count($visible)) {
-            // Nothing refused by the host rule: administrators get every image (as before 1.9).
+        $root     = $this->root($reader);
+        $readable = $this->readableChapters($locale, $reader);
+        if (array_diff($root->audiences, $reader->audiences) === [] && count($readable) === count($this->catalog->all($locale))) {
+            // Every chapter and block of the manual open to this reader: every image (administrators before 1.13).
             return true;
         }
 
-        // Audit KN-M-L1: only images shown in a chapter the viewer may open, rendered for their audience.
-        $src = '"' . $this->urls->generate('nowo_manual_image', ['file' => $file]) . '"';
+        // Audit KN-M-L1: only images shown in a chapter the viewer may open, rendered for their audience and root.
+        $src = '"' . $this->urls->generate($root->routeName(ManualRenderer::IMAGE_ROUTE), ['file' => $file]) . '"';
         foreach ($readable as $chapter) {
-            if (str_contains($this->renderer->render($chapter, $admin)->html, $src)) {
+            if (str_contains($this->render($chapter, $reader)->html, $src)) {
                 return true;
             }
         }
@@ -477,11 +537,15 @@ final readonly class ManualController
         return false;
     }
 
-    private function requireReader(): void
+    /**
+     * 1.13: the reader of the request — its route's manual root (404 when that root is not served in the request's
+     * firewall) and the audiences of it the user holds; a user who may not open the root at all gets the security
+     * exception, so the firewall can ask an anonymous visitor to sign in.
+     */
+    private function reader(Request $request): ManualReader
     {
-        if (!$this->access->canRead()) {
-            // The security exception, so the firewall can ask an anonymous visitor to sign in.
-            throw new AccessDeniedException();
-        }
+        $root = $this->roots->forRoute($request) ?? throw new NotFoundHttpException();
+
+        return ($this->readers ?? new ManualReaderResolver($this->access, $this->audiences))->reader($root) ?? throw new AccessDeniedException();
     }
 }

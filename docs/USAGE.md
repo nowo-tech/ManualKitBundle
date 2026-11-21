@@ -57,7 +57,7 @@ chapters:
 | --- | --- | --- |
 | `slug` | — (required) | File name without `.md`; letters, digits and dashes only. `README` is the home page. |
 | `group` | `using` | Sidebar group; its label is the translation `group.<key>` (domain `NowoManualKitBundle`). The bundle ships `using`, `project` and `administration`; add your own keys in `translations/NowoManualKitBundle.<locale>.yaml`. |
-| `audience` | `member` | `admin`: only `admin_role` may read the chapter. |
+| `audience` | `member` (1.13: [`default_audience`](CONFIGURATION.md#default_audience)) | Who may read the chapter: `admin` (only `admin_role`), or 1.13 any configured audience, one or several: `audience: developer`, `audience: 'admin, developer'`, `audience: [user, customer]` — see [Audiences](#audiences). |
 | `icon` | `tabler:book` | Icon name for custom templates (the default template renders none). |
 | `tags` | `[]` | Search keywords and synonyms, in any language. |
 | `file` | — | 1.2: serve another Markdown file of the docs root instead of `{slug}.md`, e.g. `../CHANGELOG.md` — see [External chapters](#external-chapters). |
@@ -138,7 +138,7 @@ docs/manual/
   A nested chapter answers only under its own parents; `/manual/docker` redirects (301) to its place in the tree.
   Anchors are unchanged (`#section`). In templates, link a chapter with `manual_chapter_path(chapter)`.
 - **Access.** A child takes its parent's `group` and audience and may only narrow the audience: `audience: member`
-  under an admin chapter stays admin-only. A page the viewer cannot open answers 404 and links to it read as plain
+  under an admin chapter stays admin-only (1.13: a reader needs one audience of the parent **and** one of the child). A page the viewer cannot open answers 404 and links to it read as plain
   text; a hidden parent hides its whole branch.
 - **Navigation.** The chapter list shows children under their parent in a folded `<details>` branch, open along the
   current chapter's branch; previous / next walk the tree depth-first; a parent page lists its sub-pages ("In this
@@ -252,6 +252,69 @@ Shown on GitHub only — never in the app (screenshot instructions, demo credent
 Members never receive an admin block, an admin chapter (404, not 403: the response does not reveal that it exists) or a
 link to one. The filter **fails closed**: a marker left without its pair — an unclosed block, a typo such as
 `<!-- audience admin -->` — hides the rest of the chapter from members instead of showing them what it was guarding.
+
+### Named audiences
+
+1.13: configure your own audiences ([CONFIGURATION](CONFIGURATION.md#audiences)), for example `user`, `admin`,
+`developer` and `customer`, then name them in the manifest and in blocks:
+
+```yaml
+# manifest.yaml (default_audience: user)
+chapters:
+  - { slug: README }                                         # user (the default audience)
+  - { slug: api, group: developers, audience: developer }
+  - { slug: tokens, group: administration, audience: 'admin, developer' }
+  - { slug: contact, audience: [user, customer] }
+  - { slug: portal-home, group: portal, audience: customer }
+```
+
+```markdown
+<!-- audience: developer -->
+## API keys
+Only developers read this section.
+<!-- /audience -->
+
+<!-- audience: admin, developer -->
+Administrators and developers read this paragraph.
+<!-- /audience -->
+```
+
+- A reader sees a chapter or a block when they hold **at least one** of its audiences — checked per request with
+  `isGranted()` on the audience's role or attribute.
+- A chapter the reader may not see answers 404 (no existence oracle) and is left out of the navigation, previous / next,
+  the sub-pages list, search results and the anchor map; links to it read as plain text; its images are only served to
+  readers whose chapters show them. A block's headings leave "On this page" and search with the block.
+- `member` (every reader) and `admin` are built in; `github` blocks never reach the app.
+- An audience the configuration does not define stops the container build (deny by default, loudly). The same
+  fail-closed rule as above applies to a malformed marker.
+- `ManualChapterAccessCheckerInterface` (your own per-chapter rule) still applies on top of the audiences.
+
+### A second manual root
+
+1.13: a [root](CONFIGURATION.md#roots) serves the chapters of some audiences under its own route import and firewall —
+for example a customer portal that serves only `customer` chapters to contacts who are not application users:
+
+```yaml
+# config/packages/nowo_manual_kit.yaml
+nowo_manual_kit:
+    audiences: { user: ROLE_USER, customer: ROLE_CRM_CONTACT }
+    default_audience: user
+    roots:
+        portal: { audiences: [customer], role: ROLE_CRM_CONTACT, home: portal-home, firewalls: [portal] }
+
+# config/routes/nowo_manual_kit.yaml
+nowo_manual_portal:
+    resource: portal
+    type: nowo_manual
+    prefix: /portal/help
+```
+
+The portal's index (`/portal/help`) serves `portal-home`; its chapters live at `/portal/help/{chapter}` (routes
+`nowo_manual.portal.*`). The default root (`/manual`) never serves a `customer` chapter or block, even to a user who
+also holds `ROLE_CRM_CONTACT`, and the portal never serves a `user` chapter or block: links across roots read as plain
+text, and each root's search group only holds its own chapters. A chapter whose row names an audience of both roots
+(`audience: [user, customer]`) is served in both, with each root's URLs. Mounting a root's routes inside another root's
+firewall serves nothing (404).
 
 ## Desktop and phone views
 
@@ -406,6 +469,10 @@ php bin/console nowo:manual:translate es --chapter=02-dashboard --force
 
 A chapter listed in the manifest opens in-app (when `in_app` is on); anything else opens `docs_url` + the path.
 
+1.13: links are built in the [root](CONFIGURATION.md#roots) of the page (a chapter page's `manual_root`), else of the
+request's firewall, else the default root. `manual_href()` opens in-app only the chapters of that root;
+`manual_index_path()` is the root's index (use it instead of `path('nowo_manual_index')` in templates shared by roots).
+
 ## Templates
 
 - **Frame the default page in your layout:** `layout: 'base.html.twig'` (blocks `title`, `stylesheets`, `body`).
@@ -452,7 +519,9 @@ controller ([CONFIGURATION](CONFIGURATION.md#standalone_lightbox)). Captions are
 
 With `nowo-tech/search-kit-bundle` installed, `Nowo\ManualKitBundle\Search\ManualSearchProvider` adds a "Manual" group
 to the header search: chapters whose title or manifest `tags` match, then `##` – `####` sections whose heading or
-section tags match, among the chapters the viewer may read, in the request locale. Every word of the query must match
+section tags match, among the chapters the viewer may read, in the request locale. 1.13: there is no shared index; each
+query is answered for the reader of the request — the [root](CONFIGURATION.md#roots) of its firewall and the audiences
+the user holds — so chapters and blocks of other audiences or roots never match. Every word of the query must match
 (case and accents ignored). Section tags go right under the heading and stay invisible on GitHub:
 
 ```markdown
@@ -467,12 +536,15 @@ The group label is the translation `search.group`; the subtitle of a chapter is 
 | Service | Use |
 | --- | --- |
 | `ManualCatalog` | `all(?locale)`, `visible(admin, ?locale)`, `find(slug, ?locale)`, `neighbours()`, `sourceHash()` |
-| `ManualRenderer` | `render(ManualChapter, admin)` → `RenderedManualChapter` (`html`, `toc` with ids and tags); `audienceFiltered()` |
+| `ManualRenderer` | `render(ManualChapter, admin)` → `RenderedManualChapter` (`html`, `toc` with ids and tags); 1.13 `renderFor(ManualChapter, ManualReader)`; `audienceFiltered()`, `audiencesFiltered()` |
 | `ManualAccess` | `canRead()`, `isAdmin()` with the configured roles |
+| `Audience\ManualReaderResolverInterface` | 1.13: `reader(ManualRoot)` → the `ManualReader` (root + audiences held) of the current user, or null |
+| `Audience\ManualAudiences` | 1.13: `names()`, `root(name)`, `defaultRoot()`, `canSee(chapter, reader)`, `belongsTo(chapter, root)` |
+| `Audience\ManualRootResolver` | 1.13: `resolve(request)` / `forRoute(request)` → the `ManualRoot` of a request |
 | `TranslationAudit` | `run()` (what `nowo:manual:check` prints), `stamp(slug, locale)`, `anchors(markdown)` |
 | `Redirect\ChapterRedirectsInterface` | 1.11: `chapterTarget(slug)`, `movedAnchors(page, from)`, `ownAnchors(page)`, `rules()` — the compiled redirect map |
 
-A useful application test renders every chapter for both audiences and asserts that every in-app link, anchor and image
+A useful application test renders every chapter for every audience and asserts that every in-app link, anchor and image
 resolves, and that each `manual/x.md#anchor` your templates reference exists.
 
 ## Using it from a DDD / hexagonal application

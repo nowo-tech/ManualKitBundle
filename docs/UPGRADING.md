@@ -26,6 +26,29 @@ This guide lists the changes integrators must apply when upgrading between versi
 
 ## Unreleased
 
+Named audiences and manual roots (1.13, see [CONFIGURATION — audiences](CONFIGURATION.md#audiences)). Nothing to do for
+a manual that only uses `member` / `admin`; check these points:
+
+- **Unknown audiences stop the build.** A manifest `audience` other than `member` / `admin` / a configured audience (a
+  typo such as `admins`), or a block marker naming one (`<!-- audience: admins -->`), used to be treated as admin-only
+  or dropped; it now fails the container build (or `cache:warmup` when `directory` comes from an env var). Fix the name
+  or add it to `nowo_manual_kit.audiences`. `<!-- audience: github -->` stays allowed.
+- **`admin_role` and `audiences.admin` are one setting.** Keep `admin_role`, or move it to `audiences.admin`; setting
+  both to different values fails the build.
+- **`<!-- audience: member -->` blocks** are now shown to every reader (they were dropped for everyone).
+- **Your own `ManualRendererInterface`** keeps working: it is called with `render($chapter, $admin)` and never receives
+  named audiences. To render named-audience blocks, implement `ReaderAwareManualRendererInterface::renderFor()`.
+- **Your own `ManualAccessInterface`** keeps deciding who reads the default root (`canRead()`) and who holds `admin`
+  (`isAdmin()`); named audiences go through `ManualReaderResolverInterface` (alias it to replace them).
+  `ManualAccess::canReadChapter()` applies the admin-only rule only to chapters that use `member` / `admin` alone.
+- **Your own chapter template**: link the index with `manual_index_path()` instead of `path('nowo_manual_index')` if
+  the template serves a second root; `manual_chapter_path()` already follows the page's root.
+- **`ManualCatalog::visible()` / `neighbours()` / `children()`** still take `bool $admin` and only know the 1.12 rule
+  (`$admin = true` returns every chapter, named audiences included). Filter with `ManualAudiences::canSee()` and a
+  `ManualReader` instead.
+- **A second root**: add it under `nowo_manual_kit.roots`, list its firewalls, and import its routes with
+  `type: nowo_manual` ([CONFIGURATION — roots](CONFIGURATION.md#roots)).
+
 ## To 1.12.1
 
 From **1.12.0**:

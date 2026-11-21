@@ -34,6 +34,9 @@ final readonly class ManualChapter
      * @param list<string> $ancestors 1.6: slugs from the top-level chapter down to the parent ([] at the top level)
      * @param list<string> $ancestorTitles 1.6: the titles of `ancestors`, in the same order and locale
      * @param string $folder 1.6: sub-folder of the manual the file lives in (`` = the manual root)
+     * @param list<list<string>> $audienceLevels 1.13: the audiences of each level, from the top-level chapter down to
+     *                                           this one (a reader needs one audience of every level); [] = the 1.12
+     *                                           rule from `adminOnly` (see {@see self::audienceLevels()})
      */
     public function __construct(
         public string $slug,
@@ -51,7 +54,31 @@ final readonly class ManualChapter
         public array $ancestors = [],
         public array $ancestorTitles = [],
         public string $folder = '',
+        public array $audienceLevels = [],
     ) {
+    }
+
+    /**
+     * 1.13: the audiences of each level of the chapter — its parents, top-level first, then itself. A chapter built
+     * without them (1.12 code) has one level: `admin` when `adminOnly`, else `member`.
+     *
+     * @return list<list<string>>
+     */
+    public function audienceLevels(): array
+    {
+        return $this->audienceLevels !== [] ? $this->audienceLevels : [[$this->adminOnly ? 'admin' : 'member']];
+    }
+
+    /**
+     * 1.13: the chapter's own audiences (its manifest `audience`, or the default audience).
+     *
+     * @return list<string>
+     */
+    public function audiences(): array
+    {
+        $levels = $this->audienceLevels();
+
+        return $levels[count($levels) - 1];
     }
 
     /**

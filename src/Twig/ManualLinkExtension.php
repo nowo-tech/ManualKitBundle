@@ -5,12 +5,16 @@ declare(strict_types=1);
 namespace Nowo\ManualKitBundle\Twig;
 
 use LogicException;
+use Nowo\ManualKitBundle\Audience\ManualAudiences;
+use Nowo\ManualKitBundle\Audience\ManualRoot;
+use Nowo\ManualKitBundle\Audience\ManualRootResolver;
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\DependencyInjection\Configuration;
 use Nowo\ManualKitBundle\Model\ManualChapter;
 use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Override;
 use Symfony\Component\Asset\Packages;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Twig\Environment;
 use Twig\Extension\AbstractExtension;
@@ -27,6 +31,10 @@ use function is_string;
  * `nowo_manual_layout()`, `nowo_manual_asset()` and `nowo_manual_asset_package()` serve the bundle's own chapter
  * template; published files resolve through the `nowo_manual_kit` asset package (REQ-ASSETS-004), and
  * `nowo_manual_standalone_lightbox()` says whether the template loads the self-contained lightbox script.
+ *
+ * 1.13: links are built in a manual root — the page's `manual_root` variable (set by the chapter pages), else the root
+ * of the request ({@see ManualRootResolver}: its firewall's), else the default one. `manual_index_path()` is the root's
+ * index; `manual_href()` only opens chapters of that root in the app (the published copy otherwise).
  *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
@@ -47,6 +55,9 @@ final class ManualLinkExtension extends AbstractExtension
         private readonly string $layout = '@NowoManualKitBundle/layout.html.twig',
         private readonly ?Packages $packages = null,
         private readonly bool $standaloneLightbox = false,
+        private readonly ?RequestStack $requests = null,
+        private readonly ManualAudiences $audiences = new ManualAudiences(),
+        private readonly ManualRootResolver $roots = new ManualRootResolver(),
     ) {
     }
 
@@ -57,9 +68,10 @@ final class ManualLinkExtension extends AbstractExtension
     public function getFunctions(): array
     {
         return [
-            new TwigFunction('manual_href', $this->href(...)),
-            new TwigFunction('manual_is_external', $this->isExternal(...)),
-            new TwigFunction('manual_chapter_path', $this->chapterPath(...)),
+            new TwigFunction('manual_href', fn (array $context, string $doc): string => $this->href($doc, $this->contextRoot($context)), ['needs_context' => true]),
+            new TwigFunction('manual_is_external', fn (array $context, string $doc): bool => $this->isExternal($doc, $this->contextRoot($context)), ['needs_context' => true]),
+            new TwigFunction('manual_chapter_path', fn (array $context, ManualChapter $chapter): string => $this->chapterPath($chapter, $this->contextRoot($context)), ['needs_context' => true]),
+            new TwigFunction('manual_index_path', fn (array $context): string => $this->indexPath($this->contextRoot($context)), ['needs_context' => true]),
             new TwigFunction('nowo_manual_breadcrumbs_template', self::breadcrumbsTemplate(...), ['needs_environment' => true]),
             new TwigFunction('nowo_manual_layout', fn (): string => $this->layout),
             new TwigFunction('nowo_manual_asset', $this->asset(...)),
@@ -83,11 +95,21 @@ final class ManualLinkExtension extends AbstractExtension
 
     /**
      * 1.6: the URL of a chapter by its place in the tree (`/manual/guide/install` for a child; the index for the home
-     * page) — what templates print instead of `path('nowo_manual_chapter', {chapter: …})`.
+     * page) — what templates print instead of `path('nowo_manual_chapter', {chapter: …})`. 1.13: in a manual root
+     * (null: the request's).
      */
-    public function chapterPath(ManualChapter $chapter): string
+    public function chapterPath(ManualChapter $chapter, ?ManualRoot $root = null): string
     {
-        return ManualRoutes::generate($this->urls, $chapter);
+        return ManualRoutes::generate($this->urls, $chapter, [], $root ?? $this->currentRoot());
+    }
+
+    /**
+     * 1.13: the URL of a manual root's index (null: the request's root) — what templates print instead of
+     * `path('nowo_manual_index')`.
+     */
+    public function indexPath(?ManualRoot $root = null): string
+    {
+        return $this->urls->generate(($root ?? $this->currentRoot())->routeName(ManualRoutes::INDEX));
     }
 
     /**
@@ -106,30 +128,50 @@ final class ManualLinkExtension extends AbstractExtension
     /**
      * Returns the in-app URL of a manual document link, or the external docs URL when it is not served in the app.
      */
-    public function href(string $doc): string
+    public function href(string $doc, ?ManualRoot $root = null): string
     {
-        return $this->inAppPath($doc) ?? $this->docsUrl . $doc;
+        return $this->inAppPath($doc, $root ?? $this->currentRoot()) ?? $this->docsUrl . $doc;
     }
 
     /**
      * Whether a manual document link points outside the app.
      */
-    public function isExternal(string $doc): bool
+    public function isExternal(string $doc, ?ManualRoot $root = null): bool
     {
-        return $this->inAppPath($doc) === null;
+        return $this->inAppPath($doc, $root ?? $this->currentRoot()) === null;
     }
 
-    private function inAppPath(string $doc): ?string
+    /**
+     * The page's `manual_root` variable (chapter pages), or null.
+     *
+     * @param array<string, mixed> $context
+     */
+    private function contextRoot(array $context): ?ManualRoot
+    {
+        $root = $context['manual_root'] ?? null;
+
+        return $root instanceof ManualRoot ? $root : null;
+    }
+
+    /**
+     * 1.13: the root of the current request (its firewall's), else the default root. Read per call (no memo).
+     */
+    private function currentRoot(): ManualRoot
+    {
+        return $this->roots->resolve($this->requests?->getCurrentRequest()) ?? $this->audiences->defaultRoot();
+    }
+
+    private function inAppPath(string $doc, ManualRoot $root): ?string
     {
         // 1.6: `manual/guide/install.md` (the file of a nested chapter, up to two folders down) too.
         if (!$this->inApp || preg_match('/^manual\/((?:[A-Za-z0-9-]+\/){0,2})([A-Za-z0-9-]+)\.md(#[A-Za-z0-9_-]*)?$/', $doc, $match) !== 1) {
             return null;
         }
         $chapter = $this->catalog->find($match[2]);
-        if (!$chapter instanceof ManualChapter || ($match[1] !== '' && $chapter->folder . '/' !== $match[1])) {
+        if (!$chapter instanceof ManualChapter || ($match[1] !== '' && $chapter->folder . '/' !== $match[1]) || !$this->audiences->belongsTo($chapter, $root)) {
             return null;
         }
 
-        return ManualRoutes::generate($this->urls, $chapter) . ($match[3] ?? '');
+        return ManualRoutes::generate($this->urls, $chapter, [], $root) . ($match[3] ?? '');
     }
 }

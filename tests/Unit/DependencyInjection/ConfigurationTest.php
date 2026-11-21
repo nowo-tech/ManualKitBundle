@@ -12,11 +12,15 @@ use Symfony\Component\Config\Definition\Processor;
 
 final class ConfigurationTest extends TestCase
 {
-    public function testAdminRoleDefaultsToRoleAdmin(): void
+    /** 1.13: unset in the tree (an alias of audiences.admin); the extension resolves it to ROLE_ADMIN. */
+    public function testAdminRoleIsUnsetByDefault(): void
     {
         $config = (new Processor())->processConfiguration(new Configuration(), [[]]);
 
-        self::assertSame('ROLE_ADMIN', $config['admin_role']);
+        self::assertNull($config['admin_role']);
+        self::assertSame([], $config['audiences']);
+        self::assertSame('member', $config['default_audience']);
+        self::assertSame([], $config['roots']);
     }
 
     /** '' would show admin chapters and blocks to everybody. */
