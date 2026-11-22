@@ -128,6 +128,40 @@ listed in "On this page", and translation commands skip it.
 - **FR-MT-005** (1.9) `MachineTranslatorPass`: with `machine_translation.provider: service`, the configured service must
   implement `MachineTranslatorInterface`, otherwise the container compile fails (no TypeError at `nowo:manual:translate`).
 
+### Chapter redirects (1.11, [spec 003](../003-chapter-redirects/spec.md))
+
+- **FR-REDIR-001** `RedirectTarget`, `RedirectMapCompiler`, `CompiledRedirectMap`: every key and target is `slug` or
+  `slug#anchor` (internal only: no URL, scheme or `//`, so no open redirect); a cycle stops the container build, chains
+  collapse to the final target, an exact rule wins over the chapter rule, and the anchor lookups the client needs are
+  precomputed per landing chapter.
+- **FR-REDIR-002** `RedirectMapLoader`, `ChapterRedirectsInterface`, `ChapterRedirectMap`: the map comes from
+  `nowo_manual_kit.redirects` and the manifest's `redirects:` entry, is read once when the container is built, is
+  immutable afterwards (FrankenPHP worker, kernel reset false) and is a port a host can alias. A moved chapter answers
+  301 in the request locale, after the access check of the target (no existence oracle).
+- **FR-REDIR-003** `anchor-redirects.ts`, `manual-anchors.ts` and `public/js/manual-anchors.js`: the 301 adds
+  `?moved_from=<old-slug>`, the chapter page prints the anchor map in `data-nowo-manual-anchors`, and the external,
+  CSP-safe script moves the reader to the new anchor; without JavaScript the reader still lands on the new chapter.
+- **FR-REDIR-004** `RedirectsCommand` (`nowo:manual:redirects`, `--strict`, `--file`): reports missing targets, chains,
+  cycles, rules that never apply and old slugs still used in the host's link maps.
+
+### Audiences and roots (1.13)
+
+- **FR-AUD-001** `ManualAudiences`, `AudienceManifestValidator`, `AudienceCacheWarmer`: named audiences
+  (`nowo_manual_kit.audiences`, `default_audience`; `member` and `admin` built in, `github` reserved) and the manual
+  roots (`nowo_manual_kit.roots`) are immutable configuration; an audience named by the manifest or a chapter block
+  that is not configured fails the container build and `cache:warmup` (deny by default).
+- **FR-AUD-002** `ManualReader`, `ManualReaderResolverInterface`, `ManualReaderResolver`: the reader (root plus held
+  audiences) is built per request, never kept in a service, and is the rendering cache key; the default resolver opens
+  a root with its `role` and grants every other audience through `isGranted()`; without an authorization checker only
+  `member` and `admin` are granted (fail closed).
+- **FR-AUD-003** `ManualRoot`, `ManualRootResolver`, `ManualRouteLoader`: a root serves the chapters whose every level
+  names one of its audiences, under its own route import (`type: nowo_manual`, routes `nowo_manual.<root>.<route>`,
+  default `_nowo_manual_root` that a URL cannot set) and only inside its `firewalls`; no chapter, link, image or search
+  result crosses roots.
+- **FR-AUD-004** `ReaderAwareManualRendererInterface`, `ReaderRendering`, `ReaderAwareRendererPass`: the default
+  renderer renders for a reader; with `roots` configured a renderer that is not reader-aware fails the container build,
+  and at runtime a 1.12-style renderer is only used in the default root.
+
 ### Assets
 
 - **FR-ASSET-001** `public/css/manual.css`: manual layout, CSS custom properties `--nowo-manual-*`.
