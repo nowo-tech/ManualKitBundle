@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { buildTimeLabel } from './vite.build-id';
 
 /**
  * Builds the self-contained lightbox (Stimulus + the bundle's lightbox controller) to a single IIFE in
@@ -7,6 +8,9 @@ import { defineConfig } from 'vite';
  * instead.
  */
 export default defineConfig({
+  define: {
+    __MANUAL_KIT_BUILD_TIME__: JSON.stringify(buildTimeLabel('src/Resources/assets/src')),
+  },
   build: {
     outDir: 'src/Resources/public/js',
     emptyOutDir: false,

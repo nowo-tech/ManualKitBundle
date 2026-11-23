@@ -23,6 +23,7 @@
 - [Search](#search)
 - [Services for your own code](#services-for-your-own-code)
 - [Using it from a DDD / hexagonal application](#using-it-from-a-ddd--hexagonal-application)
+- [Browser console](#browser-console)
 
 ## The manual folder
 
@@ -647,3 +648,7 @@ final readonly class ManualKitHelpLinks implements HelpLinks
 - The bundle dispatches no events (chapter viewed, translation written).
 - Chapters are read from the filesystem only; `ManualChapter::$path` is an absolute file path.
 - `ManualCatalog` and `ManualRenderer` are final classes without interfaces; wrap them behind your own port.
+
+## Browser console
+
+The bundle's script logs one line when it loads (`📦 [manual-kit/<script>] script loaded, build: 2026-11-23 14:05 UTC`) so a developer can tell which build a page runs. To silence it, set `<html data-nowo-console="quiet">` or `globalThis.NOWO_CONSOLE = 'quiet'` before the script loads; nothing is printed then. The default is unchanged.
