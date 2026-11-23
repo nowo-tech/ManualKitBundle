@@ -61,7 +61,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
-- **Console**: each shipped script (`manual-lightbox.js`, `manual-anchors.js`, `manual-devices.js`) logs one line on load, `📦 [manual-kit/<script>] script loaded, build: <id>`, with the house `createBundleLogger`. The build id is a deterministic hash of the sources and `pnpm-lock.yaml`, so the committed assets stay reproducible and carry no timestamp or user data.
+- **Console**: each shipped script (`manual-lightbox.js`, `manual-anchors.js`, `manual-devices.js`) logs one line on load, `📦 [manual-kit/<script>] script loaded, build: 2026-11-23 14:05 UTC`, with the house `createBundleLogger`. The build time is read from the committed `build-info.json` (`{sourceHash, builtAt}`): it is reused while the sources are unchanged and renewed only when they change, so rebuilding unchanged sources never rewrites the committed assets (no wall-clock stamp, no user data). Quiet switch: `<html data-nowo-console="quiet">` or `globalThis.NOWO_CONSOLE = 'quiet'` prints nothing; the default is unchanged.
 
 ## [1.13.0] - 2026-11-21
 

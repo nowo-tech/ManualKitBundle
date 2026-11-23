@@ -35,23 +35,23 @@ describe('createBundleLogger', () => {
     const log = createBundleLogger('test');
     log.scriptLoaded();
     expect(consoleLog).toHaveBeenCalledTimes(1);
-    expect(consoleLog.mock.calls[0][0]).toContain('script loaded');
-    expect(consoleLog.mock.calls[0][0]).not.toContain('build: ');
+    expect(consoleLog.mock.calls[0]?.[0]).toContain('script loaded');
+    expect(consoleLog.mock.calls[0]?.[0]).not.toContain('build: ');
   });
 
   it('scriptLoaded() logs with build id when buildTime is provided', () => {
     const log = createBundleLogger('test', { buildTime: '2026-01-15T12:00:00Z' });
     log.scriptLoaded();
     expect(consoleLog).toHaveBeenCalledTimes(1);
-    expect(consoleLog.mock.calls[0][0]).toContain('script loaded');
-    expect(consoleLog.mock.calls[0][0]).toContain('2026-01-15T12:00:00Z');
+    expect(consoleLog.mock.calls[0]?.[0]).toContain('script loaded');
+    expect(consoleLog.mock.calls[0]?.[0]).toContain('2026-01-15T12:00:00Z');
   });
 
   it('scriptLoaded() logs without build id when buildTime is empty string', () => {
     const log = createBundleLogger('test', { buildTime: '' });
     log.scriptLoaded();
     expect(consoleLog).toHaveBeenCalledTimes(1);
-    expect(consoleLog.mock.calls[0][0]).toContain('script loaded');
+    expect(consoleLog.mock.calls[0]?.[0]).toContain('script loaded');
   });
 
   it('setDebug() enables debug; debug() logs when enabled', () => {
@@ -158,5 +158,49 @@ describe('createBundleLogger', () => {
     log.debug(null);
     expect(consoleDebug).toHaveBeenCalled();
     expect(consoleDebug.mock.calls[0].slice(2)).toContain(null);
+  });
+
+  describe('quiet switch', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+      delete document.documentElement.dataset.nowoConsole;
+      delete (globalThis as { NOWO_CONSOLE?: unknown }).NOWO_CONSOLE;
+    });
+
+    it('scriptLoaded() prints nothing with <html data-nowo-console="quiet">', () => {
+      document.documentElement.dataset.nowoConsole = 'quiet';
+      createBundleLogger('test', { buildTime: '2026-11-23 14:05 UTC' }).scriptLoaded();
+      expect(consoleLog).not.toHaveBeenCalled();
+    });
+
+    it('scriptLoaded() prints nothing with globalThis.NOWO_CONSOLE = "quiet"', () => {
+      (globalThis as { NOWO_CONSOLE?: unknown }).NOWO_CONSOLE = 'quiet';
+      createBundleLogger('test').scriptLoaded();
+      expect(consoleLog).not.toHaveBeenCalled();
+    });
+
+    it('other values keep the default output', () => {
+      document.documentElement.dataset.nowoConsole = 'loud';
+      (globalThis as { NOWO_CONSOLE?: unknown }).NOWO_CONSOLE = 'verbose';
+      createBundleLogger('test').scriptLoaded();
+      expect(consoleLog).toHaveBeenCalledTimes(1);
+    });
+
+    it('prints when there is no document', () => {
+      vi.stubGlobal('document', undefined);
+      createBundleLogger('test').scriptLoaded();
+      expect(consoleLog).toHaveBeenCalledTimes(1);
+    });
+
+    it('prints when reading the switch throws', () => {
+      Object.defineProperty(globalThis, 'NOWO_CONSOLE', {
+        configurable: true,
+        get() {
+          throw new Error('blocked');
+        },
+      });
+      createBundleLogger('test').scriptLoaded();
+      expect(consoleLog).toHaveBeenCalledTimes(1);
+    });
   });
 });

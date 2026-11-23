@@ -1,5 +1,5 @@
 import { defineConfig } from 'vite';
-import { sourceBuildId } from './vite.build-id';
+import { buildTimeLabel } from './vite.build-id';
 
 /**
  * 1.11: builds the anchor redirects script to a single IIFE in `src/Resources/public/js/manual-anchors.js` (served as
@@ -7,7 +7,7 @@ import { sourceBuildId } from './vite.build-id';
  */
 export default defineConfig({
   define: {
-    __MANUAL_KIT_BUILD_TIME__: JSON.stringify(sourceBuildId('src/Resources/assets/src')),
+    __MANUAL_KIT_BUILD_TIME__: JSON.stringify(buildTimeLabel('src/Resources/assets/src')),
   },
   build: {
     outDir: 'src/Resources/public/js',

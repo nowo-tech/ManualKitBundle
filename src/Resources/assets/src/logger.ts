@@ -28,11 +28,15 @@
  *    log.warn('unexpected but handled', error);
  *    log.error('failure', error);
  *
- * 5. To inject build id with Vite, add to vite.config.ts:
+ * 5. To inject the build time with Vite, add to vite.config.ts (see buildTimeLabel() in this bundle's config: it
+ *    reads/writes the committed build-info.json, so unchanged sources keep the same build time):
  *
  *    define: {
- *      __MY_BUNDLE_BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+ *      __MY_BUNDLE_BUILD_TIME__: JSON.stringify(buildTimeLabel('src/Resources/assets/src')), // "2026-11-23 14:05 UTC"
  *    },
+ *
+ * 6. Quiet switch: scriptLoaded() prints nothing when <html data-nowo-console="quiet"> or
+ *    globalThis.NOWO_CONSOLE === 'quiet'. The default (print) is unchanged.
  *
  * All methods support multiple arguments (like console.log). Objects are stringified
  * for readability in debug/info/warn/error. The prefix is [name] and each level
@@ -40,13 +44,23 @@
  * =============================================================================
  */
 
+/** True when the page asked for a silent console (`<html data-nowo-console="quiet">` or `globalThis.NOWO_CONSOLE = 'quiet'`). */
+function isQuiet(): boolean {
+  try {
+    if ((globalThis as { NOWO_CONSOLE?: unknown }).NOWO_CONSOLE === 'quiet') return true;
+    return typeof document !== 'undefined' && document.documentElement.dataset.nowoConsole === 'quiet';
+  } catch {
+    return false;
+  }
+}
+
 export type BundleLoggerOptions = {
-  /** If set, scriptLoaded() will include this (e.g. build/compilation time). */
+  /** If set, scriptLoaded() will include this (e.g. the build time label "2026-11-23 14:05 UTC"). */
   buildTime?: string;
 };
 
 export type BundleLogger = {
-  /** Call once at startup. Logs "script loaded" and optional build id. Always shown. */
+  /** Call once at startup. Logs "script loaded" and optional build time. Shown unless the quiet switch is set. */
   scriptLoaded: () => void;
   /** When false, debug/info/warn/error are no-ops (only scriptLoaded is shown). */
   setDebug: (enabled: boolean) => void;
@@ -91,6 +105,7 @@ export function createBundleLogger(name: string, options: BundleLoggerOptions = 
 
   return {
     scriptLoaded(): void {
+      if (isQuiet()) return;
       if (buildTime !== undefined && buildTime !== '') {
         console.log(
           `%c${EMOJI.script} ${prefix} script loaded, build: %c${buildTime}`,
