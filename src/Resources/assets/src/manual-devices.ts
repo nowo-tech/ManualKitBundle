@@ -4,5 +4,12 @@
  * `device_views.enabled` is true.
  */
 import { registerDeviceViews } from './device-views';
+import { createBundleLogger } from './logger';
+
+declare const __MANUAL_KIT_BUILD_TIME__: string;
+
+createBundleLogger('manual-kit/devices', {
+  buildTime: typeof __MANUAL_KIT_BUILD_TIME__ !== 'undefined' ? __MANUAL_KIT_BUILD_TIME__ : undefined,
+}).scriptLoaded();
 
 registerDeviceViews();
