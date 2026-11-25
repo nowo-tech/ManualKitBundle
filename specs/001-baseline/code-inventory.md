@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/manual-kit-bundle`  
-**Last audited**: 2026-11-22 (1.13.0: 1.11 chapter redirects, 1.13 audiences and roots; 1.6 sub-pages: [`../002-sub-pages/spec.md`](../002-sub-pages/spec.md))
+**Last audited**: 2026-11-27 (1.13.0: 1.11 chapter redirects, 1.13 audiences and roots; 1.6 sub-pages: [`../002-sub-pages/spec.md`](../002-sub-pages/spec.md))
 
 Every production unit under `src/` and the requirement that covers it. Vitest files (`*.test.ts`) are test code and
 out of scope; the built `public/js/manual-lightbox.js` is listed as the output of its named sources.
@@ -125,11 +125,12 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | `Resources/assets/stimulus-peers/manual_lightbox_controller.ts` | Stimulus lightbox peer | FR-ASSET-002 |
 | `Resources/assets/stimulus-peers/motion.ts` | Closing animation helper | FR-ASSET-004 |
 | `Resources/assets/src/register-lightbox.ts` | Standalone registration | FR-ASSET-003 |
-| `Resources/assets/src/manual-lightbox.ts` | Standalone Vite entry | FR-ASSET-003 |
+| `Resources/assets/src/logger.ts` | Bundle logger: `scriptLoaded()` banner with build label, quiet switch (`data-nowo-console`, `NOWO_CONSOLE`), debug-gated levels (REQ-ASSETS-005, 1.14) | FR-ASSET-005 |
+| `Resources/assets/src/manual-lightbox.ts` | Standalone Vite entry (logs `manual-kit/lightbox` banner) | FR-ASSET-003 |
 | `Resources/assets/src/device-views.ts` | Desktop / Phone switch (1.12) | FR-DEVICE-002 |
-| `Resources/assets/src/manual-devices.ts` | Standalone Vite entry of the switch (1.12) | FR-DEVICE-002 |
+| `Resources/assets/src/manual-devices.ts` | Standalone Vite entry of the switch (1.12; logs `manual-kit/devices` banner) | FR-DEVICE-002, FR-ASSET-005 |
 | `Resources/assets/src/anchor-redirects.ts` | Client half of the redirect map: moves the reader to the new anchor (`data-nowo-manual-anchors`, `?moved_from`) (1.11) | FR-REDIR-003 |
-| `Resources/assets/src/manual-anchors.ts` | Standalone Vite entry of the anchor redirects (1.11) | FR-REDIR-003 |
+| `Resources/assets/src/manual-anchors.ts` | Standalone Vite entry of the anchor redirects (1.11; logs `manual-kit/anchors` banner) | FR-REDIR-003, FR-ASSET-005 |
 
 ## Build outputs
 
@@ -165,9 +166,9 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | Search | 2 |
 | Twig | 5 |
 | Machine translation | 5 |
-| Frontend assets | 9 |
+| Frontend assets | 10 |
 | Build outputs | 3 |
 | Translations | 7 |
-| **Total** | **79** |
+| **Total** | **80** |
 
-Audit: `find src -type f -not -name '*.test.ts' | wc -l` → **79** (excluded: 5 `*.test.ts`: `anchor-redirects`, `device-views`, `register-lightbox`, `manual_lightbox_controller`, `motion`).
+Audit: `find src -type f -not -name '*.test.ts' | wc -l` → **80** (excluded: 7 `*.test.ts`: `anchor-redirects`, `device-views`, `register-lightbox`, `manual_lightbox_controller`, `motion`, `logger`, `script-loaded`).

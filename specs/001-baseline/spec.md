@@ -171,6 +171,7 @@ listed in "On this page", and translation commands skip it.
   `--nowo-ui-motion-*`, real close on `transitionend` with a timer fallback, immediate with no transition).
 - **FR-ASSET-003** `assets/src/register-lightbox.ts` + `assets/src/manual-lightbox.ts`: standalone entry that starts
   Stimulus and registers the peer.
+- **FR-ASSET-005** (1.14, REQ-ASSETS-005) `assets/src/logger.ts`: each standalone entry (`manual-kit/lightbox`, `manual-kit/devices`, `manual-kit/anchors`) prints one `📦 [name] script loaded, build: <date> UTC` console line (build label from the committed `build-info.json`); `<html data-nowo-console="quiet">` or `globalThis.NOWO_CONSOLE = 'quiet'` silences it, and the level methods are no-ops unless debug is on.
 - **FR-BUILD-001** `public/js/manual-lightbox.js`: Vite IIFE output of FR-ASSET-003 (`pnpm run build`; CI checks it is
   current).
 
