@@ -103,7 +103,16 @@ listed in "On this page", and translation commands skip it.
 ### Search
 
 - **FR-SEARCH-001** `ManualSearchProvider` (registered only with SearchKit): chapters and sections the viewer may read.
-- **FR-SEARCH-002** `ManualSearchText`: case- and accent-insensitive all-words matcher.
+- **FR-SEARCH-002** `ManualSearchText`: case- and accent-insensitive all-words matcher; 1.15 `matchesAny()` /
+  `words()` / `matchesWords()`: any of several alternatives, folded once per search.
+- **FR-SEARCH-003** (1.15, Beacon spec 240 FR-037b) Synonyms: `ManualSearchProvider` matches `SearchQuery::terms()`
+  (SearchKit's alternatives); `ManualSearch` (no SearchKit needed) is the matching for the header group and for a
+  host's own search box (`search()` adds `ManualSynonymsInterface` alternatives in the request locale, `find()` takes
+  given ones, ≤ 25 texts), with `ManualSearchHit` / `ManualSearchResult`; access rules unchanged (root, audiences,
+  per-chapter rule, blocks); stateless.
+- **FR-SEARCH-004** (1.15) `ManualSynonymsInterface` port; `SearchKitManualSynonyms` over SearchKit's
+  `SynonymExpander`, wired by `ManualSynonymsPass` only when SearchKit is registered with
+  `nowo_search_kit.synonyms.enabled` true and the host defines no alias; `conflict` with SearchKit `<1.8`.
 
 ### Twig
 

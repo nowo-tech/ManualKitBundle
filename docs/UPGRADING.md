@@ -5,6 +5,7 @@ This guide lists the changes integrators must apply when upgrading between versi
 ## Table of contents
 
 - [Unreleased](#unreleased)
+- [To 1.15.0](#to-1150)
 - [To 1.14.1](#to-1141)
 - [To 1.14.0](#to-1140)
 - [To 1.13.0](#to-1130)
@@ -27,6 +28,35 @@ This guide lists the changes integrators must apply when upgrading between versi
   - [From an application-local manual](#from-an-application-local-manual)
 
 ## Unreleased
+
+## To 1.15.0
+
+From **1.14.x**:
+
+```bash
+composer update nowo-tech/manual-kit-bundle
+```
+
+- **SearchKit 1.8 or later.** 1.15.0 conflicts with `nowo-tech/search-kit-bundle` `<1.8` (it reads
+  `SearchQuery::terms()`). With an older SearchKit, Composer keeps ManualKit 1.14; update SearchKit first.
+- **Header search:** nothing to do. With `nowo_search_kit.synonyms.enabled: true` the "Manual" group matches synonyms
+  too (the built-in concept groups with `synonyms.builtin_dictionary`, plus your `SearchSynonymProviderInterface`
+  services). With synonyms off it matches the typed text only, as before.
+- **Your own manual search box:** inject `Nowo\ManualKitBundle\Search\ManualSearch` and call
+  `search($text, $limit)`; it returns a `ManualSearchResult` (`hits`: `title`, `url`, `subtitle`, `icon`, `section`;
+  `total`) or null, for the reader of the current request. It works without SearchKit. Synonyms come from
+  `ManualSynonymsInterface`: SearchKit's when it is registered with synonyms on, or alias the interface to your own
+  service (`App\Search\ManualSynonyms` implementing `alternatives(string $text, ?string $locale): list<string>`):
+
+  ```yaml
+  services:
+      Nowo\ManualKitBundle\Search\ManualSynonymsInterface: '@App\Search\ManualSynonyms'
+  ```
+
+  If you called `ManualSearchProvider::search(new SearchQuery(...))` directly for such a box, switch to
+  `ManualSearch::search()`: a hand-built `SearchQuery` carries no synonym terms.
+- Beacon (spec 240 FR-037b): keep the header search on SearchKit's synonyms (Q4-1: built-in dictionary + Beacon
+  product terms); a Beacon manual search box gets the same synonyms through `ManualSearch` with no extra wiring.
 
 ## To 1.14.1
 

@@ -2,7 +2,7 @@
 
 **Baseline spec**: [`spec.md`](spec.md)  
 **Package**: `nowo-tech/manual-kit-bundle`  
-**Last audited**: 2026-11-27 (1.13.0: 1.11 chapter redirects, 1.13 audiences and roots; 1.6 sub-pages: [`../002-sub-pages/spec.md`](../002-sub-pages/spec.md))
+**Last audited**: 2026-11-26 (1.15.0, unreleased: manual search synonyms; 1.13.0: 1.11 chapter redirects, 1.13 audiences and roots; 1.6 sub-pages: [`../002-sub-pages/spec.md`](../002-sub-pages/spec.md))
 
 Every production unit under `src/` and the requirement that covers it. Vitest files (`*.test.ts`) are test code and
 out of scope; the built `public/js/manual-lightbox.js` is listed as the output of its named sources.
@@ -16,6 +16,7 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 | `DependencyInjection/NowoManualKitExtension.php` | DI extension, asset package prepend | FR-CFG-002, FR-CFG-003 |
 | `DependencyInjection/Compiler/TwigPathsPass.php` | Template override path | FR-TWIG-002 |
 | `DependencyInjection/Compiler/MachineTranslatorPass.php` | Provider service type check at compile | FR-MT-005 |
+| `DependencyInjection/Compiler/ManualSynonymsPass.php` | 1.15: SearchKit synonyms for the manual search when SearchKit's synonyms are on and the host has no port alias | FR-SEARCH-004 |
 | `DependencyInjection/Compiler/ReaderAwareRendererPass.php` | 1.13: with `roots` configured the aliased renderer must implement `ReaderAwareManualRendererInterface`, else the container build fails | FR-AUD-004 |
 | `Resources/config/services.php` | Service wiring | FR-CFG-002 |
 
@@ -94,8 +95,13 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 
 | Source file | Spec section | Requirement IDs |
 | --- | --- | --- |
-| `Search/ManualSearchProvider.php` | SearchKit provider | FR-SEARCH-001, FR-TREE-004 |
-| `Search/ManualSearchText.php` | Query matcher | FR-SEARCH-002 |
+| `Search/ManualSearch.php` | 1.15: the manual search, with or without SearchKit | FR-SEARCH-001, FR-SEARCH-003, FR-TREE-004 |
+| `Search/ManualSearchHit.php` | 1.15: one hit | FR-SEARCH-003 |
+| `Search/ManualSearchProvider.php` | SearchKit provider (1.15: SearchKit term alternatives, delegates to `ManualSearch`) | FR-SEARCH-001, FR-SEARCH-003, FR-TREE-004 |
+| `Search/ManualSearchResult.php` | 1.15: hits and total | FR-SEARCH-003 |
+| `Search/ManualSearchText.php` | Query matcher (1.15: alternatives) | FR-SEARCH-002 |
+| `Search/ManualSynonymsInterface.php` | 1.15: synonym port of the manual search | FR-SEARCH-004 |
+| `Search/SearchKitManualSynonyms.php` | 1.15: the port over SearchKit's `SynonymExpander` | FR-SEARCH-004 |
 
 ## Twig
 
@@ -156,19 +162,19 @@ out of scope; the built `public/js/manual-lightbox.js` is listed as the output o
 
 | Category | Units |
 | --- | --- |
-| Bundle & DI | 7 |
+| Bundle & DI | 8 |
 | Catalog | 3 |
 | CLI | 4 |
 | HTTP & security | 9 |
 | Rendering & model | 11 |
 | Audiences and roots (1.13) | 8 |
 | Chapter redirects (1.11) | 6 |
-| Search | 2 |
+| Search | 7 |
 | Twig | 5 |
 | Machine translation | 5 |
 | Frontend assets | 10 |
 | Build outputs | 3 |
 | Translations | 7 |
-| **Total** | **80** |
+| **Total** | **86** |
 
-Audit: `find src -type f -not -name '*.test.ts' | wc -l` → **80** (excluded: 7 `*.test.ts`: `anchor-redirects`, `device-views`, `register-lightbox`, `manual_lightbox_controller`, `motion`, `logger`, `script-loaded`).
+Audit: `find src -type f -not -name '*.test.ts' | wc -l` → **86** (excluded: 7 `*.test.ts`: `anchor-redirects`, `device-views`, `register-lightbox`, `manual_lightbox_controller`, `motion`, `logger`, `script-loaded`).

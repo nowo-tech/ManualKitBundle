@@ -21,7 +21,9 @@ use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRenderer;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
 use Nowo\ManualKitBundle\Routing\ManualRouteLoader;
+use Nowo\ManualKitBundle\Search\ManualSearch;
 use Nowo\ManualKitBundle\Search\ManualSearchProvider;
+use Nowo\ManualKitBundle\Search\ManualSynonymsInterface;
 use Nowo\ManualKitBundle\Security\AllowAllManualChapterAccessChecker;
 use Nowo\ManualKitBundle\Security\ManualAccess;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
@@ -125,6 +127,11 @@ return static function (ContainerConfigurator $container): void {
     $services->set(MarkdownTranslator::class)->arg('$translator', null);
     $services->set(UiGlossary::class);
     $services->set(TranslateManualCommand::class);
+
+    // 1.15: the manual search, also without SearchKit (the manual's own search box). `$synonyms`: the optional
+    // ManualSynonymsInterface — the host's alias, or SearchKit's synonyms when installed and on (ManualSynonymsPass).
+    $services->set(ManualSearch::class)
+        ->arg('$synonyms', service(ManualSynonymsInterface::class)->nullOnInvalid());
 
     if (interface_exists(SearchProviderInterface::class)) {
         $services->set(ManualSearchProvider::class);

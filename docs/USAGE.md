@@ -536,6 +536,23 @@ the user holds — so chapters and blocks of other audiences or roots never matc
 
 The group label is the translation `search.group`; the subtitle of a chapter is `title · group.<key>`.
 
+**Synonyms (1.15).** The header group matches the synonym alternatives SearchKit's engine adds to the query
+(`SearchQuery::terms()`, with `nowo_search_kit.synonyms.enabled`): `contrasena` can find a section tagged `password`.
+For a search box of your own, inject `Nowo\ManualKitBundle\Search\ManualSearch` — it needs no SearchKit:
+
+```php
+public function search(Request $request, ManualSearch $search): Response
+{
+    $result = $search->search($request->query->getString('q'), 20); // ?ManualSearchResult for the current reader
+
+    return $this->render('help/search.html.twig', ['hits' => $result?->hits ?? []]); // title, url, subtitle, icon, section
+}
+```
+
+`search()` adds the alternatives of `ManualSynonymsInterface` in the request locale: SearchKit's synonyms when it is
+registered with synonyms on, or your own service aliased to the interface. Synonyms only widen what matches: the
+chapters, sections and blocks the reader may not open never match, with or without them.
+
 ## Services for your own code
 
 | Service | Use |
@@ -638,6 +655,8 @@ final readonly class ManualKitHelpLinks implements HelpLinks
 | `Security\ManualAccessInterface` | port (alias) | The whole access policy (1.9); default `ManualAccess` (roles + chapter rule) |
 | `role`, `admin_role` | security attributes | Hook your voter / ACL |
 | `Search\ManualSearchProvider` | SearchKit `SearchProviderInterface` | "Manual" group in the global search, only when SearchKit is installed |
+| `Search\ManualSearch` | service | 1.15: the manual search for your own search box, without SearchKit |
+| `Search\ManualSynonymsInterface::alternatives(text, ?locale)` | port (alias) | 1.15: synonyms of the manual's own search; default SearchKit's when installed with synonyms on, else none |
 | `template`, `layout`, `templates/bundles/NowoManualKitBundle/` | config / Twig | Your own page and layout |
 | `cache` | config | Cache pool for rendered chapters |
 

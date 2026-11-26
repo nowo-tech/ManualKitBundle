@@ -21,4 +21,14 @@ final class ManualSearchTextTest extends TestCase
         self::assertFalse(ManualSearchText::matches('account billing', 'Account', ['password']));
         self::assertFalse(ManualSearchText::matches('   ', 'Account'));
     }
+
+    public function testAnyAlternativeMayMatch(): void
+    {
+        self::assertTrue(ManualSearchText::matchesAny(['find', 'search'], 'Filter the list', ['search', 'buscar']));
+        self::assertTrue(ManualSearchText::matchesAny(['cambiar contrasena', 'change password'], 'Change your Password'));
+        self::assertFalse(ManualSearchText::matchesAny(['find', 'locate'], 'Filter the list', ['search']));
+        self::assertFalse(ManualSearchText::matchesAny([], 'Filter the list'));
+        self::assertSame([['contrasena', 'nueva'], ['x']], ManualSearchText::words([' Contraseña  NUEVA ', '  ', 'x']));
+        self::assertTrue(ManualSearchText::matchesWords([['nueva'], ['contrasena']], 'Contraseña'));
+    }
 }

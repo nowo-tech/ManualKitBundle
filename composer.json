@@ -74,12 +74,15 @@
         "symfony/css-selector": "^7.4 || ^8.0",
         "symfony/http-client": "^7.4 || ^8.0",
         "vincentlanglet/twig-cs-fixer": "^3.0 || ^4.0",
-        "nowo-tech/search-kit-bundle": "^1.1",
+        "nowo-tech/search-kit-bundle": "^1.8",
         "symfony/translation": "^7.4 || ^8.0",
         "symfony/security-bundle": "^7.4 || ^8.0"
     },
+    "conflict": {
+        "nowo-tech/search-kit-bundle": "<1.8"
+    },
     "suggest": {
-        "nowo-tech/search-kit-bundle": "^1.1 — a Manual group in the global header search (chapters and sections by title and tags)",
+        "nowo-tech/search-kit-bundle": "^1.8 — a Manual group in the global header search (chapters and sections by title and tags, with SearchKit synonyms)",
         "symfony/http-client": "nowo:manual:translate with DeepL or LibreTranslate (machine translation of the chapters)",
         "symfony/ux-icons": "Render the manifest `icon` of each chapter in your own chapter template"
     },

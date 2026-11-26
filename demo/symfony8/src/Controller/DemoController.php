@@ -6,8 +6,7 @@ namespace App\Controller;
 
 use App\Form\LoginType;
 use App\Form\ManualSearchType;
-use Nowo\ManualKitBundle\Search\ManualSearchProvider;
-use Nowo\SearchKitBundle\Model\SearchQuery;
+use Nowo\ManualKitBundle\Search\ManualSearch;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -55,25 +54,26 @@ final class DemoController extends AbstractController
     }
 
     /**
-     * 1.6 demo: what the manual's SearchKit provider answers (chapters and sub-pages the viewer may read, nested ones
-     * as "Parent › Child"). A real application shows it in SearchKit's header search instead.
+     * The manual's own search box (1.15: ManualSearch, no SearchKit needed): the chapters and sub-pages the viewer may
+     * read, nested ones as "Parent › Child". With SearchKit installed and its synonyms on, it also matches synonyms;
+     * SearchKit's header search shows the same rows in its "Manual" group.
      */
     #[Route('/{_locale}/manual-search', name: 'demo_manual_search', requirements: ['_locale' => self::LOCALE], methods: ['GET'])]
-    public function manualSearch(Request $request, ManualSearchProvider $provider): Response
+    public function manualSearch(Request $request, ManualSearch $search): Response
     {
         $user = $this->getUser();
         if (null === $user) {
             return $this->redirectToRoute('demo_login', ['_locale' => $request->getLocale()]);
         }
         $text  = mb_substr(trim($request->query->getString('q')), 0, 100);
-        $group = '' === $text ? null : $provider->search(new SearchQuery($text, $user, 20));
+        $result = $search->search($text, 20);
 
         $form = $this->createForm(ManualSearchType::class, null, [
             'action' => $this->generateUrl('demo_manual_search', ['_locale' => $request->getLocale()]),
             'query'  => $text,
         ]);
 
-        return $this->render('demo/search.html.twig', ['q' => $text, 'items' => $group?->items ?? [], 'search_form' => $form]);
+        return $this->render('demo/search.html.twig', ['q' => $text, 'items' => $result?->hits ?? [], 'search_form' => $form]);
     }
 
     #[Route('/logout', name: 'demo_logout', methods: ['GET'])]

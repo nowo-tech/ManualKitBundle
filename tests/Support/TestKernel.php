@@ -8,6 +8,8 @@ use Nowo\ManualKitBundle\Catalog\ManualCatalog;
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
 use Nowo\ManualKitBundle\NowoManualKitBundle;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
+use Nowo\ManualKitBundle\Search\ManualSearch;
+use Nowo\ManualKitBundle\Search\ManualSynonymsInterface;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
 use Nowo\ManualKitBundle\Security\ManualChapterAccessCheckerInterface;
 use Psr\Log\NullLogger;
@@ -127,6 +129,10 @@ final class TestKernel extends Kernel
             'app_current' => ['path' => 'manual/setup.md#overview', 'testid' => null],
             'app_nested'  => ['path' => 'manual/setup/deploy.md', 'testid' => null],
         ]]);
+        // 1.15: a host synonym port for the manual's own search (ManualSearch), without SearchKit.
+        $container->services()->set('test.manual_synonyms', HostManualSynonyms::class);
+        $container->services()->alias(ManualSynonymsInterface::class, 'test.manual_synonyms');
+        $container->services()->alias('test.manual_search', ManualSearch::class)->public();
         // 1.9: a host machine translator for `provider: service`.
         $container->services()->set('test.machine_translator', UppercaseMachineTranslator::class)->public();
         if (isset($this->manualConfig['machine_translation'])) {
