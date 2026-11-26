@@ -7,60 +7,88 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ## Table of contents
 
 - [[Unreleased]](#unreleased)
+  - [Added](#added)
+  - [Changed](#changed)
 - [[1.14.1] - 2026-11-26](#1141---2026-11-26)
   - [Fixed](#fixed)
 - [[1.14.0] - 2026-11-23](#1140---2026-11-23)
-  - [Added](#added)
-- [[1.13.0] - 2026-11-21](#1130---2026-11-21)
   - [Added](#added-1)
-  - [Changed](#changed)
+- [[1.13.0] - 2026-11-21](#1130---2026-11-21)
+  - [Added](#added-2)
+  - [Changed](#changed-1)
   - [Tests](#tests)
 - [[1.12.1] - 2026-11-17](#1121---2026-11-17)
   - [Fixed](#fixed-1)
 - [[1.12.0] - 2026-11-17](#1120---2026-11-17)
-  - [Added](#added-2)
+  - [Added](#added-3)
   - [Tests](#tests-1)
 - [[1.11.0] - 2026-11-17](#1110---2026-11-17)
-  - [Added](#added-3)
+  - [Added](#added-4)
   - [Tests](#tests-2)
   - [Fixed](#fixed-2)
-  - [Changed](#changed-1)
+  - [Changed](#changed-2)
   - [Documentation](#documentation)
 - [[1.10.0] - 2026-11-13](#1100---2026-11-13)
-  - [Added](#added-4)
-  - [Changed](#changed-2)
-  - [Tests](#tests-3)
-- [[1.9.0] - 2026-11-10](#190---2026-11-10)
   - [Added](#added-5)
   - [Changed](#changed-3)
-- [[1.8.0] - 2026-11-08](#180---2026-11-08)
+  - [Tests](#tests-3)
+- [[1.9.0] - 2026-11-10](#190---2026-11-10)
   - [Added](#added-6)
-- [[1.7.0] - 2026-11-07](#170---2026-11-07)
   - [Changed](#changed-4)
-- [[1.6.0] - 2026-11-02](#160---2026-11-02)
+- [[1.8.0] - 2026-11-08](#180---2026-11-08)
   - [Added](#added-7)
+- [[1.7.0] - 2026-11-07](#170---2026-11-07)
+  - [Changed](#changed-5)
+- [[1.6.0] - 2026-11-02](#160---2026-11-02)
+  - [Added](#added-8)
 - [[1.5.1] - 2026-10-30](#151---2026-10-30)
   - [Fixed](#fixed-3)
 - [[1.5.0] - 2026-10-29](#150---2026-10-29)
-  - [Added](#added-8)
-  - [Changed](#changed-5)
+  - [Added](#added-9)
+  - [Changed](#changed-6)
 - [[1.4.0] - 2026-10-28](#140---2026-10-28)
   - [Security](#security)
-  - [Changed](#changed-6)
-- [[1.3.0] - 2026-10-23](#130---2026-10-23)
-  - [Added](#added-9)
   - [Changed](#changed-7)
-- [[1.2.0] - 2026-10-23](#120---2026-10-23)
+- [[1.3.0] - 2026-10-23](#130---2026-10-23)
   - [Added](#added-10)
+  - [Changed](#changed-8)
+- [[1.2.0] - 2026-10-23](#120---2026-10-23)
+  - [Added](#added-11)
   - [Fixed](#fixed-4)
 - [[1.1.0] - 2026-10-23](#110---2026-10-23)
-  - [Added](#added-11)
+  - [Added](#added-12)
 - [[1.0.1] - 2026-10-23](#101---2026-10-23)
   - [Fixed](#fixed-5)
 - [[1.0.0] - 2026-10-23](#100---2026-10-23)
-  - [Added](#added-12)
+  - [Added](#added-13)
 
 ## [Unreleased]
+
+### Added
+
+- **Synonyms in the manual search** (Beacon spec 240 FR-037b). The SearchKit "Manual" group now matches the query
+  through `SearchQuery::terms()` — the typed text and the synonym alternatives SearchKit's engine builds when its
+  synonyms are on — instead of the typed text alone. Every word of at least one alternative must occur in the title or
+  the tags (case and accents ignored, as before).
+- `Search\ManualSearch`: the manual search as a service of its own, **usable without SearchKit** (the manual's own
+  search box): `search(text, limit)` adds the alternatives of an optional `Search\ManualSynonymsInterface`, `find(texts,
+  limit)` matches given alternatives (at most `ManualSearch::MAX_TEXTS` = 25). Results are `ManualSearchResult`
+  (`hits`, `total`) of `ManualSearchHit` (`title`, `url`, `subtitle`, `icon`, `section`). `ManualSearchProvider`
+  delegates to it (constructor unchanged).
+- `Search\ManualSynonymsInterface` (`alternatives(text, ?locale): list<string>`), ManualKit's own port; alias it to
+  your service, or let `Search\SearchKitManualSynonyms` back it: with SearchKit registered and
+  `nowo_search_kit.synonyms.enabled` on (and no host alias), `DependencyInjection\Compiler\ManualSynonymsPass` wires
+  SearchKit's `SynonymExpander` (its providers, locales and `max_terms`).
+- `ManualSearchText::matchesAny()`, `words()` and `matchesWords()` (the query alternatives are folded once per search).
+
+### Changed
+
+- Access rules are unchanged: synonyms only widen what matches among the chapters, sections and blocks the reader may
+  already open (root, audiences, the host's per-chapter rule). Tests assert that a synonym finds a section but never an
+  admin chapter or section for a member, also through one kept-alive kernel (FrankenPHP worker mode).
+- `composer.json`: `conflict` with `nowo-tech/search-kit-bundle` `<1.8` (`SearchQuery::terms()` and the synonyms are
+  1.8.0); `require-dev` / `suggest` `^1.8`.
+- Demo: the manual search page uses `ManualSearch` (no SearchKit query object).
 
 ## [1.14.1] - 2026-11-26
 

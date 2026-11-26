@@ -5,31 +5,21 @@ declare(strict_types=1);
 namespace Nowo\ManualKitBundle\Search;
 
 use Nowo\ManualKitBundle\Audience\ManualAudiences;
-use Nowo\ManualKitBundle\Audience\ManualReader;
-use Nowo\ManualKitBundle\Audience\ManualReaderResolver;
 use Nowo\ManualKitBundle\Audience\ManualReaderResolverInterface;
-use Nowo\ManualKitBundle\Audience\ManualRoot;
 use Nowo\ManualKitBundle\Audience\ManualRootResolver;
 use Nowo\ManualKitBundle\Catalog\ManualCatalogInterface;
-use Nowo\ManualKitBundle\Model\ManualChapter;
-use Nowo\ManualKitBundle\Render\DeviceViews;
 use Nowo\ManualKitBundle\Render\ManualRendererInterface;
-use Nowo\ManualKitBundle\Render\ReaderRendering;
-use Nowo\ManualKitBundle\Routing\ManualRoutes;
 use Nowo\ManualKitBundle\Security\ManualAccessInterface;
-use Nowo\ManualKitBundle\Security\ReadableChapters;
 use Nowo\SearchKitBundle\Contract\SearchProviderInterface;
 use Nowo\SearchKitBundle\Model\SearchGroup;
 use Nowo\SearchKitBundle\Model\SearchItem;
 use Nowo\SearchKitBundle\Model\SearchQuery;
+use Nowo\SearchKitBundle\Model\SearchTerm;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
-use function array_filter;
-use function array_slice;
-use function array_values;
-use function count;
+use function array_map;
 
 /**
  * SearchKit group "Manual" (registered only when nowo-tech/search-kit-bundle is installed): the chapters and their
@@ -43,25 +33,32 @@ use function count;
  * or audiences, and the sections of blocks the reader may not see, never match, so neither their titles nor their
  * URLs leave the server.
  *
+ * 1.15: the query matches through its synonym alternatives too — `SearchQuery::terms()`, which SearchKit's engine fills
+ * when its synonyms are on (the typed text alone otherwise) — with the same access rules. The matching itself is
+ * {@see ManualSearch}, which the manual's own search box can use without SearchKit.
+ *
  * @author Héctor Franco Aceituno <hectorfranco@nowo.tech>
  * @copyright 2026 Nowo.tech
  */
 final readonly class ManualSearchProvider implements SearchProviderInterface
 {
+    private ManualSearch $search;
+
     /**
      * Receives the services used to search the manual chapters the current user can read.
      */
     public function __construct(
-        private ManualCatalogInterface $catalog,
-        private ManualRendererInterface $renderer,
-        private ManualAccessInterface $access,
-        private UrlGeneratorInterface $urls,
+        ManualCatalogInterface $catalog,
+        ManualRendererInterface $renderer,
+        ManualAccessInterface $access,
+        UrlGeneratorInterface $urls,
         private TranslatorInterface $translator,
-        private RequestStack $requests,
-        private ManualAudiences $audiences = new ManualAudiences(),
-        private ?ManualReaderResolverInterface $readers = null,
-        private ManualRootResolver $roots = new ManualRootResolver(),
+        RequestStack $requests,
+        ManualAudiences $audiences = new ManualAudiences(),
+        ?ManualReaderResolverInterface $readers = null,
+        ManualRootResolver $roots = new ManualRootResolver(),
     ) {
+        $this->search = new ManualSearch($catalog, $renderer, $access, $urls, $translator, $requests, $audiences, $readers, $roots);
     }
 
     /**
@@ -69,41 +66,13 @@ final readonly class ManualSearchProvider implements SearchProviderInterface
      */
     public function search(SearchQuery $query): ?SearchGroup
     {
-        $request = $this->requests->getCurrentRequest();
-        $root    = $this->roots->resolve($request);
-        $reader  = $root instanceof ManualRoot ? ($this->readers ?? new ManualReaderResolver($this->access, $this->audiences))->reader($root) : null;
-        if (!$root instanceof ManualRoot || !$reader instanceof ManualReader) {
+        $texts  = array_map(static fn (SearchTerm $term): string => $term->text, $query->terms());
+        $result = $this->search->find($texts, $query->limit);
+        if (!$result instanceof ManualSearchResult) {
             return null;
         }
-        $locale = $request?->getLocale();
+        $items = array_map(static fn (ManualSearchHit $hit): SearchItem => new SearchItem($hit->title, $hit->url, $hit->subtitle, $hit->icon), $result->hits);
 
-        $chapters = [];
-        $sections = [];
-        // 1.13: the chapters of the root the reader may see by audience; 1.9: then the host's per-chapter rule.
-        $visible = array_values(array_filter($this->catalog->all($locale), fn (ManualChapter $chapter): bool => $this->audiences->canSee($chapter, $reader)));
-        foreach (ReadableChapters::filter($visible, $visible, $this->access) as $chapter) {
-            $url = ManualRoutes::generate($this->urls, $chapter, [], $root);
-            // 1.6: a nested chapter reads "Parent › Child" (its own title and tags are what match).
-            $title = $chapter->trailTitle();
-            if (ManualSearchText::matches($query->text, $chapter->title, $chapter->tags)) {
-                $chapters[] = new SearchItem($title, $url, $this->groupLabel($chapter), 'tabler:book');
-            }
-            $rendered = ReaderRendering::render($this->renderer, $chapter, $reader);
-            foreach ($rendered->toc as $entry) {
-                if (ManualSearchText::matches($query->text, $entry['text'], $entry['tags'])) {
-                    // 1.12: a section of one view (desktop / phone) opens that view.
-                    $target     = isset($entry['device']) && DeviceViews::isDevice($entry['device']) ? ManualRoutes::generate($this->urls, $chapter, [DeviceViews::QUERY => $entry['device']], $root) : $url;
-                    $sections[] = new SearchItem($entry['text'], $target . '#' . $entry['id'], $title, 'tabler:section');
-                }
-            }
-        }
-        $items = array_slice([...$chapters, ...$sections], 0, $query->limit);
-
-        return $items === [] ? null : new SearchGroup('manual', $this->translator->trans('search.group', [], 'NowoManualKitBundle'), $items, count($chapters) + count($sections));
-    }
-
-    private function groupLabel(ManualChapter $chapter): string
-    {
-        return $this->translator->trans('title', [], 'NowoManualKitBundle') . ' · ' . $this->translator->trans('group.' . $chapter->group, [], 'NowoManualKitBundle');
+        return new SearchGroup('manual', $this->translator->trans('search.group', [], 'NowoManualKitBundle'), $items, $result->total);
     }
 }
