@@ -15,7 +15,7 @@
 
 ## Requirements
 
-- PHP `>=8.4 <8.6`. The floor is **8.4**, above the Nowo minimum of 8.2 (REQ-SF-001): the bundle uses `new Foo()->bar()`
+- PHP `>=8.4 <8.7`. The floor is **8.4**, above the Nowo minimum of 8.2 (REQ-SF-001): the bundle uses `new Foo()->bar()`
   without parentheses, typed class constants and the `Dom\HTMLDocument` HTML5 parser, which are PHP 8.4 features.
   Rector (`withPhpVersion(PHP_84)`) targets the same floor.
 - Symfony 7.4, 8.0 or 8.1+: FrameworkBundle, TwigBundle, security-core (an authorisation checker: SecurityBundle in
