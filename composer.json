@@ -37,7 +37,7 @@
         "changelog": "https://github.com/nowo-tech/ManualKitBundle/blob/main/docs/CHANGELOG.md"
     },
     "require": {
-        "php": ">=8.4 <8.6",
+        "php": ">=8.4 <8.7",
         "league/commonmark": "^2.6",
         "psr/log": "^1.1 || ^2.0 || ^3.0",
         "symfony/asset": "^7.4 || ^8.0",

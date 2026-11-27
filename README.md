@@ -120,7 +120,7 @@ writing and translating the manual, templates, lightbox, search, commands: [docs
 
 ## Requirements
 
-- PHP `>=8.4 <8.6`
+- PHP `>=8.4 <8.7`
 - Symfony 7.4, 8.0, and 8.1+
 - FrameworkBundle, TwigBundle, SecurityBundle (security-core), Asset, HtmlSanitizer, Yaml, `league/commonmark` ^2.6
 - Optional: `nowo-tech/search-kit-bundle` ^1.1 (Manual group in the header search), `@hotwired/stimulus` in the
